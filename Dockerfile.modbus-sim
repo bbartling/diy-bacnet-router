@@ -1,0 +1,9 @@
+# Minimal sidecar: rusty-modbus CLI server on :5502
+FROM rust:1.95-bookworm AS build
+RUN git clone --depth 1 --branch dev https://github.com/jscott3201/rusty-modbus.git /src
+WORKDIR /src
+RUN cargo build --release -p rusty-modbus-cli
+FROM debian:bookworm-slim
+COPY --from=build /src/target/release/modbus /usr/local/bin/modbus
+EXPOSE 5502/tcp
+ENTRYPOINT ["modbus"]

@@ -1,0 +1,10 @@
+Name,PointType,Units,Commandable,Default,Instance
+OA-WEATHER-T,AV,degreesFahrenheit,N,70.0,1
+OA-WEATHER-RH,AV,percent,N,50.0,2
+OA-WEATHER-WIND,AV,milesPerHour,N,0.0,3
+OA-WEATHER-DP,AV,degreesFahrenheit,N,55.0,4
+OA-WEATHER-LOC,CSV,,N,Madison Wisconsin,5
+APP-FAULT,BV,,N,inactive,1
+openfdd-active-fault-count,AV,noUnits,N,0.0,9003
+openfdd-faults-present,BV,,N,inactive,9004
+openfdd-optimization-enabled,BV,,Y,inactive,9010

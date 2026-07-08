@@ -1,311 +1,134 @@
-## diy-bacnet-server
+# DIY BACnet Server (Rust)
 
-[![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2.svg?logo=discord&logoColor=white)](https://discord.gg/Ta48yQF8fC)
-[![CI](https://github.com/bbartling/diy-bacnet-server/actions/workflows/ci.yml/badge.svg)](https://github.com/bbartling/diy-bacnet-server/actions/workflows/ci.yml)
-![MIT License](https://img.shields.io/badge/license-MIT-green.svg)
-![Development Status](https://img.shields.io/badge/status-Beta-blue.svg)
-![Python](https://img.shields.io/badge/Python-3.12%2B-blue?logo=python&logoColor=white)
+A turnkey **FastAPI + Swagger** building-automation gateway where **Python is only
+the web layer** and every protocol stack is **Rust via PyO3**. This is the
+Rust-backed rewrite of the original bacpypes3 `diy-bacnet-server` — bacpypes3,
+pyModbusTCP, and the MQTT/JSON-RPC layers have been **removed entirely** in favor
+of a clean REST surface over:
 
-Lightweight BACnet/IP + JSON-RPC edge microservice for Docker-based deployments, including optional Modbus TCP client features.
+- **rusty-bacnet** — hosts the BACnet server device (**599999**) on UDP `:47808`
+  with Open-Meteo weather AVs (20-min refresh) + FDD diagnostic points, **and**
+  provides the full BACnet client toolkit.
+- **rusty-modbus** — Modbus TCP read API.
+- **rusty-haystack** — read-only Haystack client (SCRAM).
 
+## Why the rewrite
 
-## Quick Start
+The legacy server ran its hosted device **and** its client on one shared
+bacpypes3 `Application`. That is exactly what produces the Who-Is storms and the
+"discovery returns 0 devices" failures seen in mixed poll/scan deployments (two
+consumers fighting over UDP `:47808`). The Rust stack separates the hosted
+server (bound to `0.0.0.0:47808` so it hears broadcast Who-Is) from client
+operations (Who-Is on `:47808`, unicast reads on ephemeral ports), eliminating
+the conflict.
 
-This app uses bacpypes3 CLI-style arguments to configure a BACnet server (`--name`, `--instance`, `--address`), similar to running commands directly in the bacpypes3 shell. 
-
-### BACnet Shell Reference
-
-This is a mini tutorial for bacpypes3, which is great for troubleshooting and serves as a useful step for testing deployments before moving on to the DIY BACnet server application.
-
-```bash
-# Create virtual environment
-python -m venv env
-
-# Activate (Linux / macOS)
-. env/bin/activate
-
-# Install dependencies
-pip install bacpypes3 ifaddr
-```
-
-### Run bacpypes3 Test Instance
-
-The bacpypes3 library supports a shell mode out of the box, as shown directly below. Further down, we’ll cover setup for the full-featured DIY BACnet server, which includes a web app powered by FastAPI and supports easy Docker deployments.
-
+## Quick start (local dev, Python 3.12+)
 
 ```bash
-python -m bacpypes3 \
-  --name BensRawBacpypes3Test \
-  --address 192.168.204.12/24 \
-  --instance 123456 \
-  --debug
+cd /home/ben/diy-bacnet-server
+python3 -m venv .venv && . .venv/bin/activate
+pip install -e . rusty-bacnet rusty-haystack
+chmod +x scripts/*.sh
+./scripts/run_dev.sh
+# Swagger: http://127.0.0.1:8080/docs
 ```
 
-This will start a basic BACnet device on your network for testing discovery (`whois`) and communication.
+`scripts/preflight_free_47808.sh` stops conflicting containers (e.g. Open-FDD)
+and frees `:47808` before bind.
 
+> `rusty-modbus` currently ships a Python 3.14 wheel. On 3.12 the app boots and
+> all BACnet/weather/Haystack routes work; `/modbus/*` returns a clear error
+> until the wheel (or the Docker image) is available.
 
-When running the bacpypes3 module interactively:
-```bash
-> help
-commands: config, exit, help, iam, ihave, irt, rbdt, read, rfdt, rpm, wbdt, whohas, whois, wirtn, write
-```
-
-#### Example: Device Discovery (`whois`)
-
-
-> **NOTE:** If the step below does not work, the entire web application framework will not function. This step is critical.
-> The `whois` command also accepts a range of BACnet instance IDs. For example: `> whois 1 100`.
-
+## Docker (Python 3.14 + all three Rust wheels)
 
 ```bash
-> whois
+cd /home/ben
+cp diy-bacnet-server/.env.example diy-bacnet-server/.env
+docker compose -f diy-bacnet-server/docker-compose.yml build
+docker compose -f diy-bacnet-server/docker-compose.yml up -d
 ```
 
-Example output (trimmed):
+## API (Bearer `RUSTY_GATEWAY_API_KEY` when set)
 
-```
-3456788 192.168.204.16
-3456789 192.168.204.13
-3456790 192.168.204.14
-```
+Full 1:1 parity with the original `client_utils.py`, on the Rust stack.
 
-#### Common Commands
+**BACnet client (field bus)**
+
+| Method | Path | Legacy equivalent |
+|--------|------|-------------------|
+| POST | `/bacnet/read` | `bacnet_read` |
+| POST | `/bacnet/write` | `bacnet_write` (priority + null release) |
+| POST | `/bacnet/rpm` | `bacnet_rpm` |
+| POST | `/bacnet/whois` | `perform_who_is` |
+| POST | `/bacnet/whois-router` | `perform_who_is_router_to_network` |
+| POST | `/bacnet/discover` | `point_discovery` (object-list + commandable scan) |
+| POST | `/bacnet/priority-array` | `read_point_priority_arr` (16 slots) |
+| POST | `/bacnet/supervisory` | `supervisory_logic_check` (override audit) |
+| GET | `/bacnet/points` | configured field-device catalog |
+
+**BACnet server (hosted device 599999)**
+
+| Method | Path | Legacy equivalent |
+|--------|------|-------------------|
+| GET | `/bacnet/server/objects` | `server_read_all_values` |
+| GET | `/bacnet/server/commandable` | `server_read_commandable` |
+| POST | `/bacnet/server/update` | `server_update_points` |
+
+**Weather / Modbus / Haystack**
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/weather` | Open-Meteo cache + BACnet mirror status |
+| POST | `/weather/refresh` | Force weather poll |
+| POST | `/modbus/read` | Modbus TCP batch read (rusty_modbus) |
+| GET | `/haystack/about` | Haystack about |
+| POST | `/haystack/read` | Haystack read (read-only) |
+| POST | `/haystack/nav` | Haystack nav |
+| POST | `/haystack/his-read` | Haystack hisRead |
+| GET | `/health` | Liveness |
+
+> **Removed vs. legacy:** the MQTT command/ack gateway and JSON-RPC transport are
+> gone (REST + Swagger only). Schedule read/update is not exposed — the current
+> `rusty_bacnet` PyO3 surface has no weekly-`TimeValue` constructor, so it cannot
+> be matched 1:1 yet.
+
+### Write / release example
 
 ```bash
-# Discover devices in a range
-whois 1000 3456799
+# Override analog-value 1 to 55.0 at priority 8
+curl -X POST http://127.0.0.1:8080/bacnet/write -H "Content-Type: application/json" \
+  -d '{"device_instance":3456790,"object_type":"analog-value","object_instance":1,"value":55.0,"priority":8}'
 
-# Read a point
-read 192.168.204.13 analog-input,1 present-value
-
-# Write a value (priority 9)
-write 192.168.204.14 analog-output,1 present-value 999.8 9
-
-# Release a command (null write)
-write 192.168.204.14 analog-output,1 present-value null 9
+# Release that override (write Null @ priority 8)
+curl -X POST http://127.0.0.1:8080/bacnet/write -H "Content-Type: application/json" \
+  -d '{"device_instance":3456790,"object_type":"analog-value","object_instance":1,"value":null,"priority":8}'
 ```
 
----
+## Configuration
 
-## Server Flags
+- `config/objects.csv` — hosted server point catalog (Name, PointType, Units, Commandable, Default, Instance).
+- `config/field_devices.toml` — client field devices + points.
+- `config/gateway.toml` — server/client bind + broadcast + timeouts.
 
-The app supports the same flags as bacpypes3:
+The hosted server always binds `0.0.0.0:47808`; the client uses the NIC IP
+(`RUSTY_GATEWAY_BIND`) with a derived directed broadcast.
 
-* `--name` → Device name
-* `--instance` → Device instance ID
-* `--address` → IP/subnet/port (optional)
-* `--public` → Enable LAN HTTP access + `/docs`
+## Bench field devices (`config/field_devices.toml`)
 
-> Tip: Omit `--address` when a single NIC is sufficient.
+- **5007** @ 192.168.204.200 (MSTP net 2000, via BASRT-B router) — AI:1173 OA-T
+- **3456789** @ 192.168.204.13 — AI:2 SA-T
+- **3456790** @ 192.168.204.14 — AI:1 ZoneTemp + commandable AV/AO
 
----
+## Security
 
-## Python (Local Setup) diy-bacnet-server
+Optional `RUSTY_GATEWAY_API_KEY` enables Bearer middleware; Swagger `/docs`
+stays reachable with **Authorize** for Try-it-out.
 
-This example sets up the `diy-bacnet-server` server locally and generates a Bearer token via a `.env` file.
+## Tests
 
 ```bash
-git clone https://github.com/bbartling/diy-bacnet-server.git
-cd diy-bacnet-server
-
-python3 -m venv .venv
-. .venv/bin/activate
-
-pip install -e ".[dev]"
-
-# Create API key
-printf 'BACNET_RPC_API_KEY=%s\n' "$(openssl rand -hex 32)" > .env
-
-# Load environment variables
-set -a && . ./.env && set +a
-
-# Run server
-python -m bacpypes_server.main \
-  --name my-device \
-  --instance 123456 \
-  --address 192.168.204.18/24:47808 \
-  --public \
-  --debug
+pip install -e ".[dev]" rusty-bacnet rusty-haystack
+pytest tests/unit -q
+pytest tests/integration -m integration -q   # needs bench + :47808 free
 ```
-
----
-
-## Accessing the API
-
-With `--public` enabled:
-
-* Open API docs:
-
-  ```
-  http://127.0.0.1:8080/docs
-  ```
-
-  (or use the host’s LAN IP from another machine)
-
-### Authentication
-
-* `POST /server_hello` → No auth required
-* All other JSON-RPC endpoints → Require Bearer token (if API key is set)
-
----
-
-## Notes
-
-* Ensure UDP port **47808** is open for BACnet discovery (Who-Is / I-Am).
-* The `.env` file is optional for local, unsecured loopback testing.
-* Behavior should match standard bacpypes3 discovery and communication patterns.
-
-### Common Gotcha: Firewall (Same Story as BACnet)
-
-The most common issue is firewall configuration.
-
-You may already have UDP `47808` open for BACnet, but the HTTP API (JSON-RPC / Swagger) runs on **TCP 8080**. This can cause a confusing situation where:
-
-* `curl` or browser **works locally on the server**
-* but **fails from another machine on the LAN**
-
-#### Fix (UFW examples)
-
-Allow port 8080:
-
-```bash
-sudo ufw allow in on enp3s0 to any port 8080 proto tcp comment 'diy-bacnet HTTP'
-```
-
-Or more broadly:
-
-```bash
-sudo ufw allow 8080/tcp
-```
-
-Verify:
-
-```bash
-sudo ufw status numbered
-```
-
-#### Test from another machine on the LAN
-
-```bash
-curl -sS -o /dev/null -w '%{http_code}\n' http://192.168.204.18:8080/docs
-```
-
-Expected result:
-
-```
-200
-```
-
-If you don’t see `200`, it’s almost always a firewall or network interface binding issue.
-
----
-
-
-## Docker diy-bacnet-server (Long-Running BACnet Deployment)
-
-`--network host` is required for BACnet/IP so UDP broadcasts (port `47808`) work correctly on the LAN.
-
-```bash
-git clone https://github.com/bbartling/diy-bacnet-server.git
-cd diy-bacnet-server
-printf 'BACNET_RPC_API_KEY=%s\n' "$(openssl rand -hex 32)" > .env
-docker build -t diy-bacnet-server .
-
-docker run -d \
-  --network host \
-  --restart unless-stopped \
-  --env-file .env \
-  --name diy-bacnet-gateway \
-  diy-bacnet-server \
-  python3 -u -m bacpypes_server.main \
-  --name asdf \
-  --instance 123456 \
-  --address 192.168.204.18/24:47808 \
-  --public
-```
-
-Swagger **Authorize** uses the same `BACNET_RPC_API_KEY` from `.env`.
-
----
-
-## Quick Ops
-
-**Logs**
-
-```bash
-docker logs -f diy-bacnet-gateway
-```
-
-**Stop**
-
-```bash
-docker stop diy-bacnet-gateway
-```
-
-**Start**
-
-```bash
-docker start diy-bacnet-gateway
-```
-
-**Restart**
-
-```bash
-docker restart diy-bacnet-gateway
-```
-
-**Remove (fresh rebuild)**
-
-```bash
-docker rm -f diy-bacnet-gateway
-```
-
-Swagger **Authorize** uses the same `BACNET_RPC_API_KEY` value as in that file.
-
----
-
-## Online Documentation
-
-This application is part of a broader ecosystem that together forms the **Open FDD AFDD Stack**, enabling a fully orchestrated, edge-deployable analytics and optimization platform for building automation systems.
-
-* 🔗 **DIY BACnet Server**
-  Lightweight BACnet server with JSON-RPC and MQTT support for IoT integrations.
-  [Documentation](https://bbartling.github.io/diy-bacnet-server/) · [GitHub](https://github.com/bbartling/diy-bacnet-server)
-
-* 📖 **Open FDD AFDD Stack**
-  Full AFDD framework with Docker bootstrap, API services, drivers, and React web UI.
-  [Documentation](https://bbartling.github.io/open-fdd-afdd-stack/) · [GitHub](https://github.com/bbartling/open-fdd-afdd-stack)
-
-* 📘 **Open FDD Fault Detection Engine**
-  Core rules engine with `RuleRunner`, YAML-based fault logic, and pandas workflows.
-  [Documentation](https://bbartling.github.io/open-fdd/) · [GitHub](https://github.com/bbartling/open-fdd) · [PyPI](https://pypi.org/project/open-fdd/)
-
-* ⚙️ **easy-aso Framework**
-  Lightweight framework for Automated Supervisory Optimization (ASO) algorithms at the IoT edge.
-  [Documentation](https://bbartling.github.io/easy-aso/) · [GitHub](https://github.com/bbartling/easy-aso) · [PyPI](https://pypi.org/project/easy-aso/0.1.7/)
-
-
----
-
-
-## Dependencies
-
-* Python 3.12+
-* `bacpypes3`
-* `ifaddr`
-* `fastapi-jsonrpc`
-* `uvicorn`
-* `requests`
-* `httpx`
-* `aiomqtt`
-* `pyModbusTCP>=0.2.0`
-* `pip` + virtual environment tooling (`python3 -m venv`)
-* Docker (for container runs; use `--network host` for BACnet/IP behavior)
-* OpenSSL (optional, used in examples to generate `BACNET_RPC_API_KEY`)
-
----
-
-
-## License
-
-MIT

@@ -1,1 +1,1 @@
-# diy-bacnet-server tests package
+"""Unit tests."""

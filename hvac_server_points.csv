@@ -1,6 +1,0 @@
-Name,PointType,Units,Commandable,Default,Instance,CovIncrement
-optimization-enable,BV,Status,Y,active,1,
-occupancy-schedule,Schedule,Status,N,0,1,
-web-weather-dry-bulb,AV,degreesFahrenheit,N,22.0,1,0.5
-web-weather-relative-humidity,AV,percent,N,45.0,2,0.5
-web-weather-dew-point,AV,degreesFahrenheit,N,12.0,3,0.5

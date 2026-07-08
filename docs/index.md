@@ -1,56 +1,51 @@
 ---
 title: Home
 nav_order: 1
-description: "BACnet/IP + JSON-RPC edge gateway; CSV-hosted points, client operations, optional Modbus and MQTT."
+description: "Rust-backed BACnet/IP + REST edge gateway; CSV-hosted points, full BACnet client operations, Modbus and Haystack."
 permalink: /
 ---
 
-# DIY BACnet Server
+# DIY BACnet Server (Rust)
 
 {: .fs-6 .fw-300 }
-Single-process **BACnet/IP** device and **JSON-RPC** HTTP API for lab and edge: CSV point table, BACnet **client** to field devices, optional **Modbus TCP** and **MQTT**.
+Single-process **BACnet/IP** device and **REST + Swagger** HTTP API for lab and edge.
+Python is only the web layer; BACnet, Modbus, and Haystack all run on Rust
+(**rusty-bacnet**, **rusty-modbus**, **rusty-haystack**) via PyO3. CSV point table,
+full BACnet **client** toolkit (read/write/RPM/Who-Is/discover/priority-array/supervisory).
 
 ---
 
-## Quick start
+## Quick start (Python 3.12+)
 
-**Repository root** holds one optional gitignored **`.env`** with `BACNET_RPC_API_KEY=…` (Bearer for JSON-RPC and Swagger **Authorize**). Same file for Python and Docker (`--env-file .env`). Do not run `git clone` from inside an existing clone.
-
-### Python (local)
+Optional gitignored **`.env`** with `RUSTY_GATEWAY_API_KEY=…` (Bearer for the API
+and Swagger **Authorize**).
 
 ```bash
-git clone https://github.com/bbartling/diy-bacnet-server.git
 cd diy-bacnet-server
 python3 -m venv .venv && . .venv/bin/activate
-pip install -e ".[dev]"
-printf 'BACNET_RPC_API_KEY=%s\n' "$(openssl rand -hex 32)" > .env
-set -a && . ./.env && set +a
-python -m bacpypes_server.main --name asdf --instance 123456 --address 192.168.204.18/24:47808 --public --debug
+pip install -e . rusty-bacnet rusty-haystack
+./scripts/run_dev.sh
+# Swagger: http://127.0.0.1:8080/docs
 ```
 
 ### Docker
 
-`--network host` uses the host network stack so BACnet/IP (UDP **47808**) matches bare metal. From another PC use **`http://<LAN-IP>:8080`** and allow **TCP 8080** (and UDP 47808) through the host firewall if needed.
+`--network host` gives BACnet/IP (UDP **47808**) bare-metal semantics.
 
 ```bash
-git clone https://github.com/bbartling/diy-bacnet-server.git
-cd diy-bacnet-server
-printf 'BACNET_RPC_API_KEY=%s\n' "$(openssl rand -hex 32)" > .env
-docker build -t diy-bacnet-server .
-docker run --rm -it --network host --env-file .env --name diy-bacnet-gateway diy-bacnet-server \
-  python3 -u -m bacpypes_server.main \
-  --name asdf --instance 123456 --address 192.168.204.18/24:47808 --public --debug
+cd ..   # parent with rusty-bacnet / rusty-haystack siblings
+docker compose -f diy-bacnet-server/docker-compose.yml up -d --build
 ```
 
 ---
 
-## Endpoints (typical)
+## Endpoints
 
 | What | URL | Notes |
 |------|-----|--------|
-| **Swagger / OpenAPI** | `http://<host>:8080/docs` | On by default with **`--public`** from `bacpypes_server.main`; override with `BACNET_ENABLE_OPENAPI_DOCS`. |
-| **JSON-RPC** | `POST http://<host>:8080/<method>` | With `BACNET_RPC_API_KEY` set, send `Authorization: Bearer` except exempt paths (see [JSON-RPC](json-rpc)). |
-| **BACnet/IP** | UDP **47808** | Same process as HTTP; use **`--address`** when multi-homed. |
+| **Swagger / OpenAPI** | `http://<host>:8080/docs` | On by default; disable with `RUSTY_GATEWAY_OPENAPI=0`. |
+| **REST API** | `http://<host>:8080/bacnet/*`, `/weather`, `/modbus/*`, `/haystack/*` | Bearer `RUSTY_GATEWAY_API_KEY` when set. |
+| **BACnet/IP** | UDP **47808** | Hosted device 599999; same process as HTTP. |
 
 ---
 
@@ -58,21 +53,20 @@ docker run --rm -it --network host --env-file .env --name diy-bacnet-gateway diy
 
 | Section | Description |
 |---------|---------------|
-| [Getting started](getting-started) | Clone, venv, `.env`, Docker, verify HTTP, firewall, and raw bacpypes3 troubleshooting |
-| [BACpypes3 CLI](bacpypes3-cli) | `--name`, `--instance`, `--address`, `--public`, upstream flags |
-| [CSV point model](csv-points) | Root CSV, types, commandable points |
-| [JSON-RPC](json-rpc) | Paths, Bearer, params shapes |
-| [Server RPC](server-rpc) | `server_*` methods |
-| [Client BACnet](client-bacnet) | `client_*` methods |
-| [Modbus TCP](modbus-tcp) | `POST /modbus/read_registers` |
-| [MQTT](mqtt) | BACnet2MQTT, MQTT RPC gateway |
+| [Getting started](getting-started) | venv, `.env`, Docker, verify HTTP, firewall |
+| [CSV point model](csv-points) | Hosted point table, types, commandable points |
+| [Client BACnet](client-bacnet) | Client read/write/RPM/Who-Is/discover/priority-array/supervisory |
+| [Modbus TCP](modbus-tcp) | `POST /modbus/read` (rusty-modbus) |
 | [Environment](environment) | Environment variables |
-| [CI & publishing](ci-and-publishing) | Actions, Pages, PDF, tests |
+| [CI & publishing](ci-and-publishing) | Actions, Pages, tests |
+
+See the [README](https://github.com/bbartling/diy-bacnet-server#readme) for the full endpoint table.
 
 ---
 
 ## Philosophy
 
-**BACnet stays in one process.** The same bacpypes3 `Application` hosts CSV objects and performs client work on the OT LAN. Callers use **HTTP + JSON-RPC** (and optionally MQTT); BACnet stays on UDP.
-
-This project is intentionally standalone: use it directly from your own scripts, services, and edge workflows without requiring a specific upstream stack.
+**BACnet stays in one process, on Rust.** The hosted server binds `0.0.0.0:47808`
+(so it hears broadcast Who-Is) while client operations use Who-Is on `:47808`
+and unicast reads on ephemeral ports — no shared-socket contention. Callers use
+**HTTP + REST**; BACnet stays on UDP.

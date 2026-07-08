@@ -1,0 +1,62 @@
+# Build context: parent directory with rusty-bacnet, rusty-haystack, diy-bacnet-server siblings.
+#   docker compose -f diy-bacnet-server/docker-compose.yml build
+#   docker compose -f diy-bacnet-server/docker-compose.yml up -d
+
+services:
+  gateway:
+    build:
+      context: ..
+      dockerfile: diy-bacnet-server/Dockerfile
+    image: diy-bacnet-server:local
+    network_mode: host
+    restart: unless-stopped
+    env_file:
+      - .env.example
+    environment:
+      RUSTY_GATEWAY_BIND: "${RUSTY_GATEWAY_BIND:-192.168.204.55}"
+      RUSTY_GATEWAY_HTTP_PORT: "8080"
+      HAYSTACK_BASE_URL: "http://127.0.0.1:8081"
+      MODBUS_DEFAULT_HOST: "127.0.0.1"
+    volumes:
+      - ./config:/app/config:ro
+    depends_on:
+      - rusty-modbus-sim
+      - rusty-haystack-demo
+
+  rusty-modbus-sim:
+    build:
+      context: ..
+      dockerfile: diy-bacnet-server/Dockerfile.modbus-sim
+    image: rusty-modbus-sim:local
+    network_mode: host
+    restart: unless-stopped
+    command:
+      - modbus
+      - server
+      - --listen
+      - "0.0.0.0:5502"
+      - --holding
+      - "0=0x1234"
+      - --holding
+      - "1=0x00FF"
+      - --input
+      - "0=0xABCD"
+
+  rusty-haystack-demo:
+    build:
+      context: ..
+      dockerfile: diy-bacnet-server/Dockerfile.haystack-demo
+    image: rusty-haystack-demo:local
+    network_mode: host
+    restart: unless-stopped
+    volumes:
+      - ./config/haystack_users.toml:/users.toml:ro
+    command:
+      - serve
+      - --demo
+      - --port
+      - "8081"
+      - --host
+      - "0.0.0.0"
+      - --users
+      - /users.toml
