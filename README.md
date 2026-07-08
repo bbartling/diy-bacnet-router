@@ -78,9 +78,16 @@ docker compose -f diy-bacnet-server/docker-compose.yml up -d --build
 
 | Method | Path | Description |
 |--------|------|-------------|
-| GET | `/bacnet/server/objects` | Read all hosted point values |
-| GET | `/bacnet/server/commandable` | Read commandable hosted points |
-| POST | `/bacnet/server/update` | Update hosted point present-values |
+| GET | `/bacnet/server/objects` | Read all hosted points (`present_value`, `commandable`, `api_writable`) |
+| GET | `/bacnet/server/commandable` | Read commandable (BACnet-writable) points and their current values |
+| POST | `/bacnet/server/update` | Update **server-owned** points (commandable points are rejected) |
+
+> **Read / write split (no data race).** Commandable points (`Commandable=Y`) are
+> BACnet-writable — a field or supervisory device may command them, so the REST
+> API is **read-only** for them and `/bacnet/server/update` rejects writes to
+> them. Server-owned points (`Commandable=N`: weather, fault counts, status) are
+> the only ones the API may write. Either way, current values are always visible
+> via the read endpoints.
 
 **Weather / Modbus / Haystack**
 

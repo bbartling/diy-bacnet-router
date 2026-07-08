@@ -141,13 +141,19 @@ async def list_server_objects(request: Request):
     return {"ok": True, "objects": await mgr.list_objects()}
 
 
-@router.get("/server/commandable", summary="Server read commandable points")
+@router.get(
+    "/server/commandable",
+    summary="Server read commandable points (BACnet-writable, API read-only)",
+)
 async def list_server_commandable(request: Request):
     mgr = request.app.state.bacnet_server
     return {"ok": True, "objects": await mgr.list_commandable()}
 
 
-@router.post("/server/update", summary="Server update point present-values")
+@router.post(
+    "/server/update",
+    summary="Server update server-owned point values (commandable points are rejected)",
+)
 async def update_server_points(body: ServerUpdatePointsRequest, request: Request):
     mgr = request.app.state.bacnet_server
     try:

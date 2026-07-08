@@ -35,12 +35,32 @@ def _parse_float(s: str, default: float = 0.0) -> float:
 
 
 class BacnetServerManager:
-    """Owns UDP :47808 and mirrors weather/FDD values via write_property_local."""
+    """Owns UDP :47808 and mirrors weather/FDD values via write_property_local.
+
+    Read/write split (prevents a REST-vs-BACnet data race):
+
+    - **Server-owned points** (``Commandable=N``): weather feeds, fault counts,
+      status. These are written by this process (weather loop, FDD updates) and
+      are the only points the REST API may update.
+    - **Commandable points** (``Commandable=Y``): a field or supervisory BACnet
+      device may command these at any time. The REST API is **read-only** for
+      them so an API write can never race a BACnet write. The API can still
+      *observe* whatever a BACnet client wrote via the read endpoints.
+    """
 
     def __init__(self, settings: Settings):
         self.settings = settings
         self._server = None
         self._object_index: dict[tuple[str, int], str] = {}  # (type, inst) -> name
+
+    @staticmethod
+    def api_writable(row: HostedObjectRow) -> bool:
+        """True if the REST API may write this point (server-owned, Commandable=N).
+
+        Commandable points are BACnet-writable and therefore read-only via the
+        API to avoid racing a device that may also be commanding them.
+        """
+        return not row.commandable
 
     @property
     def server(self):
@@ -143,6 +163,8 @@ class BacnetServerManager:
                     "object_type": row.point_type,
                     "instance": row.instance,
                     "units": row.units,
+                    "commandable": bool(row.commandable),
+                    "api_writable": self.api_writable(row),
                     "present_value": value,
                     "tag": tag,
                 }
@@ -150,17 +172,19 @@ class BacnetServerManager:
         return out
 
     async def list_commandable(self) -> list[dict[str, Any]]:
-        """Writable/commandable hosted points (CSV Commandable=Y or writable type)."""
+        """Commandable hosted points (Commandable=Y): BACnet-writable, API read-only.
+
+        Returns present-values so the API can observe whatever a BACnet client
+        last wrote to each point.
+        """
         from rusty_bacnet import PropertyIdentifier
 
-        writable_types = {"AV", "BV", "CSV"}
         out: list[dict[str, Any]] = []
         rows = load_objects_csv(self.settings.objects_csv)
         for row in rows:
-            pt = row.point_type.upper()
-            if not (row.commandable or pt in writable_types):
+            if not row.commandable:
                 continue
-            oid = self._oid(pt, row.instance)
+            oid = self._oid(row.point_type, row.instance)
             try:
                 pv = await self.server.read_property(oid, PropertyIdentifier.PRESENT_VALUE, None)
                 value, tag = pv.value, pv.tag
@@ -171,7 +195,8 @@ class BacnetServerManager:
                     "name": row.name,
                     "object_type": row.point_type,
                     "instance": row.instance,
-                    "commandable": bool(row.commandable),
+                    "commandable": True,
+                    "api_writable": False,
                     "present_value": value,
                     "tag": tag,
                 }
@@ -179,13 +204,20 @@ class BacnetServerManager:
         return out
 
     async def update_points(self, updates: dict[str, Any]) -> dict[str, str]:
-        """Write present-values on hosted points by name (mirrors server_update_points)."""
+        """Write present-values on **server-owned** points by name.
+
+        Commandable points are rejected: they are BACnet-writable, so allowing an
+        API write would race a field/supervisory device commanding the same slot.
+        """
         rows = {r.name: r for r in load_objects_csv(self.settings.objects_csv)}
         result: dict[str, str] = {}
         for name, value in updates.items():
             row = rows.get(name)
             if row is None:
                 result[name] = "not found"
+                continue
+            if not self.api_writable(row):
+                result[name] = "rejected: commandable point is BACnet-writable (read-only via API)"
                 continue
             pt = row.point_type.upper()
             try:

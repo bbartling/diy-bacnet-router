@@ -21,17 +21,23 @@ The hosted BACnet server's objects are defined in **`config/objects.csv`**.
 `AI`, `AO`, `AV`, `BI`, `BO`, `BV`, `CSV` (CharacterString Value), and the
 multi-state types `MSI`, `MSO`, `MSV`.
 
-## Behaviour
+## Read / write split
 
-- **`Commandable=Y`:** intended for BACnet writes (priority arrays). Do **not** push these via `POST /bacnet/server/update` — the server leaves them to BACnet clients.
-- **`Commandable=N`:** server-owned values (sensors, weather feeds, diagnostics). Update them with **`POST /bacnet/server/update`** (`{ "updates": { "<name>": <value> } }`).
+To avoid a REST-vs-BACnet **data race**, the two point classes are handled differently:
+
+- **`Commandable=Y` (BACnet-writable):** a field or supervisory BACnet device may command these at any time. The REST API is **read-only** for them — `POST /bacnet/server/update` **rejects** writes to a commandable point. You can still *observe* whatever a BACnet client wrote via the read endpoints.
+- **`Commandable=N` (server-owned):** sensors, weather feeds, diagnostics. This process owns them (weather loop, FDD updates) and they are the **only** points the API may write with **`POST /bacnet/server/update`** (`{ "updates": { "<name>": <value> } }`).
+
+Other rules:
+
 - **Instance stability:** explicit `Instance` values keep object identifiers stable across row reordering.
 - **Duplicate identifiers:** rows that collide on `(object-type, Instance)` are skipped with an error log so object identity stays deterministic.
+- **Naming:** point names use a lowercase-hyphenated convention (e.g. `outside-air-temperature`, `openfdd-optimization-enabled`).
 
 ## Reading hosted values
 
-- **`GET /bacnet/server/objects`** — every hosted point and its present-value.
-- **`GET /bacnet/server/commandable`** — writable / commandable hosted points.
+- **`GET /bacnet/server/objects`** — every hosted point with `present_value`, `commandable`, and `api_writable`.
+- **`GET /bacnet/server/commandable`** — the commandable (BACnet-writable) points and their current present-values, so the API can see what BACnet clients wrote.
 
 ## Weather points
 

@@ -83,9 +83,16 @@ class DeviceInstanceRequest(BaseModel):
 
 
 class ServerUpdatePointsRequest(BaseModel):
-    """Name -> new present-value for hosted (writable) server points."""
+    """Name -> new present-value for **server-owned** hosted points (Commandable=N).
 
-    updates: dict[str, Any] = Field(..., examples=[{"openfdd-active-fault-count": 3}])
+    Commandable points are BACnet-writable and are rejected here (read-only via
+    API) so an API write never races a field/supervisory device.
+    """
+
+    updates: dict[str, Any] = Field(
+        ...,
+        examples=[{"openfdd-active-fault-count": 3, "openfdd-faults-present": True}],
+    )
 
 
 class ServerScheduleUpdateRequest(BaseModel):
