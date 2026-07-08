@@ -5,30 +5,35 @@ nav_order: 4
 
 # CSV point model
 
-Columns:
+The hosted BACnet server's objects are defined in **`config/objects.csv`**.
 
-- **`Name`** — API / friendly name for the point.
+## Columns
+
+- **`Name`** — friendly / API name for the point.
 - **`PointType`** — BACnet object type code (see below).
-- **`Units`** — Engineering units for analog types (resolved via `EngineeringUnits` fuzzy match).
+- **`Units`** — engineering units for analog types (e.g. `degreesFahrenheit`, `percent`).
 - **`Commandable`** — `Y` or `N`.
-- **`Default`** — Startup value.
-- **`States`** (optional) — Integer number of states for `MSI` / `MSO` / `MSV` (default 2).
-- **`Instance`** (optional, recommended) — BACnet object instance number (`0..4194303`). When omitted, the loader falls back to per-type auto-assignment.
-- **`CovIncrement`** (optional, analog only) — BACnet COV increment for `AI` / `AO` / `AV`; must be numeric and `> 0` (default `1.0`).
+- **`Default`** — startup present-value.
+- **`Instance`** — BACnet object instance number (`0..4194303`).
 
 ## Supported `PointType` codes
 
-`AI`, `AO`, `AV`, `BI`, `BO`, `BV`, `MSI`, `MSO`, `MSV`, `Schedule`
+`AI`, `AO`, `AV`, `BI`, `BO`, `BV`, `CSV` (CharacterString Value), and the
+multi-state types `MSI`, `MSO`, `MSV`.
 
 ## Behaviour
 
-- **`Commandable=Y`:** Intended for BACnet writes (priority arrays, supervisory logic). **Do not** push these via `server_update_points` — the server skips them to avoid fighting BACnet clients.
-- **`Commandable=N`:** **Server-owned** values (sensors, weather feeds, etc.). Agents update these with **`server_update_points`**.
-- **Instance stability:** Use explicit `Instance` values to keep object identifiers stable across CSV row reordering and future point additions.
-- **Duplicate identifiers:** Rows that collide on `(object-type, Instance)` are skipped with an error log so object identity stays deterministic.
+- **`Commandable=Y`:** intended for BACnet writes (priority arrays). Do **not** push these via `POST /bacnet/server/update` — the server leaves them to BACnet clients.
+- **`Commandable=N`:** server-owned values (sensors, weather feeds, diagnostics). Update them with **`POST /bacnet/server/update`** (`{ "updates": { "<name>": <value> } }`).
+- **Instance stability:** explicit `Instance` values keep object identifiers stable across row reordering.
+- **Duplicate identifiers:** rows that collide on `(object-type, Instance)` are skipped with an error log so object identity stays deterministic.
 
-## Schedule rows
+## Reading hosted values
 
-`Schedule` creates a BACnet **`ScheduleObject`** with a default weekly pattern from the loader. Read/update the structured schedule over **`server_read_schedule`** / **`server_update_schedule`** (see [Server RPC](server-rpc)).
+- **`GET /bacnet/server/objects`** — every hosted point and its present-value.
+- **`GET /bacnet/server/commandable`** — writable / commandable hosted points.
 
-**Note:** BACpypes3’s local schedule interpreter may have timing quirks in some versions; validate schedule behaviour on a lab controller for production calendars.
+## Weather points
+
+The `OA-WEATHER-*` rows are refreshed from Open-Meteo on an interval and mirrored
+into their BACnet objects. See [Home](/) and the `/weather` endpoint.

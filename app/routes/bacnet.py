@@ -1,4 +1,4 @@
-"""BACnet server + client REST routes (full diy-bacnet-server parity)."""
+"""BACnet server + client REST routes."""
 
 from __future__ import annotations
 

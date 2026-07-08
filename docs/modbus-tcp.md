@@ -5,23 +5,21 @@ nav_order: 8
 
 # Modbus TCP (REST)
 
-**Not JSON-RPC.** The FastAPI app exposes:
+The gateway exposes a batched Modbus TCP read endpoint backed by **rusty-modbus**:
 
-- **`POST /modbus/read_registers`**
+- **`POST /modbus/read`**
 
-Implementation: `bacpypes_server/modbus_routes.py` + `modbus_service.py`. Reads run in **`asyncio.to_thread`** so the event loop stays responsive while **`pyModbusTCP`** performs synchronous I/O.
-
-## Request body (`ModbusReadRequestBody`)
+## Request body (`ModbusReadRequest`)
 
 | Field | Type | Notes |
 |-------|------|--------|
 | `host` | string | Modbus TCP host. |
 | `port` | int | Default `502`. |
 | `unit_id` | int | Unit / slave id `0–255`. |
-| `timeout` | float | Seconds `0.5–60`. |
+| `timeout` | float | Seconds. |
 | `registers` | array | **1–32** operations per HTTP request. |
 
-Each register operation (`ModbusRegisterOp`):
+Each register operation:
 
 | Field | Notes |
 |-------|--------|
@@ -34,14 +32,15 @@ Each register operation (`ModbusRegisterOp`):
 
 ## Authentication
 
-When **`BACNET_RPC_API_KEY`** is set, use the same **Bearer** rules as JSON-RPC (see [JSON-RPC](json-rpc)), except paths exempted by the auth middleware.
+When **`RUSTY_GATEWAY_API_KEY`** is set, send `Authorization: Bearer <key>`
+(see [Environment](environment)). `/health` and `/docs` are exempt.
 
 ## Example
 
 ```bash
-curl -sS -X POST "http://localhost:8080/modbus/read_registers" \
+curl -sS -X POST "http://localhost:8080/modbus/read" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $BACNET_RPC_API_KEY" \
+  -H "Authorization: Bearer $RUSTY_GATEWAY_API_KEY" \
   -d '{
     "host": "10.200.200.170",
     "port": 502,

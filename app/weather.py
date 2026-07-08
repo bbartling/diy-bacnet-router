@@ -1,4 +1,4 @@
-"""Open-Meteo weather fetch + BACnet mirror (from feather-concept weather.rs)."""
+"""Open-Meteo weather fetch + BACnet mirror."""
 
 from __future__ import annotations
 

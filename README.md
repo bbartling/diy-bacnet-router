@@ -1,31 +1,30 @@
-# DIY BACnet Server (Rust)
+# DIY BACnet Server
 
 A turnkey **FastAPI + Swagger** building-automation gateway where **Python is only
-the web layer** and every protocol stack is **Rust via PyO3**. This is the
-Rust-backed rewrite of the original bacpypes3 `diy-bacnet-server` — bacpypes3,
-pyModbusTCP, and the MQTT/JSON-RPC layers have been **removed entirely** in favor
-of a clean REST surface over:
+the web layer** and every protocol stack is **Rust via PyO3**:
 
-- **rusty-bacnet** — hosts the BACnet server device (**599999**) on UDP `:47808`
-  with Open-Meteo weather AVs (20-min refresh) + FDD diagnostic points, **and**
-  provides the full BACnet client toolkit.
+- **rusty-bacnet** — hosts a BACnet server device (**599999**) on UDP `:47808`
+  with Open-Meteo weather objects (20-min refresh) + diagnostic points, **and**
+  provides the full BACnet client toolkit (read, write, RPM, Who-Is, discovery,
+  priority-array, supervisory audit).
 - **rusty-modbus** — Modbus TCP read API.
 - **rusty-haystack** — read-only Haystack client (SCRAM).
 
-## Why the rewrite
+Everything is exposed as a clean REST surface with a Swagger UI and optional
+Bearer-token auth.
 
-The legacy server ran its hosted device **and** its client on one shared
-bacpypes3 `Application`. That is exactly what produces the Who-Is storms and the
-"discovery returns 0 devices" failures seen in mixed poll/scan deployments (two
-consumers fighting over UDP `:47808`). The Rust stack separates the hosted
-server (bound to `0.0.0.0:47808` so it hears broadcast Who-Is) from client
-operations (Who-Is on `:47808`, unicast reads on ephemeral ports), eliminating
-the conflict.
+## Design
+
+The hosted server and the client use **separate sockets**. The server binds
+`0.0.0.0:47808` so it receives broadcast Who-Is from BMS discovery tools, while
+the client sends Who-Is on `:47808` and performs unicast reads on ephemeral
+ports. This keeps discovery reliable and avoids two consumers contending for the
+same UDP socket.
 
 ## Quick start (local dev, Python 3.12+)
 
 ```bash
-cd /home/ben/diy-bacnet-server
+cd diy-bacnet-server
 python3 -m venv .venv && . .venv/bin/activate
 pip install -e . rusty-bacnet rusty-haystack
 chmod +x scripts/*.sh
@@ -33,65 +32,68 @@ chmod +x scripts/*.sh
 # Swagger: http://127.0.0.1:8080/docs
 ```
 
-`scripts/preflight_free_47808.sh` stops conflicting containers (e.g. Open-FDD)
-and frees `:47808` before bind.
+`scripts/preflight_free_47808.sh` frees UDP `:47808` before the server binds.
 
 > `rusty-modbus` currently ships a Python 3.14 wheel. On 3.12 the app boots and
-> all BACnet/weather/Haystack routes work; `/modbus/*` returns a clear error
+> all BACnet / weather / Haystack routes work; `/modbus/*` returns a clear error
 > until the wheel (or the Docker image) is available.
 
 ## Docker (Python 3.14 + all three Rust wheels)
 
+Build from the parent directory (siblings `rusty-bacnet`, `rusty-haystack`):
+
 ```bash
-cd /home/ben
+cd ..
 cp diy-bacnet-server/.env.example diy-bacnet-server/.env
-docker compose -f diy-bacnet-server/docker-compose.yml build
-docker compose -f diy-bacnet-server/docker-compose.yml up -d
+docker compose -f diy-bacnet-server/docker-compose.yml up -d --build
 ```
+
+## Services
+
+| Service | What it does |
+|---------|--------------|
+| **BACnet server** | Hosts device 599999 on `:47808` with weather + diagnostic objects. |
+| **BACnet client** | Read / write / RPM / Who-Is / discovery / priority-array / supervisory against field devices. |
+| **Weather** | Polls Open-Meteo, caches it, and mirrors it into BACnet objects. |
+| **Modbus** | Batched Modbus TCP register reads with decode / scale / offset. |
+| **Haystack** | Read-only Haystack client (about / read / nav / hisRead). |
 
 ## API (Bearer `RUSTY_GATEWAY_API_KEY` when set)
 
-Full 1:1 parity with the original `client_utils.py`, on the Rust stack.
-
 **BACnet client (field bus)**
 
-| Method | Path | Legacy equivalent |
-|--------|------|-------------------|
-| POST | `/bacnet/read` | `bacnet_read` |
-| POST | `/bacnet/write` | `bacnet_write` (priority + null release) |
-| POST | `/bacnet/rpm` | `bacnet_rpm` |
-| POST | `/bacnet/whois` | `perform_who_is` |
-| POST | `/bacnet/whois-router` | `perform_who_is_router_to_network` |
-| POST | `/bacnet/discover` | `point_discovery` (object-list + commandable scan) |
-| POST | `/bacnet/priority-array` | `read_point_priority_arr` (16 slots) |
-| POST | `/bacnet/supervisory` | `supervisory_logic_check` (override audit) |
-| GET | `/bacnet/points` | configured field-device catalog |
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/bacnet/read` | ReadProperty on a field device |
+| POST | `/bacnet/write` | WriteProperty (priority + Null release) |
+| POST | `/bacnet/rpm` | ReadPropertyMultiple |
+| POST | `/bacnet/whois` | Who-Is range scan |
+| POST | `/bacnet/whois-router` | Who-Is router-to-network (routed networks) |
+| POST | `/bacnet/discover` | Point discovery (object-list + commandable scan) |
+| POST | `/bacnet/priority-array` | Read a priority array (16 slots) |
+| POST | `/bacnet/supervisory` | Supervisory override audit |
+| GET | `/bacnet/points` | Configured field-device catalog |
 
 **BACnet server (hosted device 599999)**
 
-| Method | Path | Legacy equivalent |
-|--------|------|-------------------|
-| GET | `/bacnet/server/objects` | `server_read_all_values` |
-| GET | `/bacnet/server/commandable` | `server_read_commandable` |
-| POST | `/bacnet/server/update` | `server_update_points` |
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/bacnet/server/objects` | Read all hosted point values |
+| GET | `/bacnet/server/commandable` | Read commandable hosted points |
+| POST | `/bacnet/server/update` | Update hosted point present-values |
 
 **Weather / Modbus / Haystack**
 
 | Method | Path | Description |
 |--------|------|-------------|
 | GET | `/weather` | Open-Meteo cache + BACnet mirror status |
-| POST | `/weather/refresh` | Force weather poll |
-| POST | `/modbus/read` | Modbus TCP batch read (rusty_modbus) |
+| POST | `/weather/refresh` | Force a weather poll |
+| POST | `/modbus/read` | Modbus TCP batch read |
 | GET | `/haystack/about` | Haystack about |
 | POST | `/haystack/read` | Haystack read (read-only) |
 | POST | `/haystack/nav` | Haystack nav |
 | POST | `/haystack/his-read` | Haystack hisRead |
 | GET | `/health` | Liveness |
-
-> **Removed vs. legacy:** the MQTT command/ack gateway and JSON-RPC transport are
-> gone (REST + Swagger only). Schedule read/update is not exposed — the current
-> `rusty_bacnet` PyO3 surface has no weekly-`TimeValue` constructor, so it cannot
-> be matched 1:1 yet.
 
 ### Write / release example
 
@@ -109,26 +111,23 @@ curl -X POST http://127.0.0.1:8080/bacnet/write -H "Content-Type: application/js
 
 - `config/objects.csv` — hosted server point catalog (Name, PointType, Units, Commandable, Default, Instance).
 - `config/field_devices.toml` — client field devices + points.
-- `config/gateway.toml` — server/client bind + broadcast + timeouts.
+- `config/gateway.toml` — server / client bind + broadcast + timeouts.
 
 The hosted server always binds `0.0.0.0:47808`; the client uses the NIC IP
-(`RUSTY_GATEWAY_BIND`) with a derived directed broadcast.
-
-## Bench field devices (`config/field_devices.toml`)
-
-- **5007** @ 192.168.204.200 (MSTP net 2000, via BASRT-B router) — AI:1173 OA-T
-- **3456789** @ 192.168.204.13 — AI:2 SA-T
-- **3456790** @ 192.168.204.14 — AI:1 ZoneTemp + commandable AV/AO
+(`RUSTY_GATEWAY_BIND`) with a derived directed broadcast. See [Environment](docs/environment.md)
+for the full variable list.
 
 ## Security
 
-Optional `RUSTY_GATEWAY_API_KEY` enables Bearer middleware; Swagger `/docs`
-stays reachable with **Authorize** for Try-it-out.
+Optional `RUSTY_GATEWAY_API_KEY` enables Bearer middleware. Send
+`Authorization: Bearer <key>` on protected routes; `/`, `/health`, and the
+Swagger docs stay reachable without a token, and Swagger's **Authorize** button
+uses the same value.
 
 ## Tests
 
 ```bash
 pip install -e ".[dev]" rusty-bacnet rusty-haystack
 pytest tests/unit -q
-pytest tests/integration -m integration -q   # needs bench + :47808 free
+pytest tests/integration -m integration -q   # needs live devices + :47808 free
 ```

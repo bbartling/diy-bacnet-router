@@ -5,59 +5,67 @@ nav_order: 7
 
 # Client BACnet (external devices)
 
-The same BACnet **`Application`** that hosts your CSV objects acts as a **client** on the LAN: Who-Is / I-Am, Read Property, Write Property, RPM, etc. Core logic lives in `bacpypes_server/client_utils.py`; JSON-RPC wrappers in `bacpypes_server/rpc_methods.py`.
+The gateway acts as a BACnet **client** on the LAN: Who-Is / I-Am, ReadProperty,
+WriteProperty, ReadPropertyMultiple, point discovery, priority-array reads, and
+supervisory override audits. Field devices are declared in
+`config/field_devices.toml`; every operation is a REST endpoint.
 
-## Feature matrix
+The client sends Who-Is on `:47808` (so it hears broadcast I-Am) and performs
+unicast reads on ephemeral ports. Routed MS/TP devices are reached via their
+router automatically.
 
-| Feature | RPC method | Notes |
-|---------|------------|--------|
-| Who-Is range scan | `client_whois_range` | Returns device list (addresses, vendor, max APDU, etc.). |
-| Read one property | `client_read_property` | Returns `{ "<property_identifier>": <encoded> }`. |
-| Write property (priority / release) | `client_write_property` | JSON **`null`** or **`"null"`** + **priority** to release a slot. |
-| Read Property Multiple | `client_read_multiple` | Chunked internally (**25** object/property pairs per chunk). |
-| Object list + names + commandable heuristic | `client_point_discovery` | `object-list`, RPM for `object-name` and `priority-array`. |
-| Priority array (one object) | `client_read_point_priority_array` | List of `{ priority_level, type, value }`. |
-| Supervisory-style summary | `client_supervisory_logic_checks` | Commandable points and override slots from RPM. |
-| Who-Is-Router-To-Network | `client_whois_router_to_network` | Router / network list from the stack NSE. |
+## Endpoint matrix
 
-## `client_whois_range`
+| Feature | Endpoint | Notes |
+|---------|----------|--------|
+| Who-Is range scan | `POST /bacnet/whois` | Returns device list (address, vendor id, source network, max APDU). |
+| Who-Is router-to-network | `POST /bacnet/whois-router` | Reachable routers and the networks behind them. |
+| Read one property | `POST /bacnet/read` | Returns `{ tag, value, ... }`. |
+| Write property (priority / release) | `POST /bacnet/write` | JSON **`null`** or **`"null"`** + **priority** to release a slot. |
+| Read Property Multiple | `POST /bacnet/rpm` | Chunked internally (**25** object/property pairs per chunk). |
+| Point discovery | `POST /bacnet/discover` | Object-list walk + object names + commandable detection. |
+| Priority array (one object) | `POST /bacnet/priority-array` | All 16 slots as `{ priority_level, type, value }`. |
+| Supervisory override audit | `POST /bacnet/supervisory` | Commandable points and their active override slots. |
+| Configured point catalog | `GET /bacnet/points` | Field devices + points from config. |
 
-- **Params:** `{ "request": { "start_instance": 1, "end_instance": 3456799 } }` (defaults suit typical discovery scans.)
-- **Returns:** `BaseResponse` with `data.devices`.
+## `POST /bacnet/whois`
 
-## `client_read_property`
+- **Body:** `{ "low": 0, "high": 4194303 }` (both optional; omit for a global Who-Is).
+- **Returns:** `{ "count": N, "devices": [ { "device_instance", "address", "vendor_id", "source_network", "max_apdu" }, ... ] }`.
 
-- **Params:** `{ "request": { "device_instance": 123456, "object_identifier": "analog-value,1", "property_identifier": "present-value" } }`
-- **Object identifier:** e.g. `analog-value,1` (validated against BACpypes3 `ObjectType`).
-- **Returns:** single-key dict with encoded value.
+## `POST /bacnet/read`
 
-## `client_write_property`
+- **Body:** `{ "device_instance": 5007, "object_type": "analog-input", "object_instance": 1173, "property_id": "present-value" }`
+- **Returns:** `{ "tag", "value", "device_instance", ... }`.
 
-- **Params:** `{ "request": { "device_instance", "object_identifier", "property_identifier", "value", "priority": <optional 1–16> } }`
-- **Release:** `"value": null` or `"value": "null"` with the same **priority** to release.
-- **Returns:** `{ "status": "success", "response": "..." }` on success.
+## `POST /bacnet/write`
 
-## `client_read_multiple`
+- **Body:** `{ "device_instance", "object_type", "object_instance", "value", "property_id", "priority": <1-16>, "value_type": <optional> }`
+- **Release:** `"value": null` (or `"value": "null"`) **with** a `priority` to relinquish that slot.
+- **`value_type`:** force encoding (`real`, `double`, `unsigned`, `signed`, `enumerated`, `boolean`, `character_string`, `null`). Default: float→real, bool→enumerated, str→character_string.
+- **Returns:** `{ "status": "success", "released": <bool>, "priority": <n> }`.
 
-- **Params:** `{ "request": { "device_instance": 123456, "requests": [ { "object_identifier", "property_identifier" }, ... ] } }`
-- **Returns:** `BaseResponse` with `data.results`: list of `{ object_identifier, property_identifier, property_array_index, value }` (value may be an error string per object/property).
+## `POST /bacnet/rpm`
 
-## `client_point_discovery`
+- **Body:** `{ "device_instance", "objects": [ { "object_type", "object_instance", "properties": [ { "property_id", "array_index": <optional> } ] } ] }`
+- **Returns:** `{ "results": [ { "object_identifier", "property_identifier", "property_array_index", "value" }, ... ] }` (value may be an error string per property).
 
-- **Params:** `{ "instance": { "device_instance": 987654 } }`
-- **Returns:** `BaseResponse` with `data` including `device_address`, `device_instance`, `objects`: `[ { "object_identifier", "name", "commandable" }, ... ]`.
+## `POST /bacnet/discover`
 
-## `client_supervisory_logic_checks`
+- **Body:** `{ "device_instance": 3456790 }`
+- **Returns:** `{ "device_address", "device_instance", "objects": [ { "object_identifier", "name", "commandable" }, ... ] }`.
 
-- **Params:** `{ "instance": { "device_instance": 987654 } }`
-- **Returns:** `SupervisorySummary`-compatible dict: `device_id`, `address`, `points`, `points_with_overrides`, `summary`.
+## `POST /bacnet/priority-array`
 
-## `client_read_point_priority_array`
+- **Body:** `{ "device_instance", "object_type", "object_instance" }`
+- **Returns:** `{ "object_identifier", "priority_array": [ { "priority_level", "type", "value" }, ... ] }` (16 slots).
 
-- **Params:** `{ "request": { "device_instance", "object_identifier" } }`
-- **Returns:** **array** of priority slots (not wrapped in `BaseResponse`).
+## `POST /bacnet/supervisory`
 
-## `client_whois_router_to_network`
+- **Body:** `{ "device_instance": 3456790 }`
+- **Returns:** `device_id`, `address`, `points`, `points_with_overrides`, and a `summary` of commandable/override counts.
 
-- **Params:** `{}`
-- **Returns:** `BaseResponse` with `data.routers`.
+## `POST /bacnet/whois-router`
+
+- **Body:** none.
+- **Returns:** `{ "count": N, "routers": [ { "source", "networks": [ ... ] }, ... ] }`.

@@ -1,4 +1,4 @@
-"""Bearer API-key auth (ported from diy-bacnet-server rpc_auth.py)."""
+"""Bearer API-key auth middleware."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from starlette.types import ASGIApp
 
 
 def auth_path_exempt(path: str) -> bool:
-    if path in ("/", "/health", "/server_hello"):
+    if path in ("/", "/health"):
         return True
     if path in ("/docs", "/redoc", "/openapi.json"):
         return True

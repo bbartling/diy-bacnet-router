@@ -1,14 +1,13 @@
-"""BACnet field-bus client (rusty_bacnet) — 1:1 port of diy-bacnet-server client_utils.
+"""BACnet field-bus client (rusty_bacnet).
 
-Every operation the bacpypes3 ``client_utils.py`` exposed is reproduced here on
-the Rust ``rusty_bacnet`` stack:
+Client-side BACnet operations against field devices:
 
-- read_property            (bacnet_read)
-- write_property           (bacnet_write, incl. Null release @ priority)
-- read_property_multiple   (bacnet_rpm / bacnet_rpm_chunked)
-- who_is                   (perform_who_is)
+- read_property            (ReadProperty)
+- write_property           (WriteProperty, incl. Null release @ priority)
+- read_property_multiple   (ReadPropertyMultiple, chunked)
+- who_is                   (Who-Is range scan)
 - point_discovery          (object-list walk + commandable detection)
-- read_priority_array      (read_point_priority_arr, all 16 slots)
+- read_priority_array      (priority array, all 16 slots)
 - supervisory_logic_check  (override audit across commandable points)
 - who_is_router_to_network (routed-network discovery)
 """
@@ -177,8 +176,8 @@ def _pv_to_python(pv) -> Any:
 def _make_property_value(value: Any, value_type: str | None):
     """Build a rusty_bacnet PropertyValue from a Python value + optional type hint.
 
-    Mirrors bacpypes3's implicit encoding: default numeric -> real, bool ->
-    enumerated (0/1), str -> character-string, None -> null.
+    Default implicit encoding: numeric -> real, bool -> enumerated (0/1),
+    str -> character-string, None -> null.
     """
     from rusty_bacnet import PropertyValue
 

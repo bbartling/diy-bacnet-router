@@ -1,5 +1,5 @@
 title: "DIY BACnet Server"
-description: "BACnet/IP + JSON-RPC edge gateway — bacpypes3, Docker, optional Modbus TCP and MQTT."
+description: "BACnet/IP + REST edge gateway on rusty-bacnet, rusty-modbus, and rusty-haystack; FastAPI + Swagger, Docker."
 baseurl: "/diy-bacnet-server"
 url: "https://bbartling.github.io"
 

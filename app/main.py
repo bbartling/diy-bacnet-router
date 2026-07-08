@@ -1,8 +1,7 @@
-"""DIY BACnet Server (Rust) — FastAPI entrypoint.
+"""DIY BACnet Server — FastAPI entrypoint.
 
-Rust-backed rewrite of the original bacpypes3 diy-bacnet-server: BACnet is
-served and driven by rusty-bacnet, Modbus by rusty-modbus, Haystack by
-rusty-haystack. Python only glues the HTTP/Swagger layer together.
+BACnet is served and driven by rusty-bacnet, Modbus by rusty-modbus, and
+Haystack by rusty-haystack. Python only glues the HTTP/Swagger layer together.
 """
 
 from __future__ import annotations

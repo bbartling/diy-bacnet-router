@@ -1,4 +1,4 @@
-# Bench field BACnet devices (same set as open-fdd / feather-concept validation)
+# Field BACnet devices polled by the client
 
 [[devices]]
 name = "BENS-BENCHTEST-BOX"
