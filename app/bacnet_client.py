@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 from typing import Any
 
 from app.config import FieldDevice, Settings, load_field_devices
@@ -436,6 +437,128 @@ class BacnetClientService:
             "device_instance": device_instance,
             "results": _serialize_rpm(results),
             "client_bind_port": bind_port,
+        }
+
+    # ---- poll (background loop reads present-value, one RPM per device) ---
+
+    async def poll_points(self) -> list[dict[str, Any]]:
+        """Read present-value of every enabled configured point.
+
+        Groups points by device and issues a single ReadPropertyMultiple per
+        device (one Who-Is/route prep per device), so the poll cycle scales to
+        many points without a socket-per-point storm.
+        """
+        from rusty_bacnet import ObjectIdentifier, PropertyIdentifier
+
+        out: list[dict[str, Any]] = []
+        for d in self._field_devices:
+            if not d.enabled or not d.points:
+                continue
+            specs = []
+            for p in d.points:
+                ot = _object_type(p.object_type)
+                if ot is None:
+                    continue
+                specs.append(
+                    (ObjectIdentifier(ot, p.object_instance), [(PropertyIdentifier.PRESENT_VALUE, None)])
+                )
+            if not specs:
+                continue
+            ts = time.time()
+            try:
+                async with self._new_client(d) as client:
+                    await self._prepare(client, d, d.device_instance)
+                    rpm = await client.read_property_multiple_from_device(d.device_instance, specs)
+                value_by_oid: dict[str, Any] = {}
+                error_by_oid: dict[str, str | None] = {}
+                for obj in rpm:
+                    oid_str = _normalize_oid(obj["object_id"])
+                    for r in obj["results"]:
+                        if r.get("error") is not None:
+                            error_by_oid[oid_str] = str(r["error"])
+                            value_by_oid[oid_str] = None
+                        else:
+                            value_by_oid[oid_str] = _pv_to_python(r.get("value"))
+                            error_by_oid[oid_str] = None
+                for p in d.points:
+                    ot = _object_type(p.object_type)
+                    if ot is None:
+                        continue
+                    oid_str = _normalize_oid(ObjectIdentifier(ot, p.object_instance))
+                    out.append(
+                        {
+                            "device_instance": d.device_instance,
+                            "device_name": d.name,
+                            "object_type": p.object_type,
+                            "object_instance": p.object_instance,
+                            "point_name": p.point_name,
+                            "value": value_by_oid.get(oid_str),
+                            "error": error_by_oid.get(oid_str),
+                            "ts": ts,
+                        }
+                    )
+            except Exception as e:
+                logger.warning("poll cycle failed for device %s: %s", d.device_instance, e)
+                for p in d.points:
+                    out.append(
+                        {
+                            "device_instance": d.device_instance,
+                            "device_name": d.name,
+                            "object_type": p.object_type,
+                            "object_instance": p.object_instance,
+                            "point_name": p.point_name,
+                            "value": None,
+                            "error": str(e),
+                            "ts": ts,
+                        }
+                    )
+        return out
+
+    # ---- write dry-run (validate + encode, no network I/O) ---------------
+
+    def write_dry_run(
+        self,
+        device_instance: int,
+        object_type: str,
+        object_instance: int,
+        value: Any,
+        property_id: str = "present-value",
+        priority: int | None = None,
+        value_type: str | None = None,
+    ) -> dict[str, Any]:
+        """Validate + encode a WriteProperty request without sending it.
+
+        Mirrors the safety checks of write_property (Null release requires a
+        priority) and reports exactly what would be transmitted.
+        """
+        device = self._find_device(device_instance)
+        ot = _object_type(object_type)
+        if ot is None:
+            raise ValueError(f"unknown object_type {object_type}")
+
+        is_release = value is None or (isinstance(value, str) and value.strip().lower() == "null")
+        if is_release:
+            if priority is None or not (1 <= int(priority) <= 16):
+                raise ValueError("Null requires a priority (1-16) to release override")
+            pv = _make_property_value(None, "null")
+            write_priority: int | None = int(priority)
+        else:
+            pv = _make_property_value(value, value_type)
+            write_priority = int(priority) if priority is not None else None
+
+        return {
+            "dry_run": True,
+            "would_write": True,
+            "device_instance": device_instance,
+            "object_type": object_type,
+            "object_instance": object_instance,
+            "property_id": property_id,
+            "released": is_release,
+            "priority": write_priority,
+            "encoded_tag": pv.tag,
+            "encoded_value": _pv_to_python(pv),
+            "device_known": device is not None,
+            "routed": device.is_routed if device is not None else None,
         }
 
     # ---- who-is (perform_who_is) -----------------------------------------

@@ -61,6 +61,13 @@ class BacnetWriteRequest(BaseModel):
         default=None,
         description="Force encoding type. Default: float->real, bool->enumerated, str->character_string.",
     )
+    approved: bool = Field(
+        default=True,
+        description=(
+            "Write-safety gate. Set false to force a dry-run (validate + encode only, "
+            "no BACnet write). Open-FDD callers set this explicitly per change."
+        ),
+    )
 
     @model_validator(mode="after")
     def _release_needs_priority(self) -> "BacnetWriteRequest":

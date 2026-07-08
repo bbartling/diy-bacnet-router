@@ -42,13 +42,14 @@ class WeatherReading:
 class WeatherService:
     """Poll Open-Meteo every interval_secs; mirror to BACnet AVs + REST cache."""
 
-    # Object instances from objects.csv
-    AV_TEMP = 1
-    AV_RH = 2
-    AV_WIND = 3
-    AV_DP = 4
-    CSV_LOC = 5
-    BI_APP_FAULT = 1  # hosted as BV (binary-value); BI is read-only in rusty_bacnet server
+    # Object instances from objects.csv (aligned to Open-FDD bacnet_server.rs:
+    # outside-air temp/humidity/dewpoint = AV 9101/9102/9103).
+    AV_TEMP = 9101
+    AV_RH = 9102
+    AV_DP = 9103
+    AV_WIND = 9104
+    CSV_LOC = 9105
+    BI_APP_FAULT = 9106  # hosted as BV (binary-value); BI is read-only in rusty_bacnet server
 
     def __init__(self, settings: Settings, bacnet: BacnetServerManager):
         self.settings = settings

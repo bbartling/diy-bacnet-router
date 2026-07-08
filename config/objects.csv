@@ -1,10 +1,10 @@
 Name,PointType,Units,Commandable,Default,Instance
-outside-air-temperature,AV,degreesFahrenheit,N,70.0,1
-outside-air-humidity,AV,percent,N,50.0,2
-outside-air-wind-speed,AV,milesPerHour,N,0.0,3
-outside-air-dewpoint,AV,degreesFahrenheit,N,55.0,4
-weather-location,CSV,,N,Madison Wisconsin,5
-app-fault,BV,,N,inactive,1
+outside-air-temperature,AV,degreesFahrenheit,N,70.0,9101
+outside-air-humidity,AV,percent,N,50.0,9102
+outside-air-dewpoint,AV,degreesFahrenheit,N,55.0,9103
+outside-air-wind-speed,AV,milesPerHour,N,0.0,9104
+weather-location,CSV,,N,Madison Wisconsin,9105
+app-fault,BV,,N,inactive,9106
 openfdd-active-fault-count,AV,noUnits,N,0.0,9003
 openfdd-faults-present,BV,,N,inactive,9004
 openfdd-optimization-enabled,BV,,Y,inactive,9010

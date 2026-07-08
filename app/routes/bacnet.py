@@ -43,6 +43,21 @@ async def bacnet_read(body: BacnetReadRequest, request: Request):
 @router.post("/write", summary="Client write property (priority + null release)")
 async def bacnet_write(body: BacnetWriteRequest, request: Request):
     svc = request.app.state.bacnet_client
+    if not body.approved:
+        # Safety gate: unapproved writes never touch the bus — return the dry-run.
+        try:
+            result = svc.write_dry_run(
+                body.device_instance,
+                body.object_type,
+                body.object_instance,
+                body.value,
+                body.property_id,
+                body.priority,
+                body.value_type,
+            )
+            return {"ok": True, "skipped": "not approved", **result}
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
     try:
         result = await svc.write_property(
             body.device_instance,
@@ -56,6 +71,44 @@ async def bacnet_write(body: BacnetWriteRequest, request: Request):
         return {"ok": True, **result}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+
+@router.post("/write-dry-run", summary="Validate + encode a write without sending it")
+async def bacnet_write_dry_run(body: BacnetWriteRequest, request: Request):
+    svc = request.app.state.bacnet_client
+    try:
+        result = svc.write_dry_run(
+            body.device_instance,
+            body.object_type,
+            body.object_instance,
+            body.value,
+            body.property_id,
+            body.priority,
+            body.value_type,
+        )
+        return {"ok": True, **result}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@router.get("/poll/status", summary="Background poll engine status + last values")
+async def bacnet_poll_status(request: Request):
+    engine = getattr(request.app.state, "poll_engine", None)
+    if engine is None:
+        return {"ok": True, "enabled": False, "running": False, "last_values": []}
+    return {"ok": True, **engine.status()}
+
+
+@router.post("/poll/once", summary="Run one poll cycle now (present-value, all points)")
+async def bacnet_poll_once(request: Request):
+    engine = getattr(request.app.state, "poll_engine", None)
+    if engine is None:
+        raise HTTPException(status_code=503, detail="poll engine not initialized")
+    try:
+        result = await engine.poll_once()
+        return {"ok": True, **result}
     except Exception as e:
         raise HTTPException(status_code=502, detail=str(e)) from e
 

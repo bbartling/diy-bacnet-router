@@ -12,8 +12,18 @@ from starlette.responses import JSONResponse
 from starlette.types import ASGIApp
 
 
+def api_key() -> str:
+    """Configured API key. OPENFDD_FIELDBUS_API_KEY wins over RUSTY_GATEWAY_API_KEY."""
+    return (
+        os.environ.get("OPENFDD_FIELDBUS_API_KEY")
+        or os.environ.get("RUSTY_GATEWAY_API_KEY")
+        or ""
+    ).strip()
+
+
 def auth_path_exempt(path: str) -> bool:
-    if path in ("/", "/health"):
+    # Liveness endpoints (native + Open-FDD compat alias) are unauthenticated.
+    if path in ("/", "/health", "/api/health"):
         return True
     if path in ("/docs", "/redoc", "/openapi.json"):
         return True
@@ -99,7 +109,7 @@ def install_openapi_servers_url(app) -> None:
 
 
 def install_auth_if_configured(app) -> None:
-    key = (os.environ.get("RUSTY_GATEWAY_API_KEY") or "").strip()
+    key = api_key()
     if not key:
         return
     app.add_middleware(GatewayAuthMiddleware, api_key=key)

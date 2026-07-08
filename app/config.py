@@ -15,7 +15,11 @@ except ImportError:
 
 
 ROOT = Path(__file__).resolve().parent.parent
-CONFIG_DIR = Path(os.environ.get("RUSTY_GATEWAY_CONFIG_DIR", ROOT / "config"))
+CONFIG_DIR = Path(
+    os.environ.get("OPENFDD_FIELDBUS_CONFIG_DIR")
+    or os.environ.get("RUSTY_GATEWAY_CONFIG_DIR")
+    or (ROOT / "config")
+)
 
 
 @dataclass
@@ -68,6 +72,16 @@ class HaystackSettings:
 
 
 @dataclass
+class PollSettings:
+    """Background BACnet poll loop over configured field-device points."""
+
+    enabled: bool = True
+    interval_secs: float = 60.0
+    startup_delay_secs: float = 5.0
+    max_samples: int = 5000
+
+
+@dataclass
 class FieldPoint:
     object_type: str
     object_instance: int
@@ -112,10 +126,31 @@ class Settings:
     weather: WeatherSettings = field(default_factory=WeatherSettings)
     modbus: ModbusSettings = field(default_factory=ModbusSettings)
     haystack: HaystackSettings = field(default_factory=HaystackSettings)
+    poll: PollSettings = field(default_factory=PollSettings)
     http_host: str = "0.0.0.0"
     http_port: int = 8080
     objects_csv: Path = field(default_factory=lambda: CONFIG_DIR / "objects.csv")
     field_devices_toml: Path = field(default_factory=lambda: CONFIG_DIR / "field_devices.toml")
+
+
+# Env prefixes: the newer OPENFDD_FIELDBUS_* names take precedence, with the
+# original RUSTY_GATEWAY_* names kept as fallbacks for compatibility.
+def _env(*names: str) -> str | None:
+    for n in names:
+        v = os.environ.get(n)
+        if v is not None and v != "":
+            return v
+    return None
+
+
+def _env_bool(value: str | None, default: bool) -> bool:
+    if value is None:
+        return default
+    return value.strip().lower() in ("1", "true", "yes", "on")
+
+
+def git_sha() -> str:
+    return _env("OPENFDD_FIELDBUS_GIT_SHA", "GIT_SHA") or "unknown"
 
 
 def _subnet_broadcast(ip: str) -> str | None:
@@ -165,8 +200,9 @@ def load_settings() -> Settings:
     if h := raw.get("haystack"):
         s.haystack = HaystackSettings(**{k: h[k] for k in HaystackSettings.__dataclass_fields__ if k in h})
 
-    # Environment overrides
-    if v := os.environ.get("RUSTY_GATEWAY_BIND"):
+    # Environment overrides. OPENFDD_FIELDBUS_* takes precedence over the
+    # original RUSTY_GATEWAY_* names, which remain supported for compatibility.
+    if v := _env("OPENFDD_FIELDBUS_BIND", "RUSTY_GATEWAY_BIND"):
         # Client uses the NIC IP as its unicast source; the server stays on
         # 0.0.0.0 so it can receive broadcast Who-Is. Derive the directed
         # subnet broadcast from the NIC IP unless one was set explicitly.
@@ -175,22 +211,26 @@ def load_settings() -> Settings:
         if derived_bcast:
             s.bacnet_server.broadcast = derived_bcast
             s.bacnet_client.broadcast = derived_bcast
-    if v := os.environ.get("RUSTY_GATEWAY_SERVER_BIND"):
+    if v := _env("OPENFDD_FIELDBUS_SERVER_BIND", "RUSTY_GATEWAY_SERVER_BIND"):
         s.bacnet_server.interface = v
-    if v := os.environ.get("RUSTY_GATEWAY_BROADCAST"):
+    if v := _env("OPENFDD_FIELDBUS_BROADCAST", "RUSTY_GATEWAY_BROADCAST"):
         s.bacnet_server.broadcast = v
         s.bacnet_client.broadcast = v
-    if v := os.environ.get("RUSTY_GATEWAY_HTTP_HOST"):
+    if v := _env("OPENFDD_FIELDBUS_HTTP_HOST", "RUSTY_GATEWAY_HTTP_HOST"):
         s.http_host = v
-    if v := os.environ.get("RUSTY_GATEWAY_HTTP_PORT"):
+    if v := _env("OPENFDD_FIELDBUS_HTTP_PORT", "RUSTY_GATEWAY_HTTP_PORT"):
         s.http_port = int(v)
-    if v := os.environ.get("HAYSTACK_BASE_URL"):
+    if v := _env("OPENFDD_FIELDBUS_POLL_ENABLED", "RUSTY_GATEWAY_POLL_ENABLED"):
+        s.poll.enabled = _env_bool(v, s.poll.enabled)
+    if v := _env("OPENFDD_FIELDBUS_POLL_INTERVAL_SECS", "RUSTY_GATEWAY_POLL_INTERVAL_SECS"):
+        s.poll.interval_secs = float(v)
+    if v := _env("HAYSTACK_BASE_URL"):
         s.haystack.base_url = v
-    if v := os.environ.get("HAYSTACK_USER"):
+    if v := _env("HAYSTACK_USER"):
         s.haystack.username = v
-    if v := os.environ.get("HAYSTACK_PASS"):
+    if v := _env("HAYSTACK_PASS"):
         s.haystack.password = v
-    if v := os.environ.get("MODBUS_DEFAULT_HOST"):
+    if v := _env("MODBUS_DEFAULT_HOST"):
         s.modbus.default_host = v
 
     return s
