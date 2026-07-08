@@ -59,9 +59,17 @@ class HaystackClientService:
         ids: list[str],
         range_start: str | None = None,
         range_end: str | None = None,
-    ) -> Any:
+    ) -> dict[str, Any]:
+        """Read history for each id. rusty_haystack takes a single id + one range
+        string ('today', 'yesterday', or 'START,END'), so we iterate the ids and
+        return an id -> grid map.
+        """
         self._check_op("his_read")
         client = self._connect()
         if range_start and range_end:
-            return client.his_read(ids, range_start, range_end)
-        return client.his_read(ids)
+            rng = f"{range_start},{range_end}"
+        elif range_start:
+            rng = range_start
+        else:
+            rng = "today"
+        return {pid: client.his_read(pid, rng) for pid in ids}

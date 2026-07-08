@@ -147,6 +147,25 @@ def test_env_poll_toggle(monkeypatch):
     assert load_settings().poll.interval_secs == 12.5
 
 
+def test_bacnet_port_default_is_47808():
+    s = load_settings()
+    assert s.bacnet_server.port == 47808
+    assert s.bacnet_client.whois_bind_port == 47808
+
+
+def test_bacnet_port_override(monkeypatch):
+    """A site on a non-default UDP port points both server + client at it."""
+    monkeypatch.setenv("OPENFDD_FIELDBUS_BACNET_PORT", "47809")
+    s = load_settings()
+    assert s.bacnet_server.port == 47809
+    assert s.bacnet_client.whois_bind_port == 47809
+
+
+def test_bacnet_port_legacy_alias(monkeypatch):
+    monkeypatch.setenv("RUSTY_GATEWAY_BACNET_PORT", "47810")
+    assert load_settings().bacnet_server.port == 47810
+
+
 def test_git_sha_env(monkeypatch):
     monkeypatch.setenv("OPENFDD_FIELDBUS_GIT_SHA", "deadbeef")
     assert git_sha() == "deadbeef"

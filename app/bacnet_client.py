@@ -17,6 +17,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
+from contextlib import asynccontextmanager
 from typing import Any
 
 from app.config import FieldDevice, Settings, load_field_devices
@@ -254,6 +255,15 @@ class BacnetClientService:
     def __init__(self, settings: Settings):
         self.settings = settings
         self._field_devices = load_field_devices(settings.field_devices_toml)
+        # One field-bus consumer at a time. The background poll engine and
+        # on-demand REST calls must not both bind :47808 and hammer the MSTP
+        # router concurrently — that is what caused APDU timeouts under soak.
+        self._bus_lock = asyncio.Lock()
+
+    @asynccontextmanager
+    async def _exclusive_bus(self):
+        async with self._bus_lock:
+            yield
 
     # ---- config-driven point catalog -------------------------------------
 
@@ -325,6 +335,18 @@ class BacnetClientService:
         object_instance: int,
         property_id: str = "present-value",
     ) -> dict[str, Any]:
+        async with self._exclusive_bus():
+            return await self._read_property_impl(
+                device_instance, object_type, object_instance, property_id
+            )
+
+    async def _read_property_impl(
+        self,
+        device_instance: int,
+        object_type: str,
+        object_instance: int,
+        property_id: str = "present-value",
+    ) -> dict[str, Any]:
         from rusty_bacnet import ObjectIdentifier
 
         device = self._find_device(device_instance)
@@ -358,6 +380,22 @@ class BacnetClientService:
     # ---- write (bacnet_write, incl. Null release) ------------------------
 
     async def write_property(
+        self,
+        device_instance: int,
+        object_type: str,
+        object_instance: int,
+        value: Any,
+        property_id: str = "present-value",
+        priority: int | None = None,
+        value_type: str | None = None,
+    ) -> dict[str, Any]:
+        async with self._exclusive_bus():
+            return await self._write_property_impl(
+                device_instance, object_type, object_instance, value,
+                property_id, priority, value_type,
+            )
+
+    async def _write_property_impl(
         self,
         device_instance: int,
         object_type: str,
@@ -415,6 +453,12 @@ class BacnetClientService:
     async def read_property_multiple(
         self, device_instance: int, objects: list[dict]
     ) -> dict[str, Any]:
+        async with self._exclusive_bus():
+            return await self._read_property_multiple_impl(device_instance, objects)
+
+    async def _read_property_multiple_impl(
+        self, device_instance: int, objects: list[dict]
+    ) -> dict[str, Any]:
         from rusty_bacnet import ObjectIdentifier
 
         device = self._find_device(device_instance)
@@ -442,6 +486,10 @@ class BacnetClientService:
     # ---- poll (background loop reads present-value, one RPM per device) ---
 
     async def poll_points(self) -> list[dict[str, Any]]:
+        async with self._exclusive_bus():
+            return await self._poll_points_impl()
+
+    async def _poll_points_impl(self) -> list[dict[str, Any]]:
         """Read present-value of every enabled configured point.
 
         Groups points by device and issues a single ReadPropertyMultiple per
@@ -564,6 +612,10 @@ class BacnetClientService:
     # ---- who-is (perform_who_is) -----------------------------------------
 
     async def who_is(self, low: int | None = None, high: int | None = None) -> list[dict[str, Any]]:
+        async with self._exclusive_bus():
+            return await self._who_is_impl(low, high)
+
+    async def _who_is_impl(self, low: int | None = None, high: int | None = None) -> list[dict[str, Any]]:
         from rusty_bacnet import BACnetClient
 
         cfg = self.settings.bacnet_client
@@ -629,6 +681,10 @@ class BacnetClientService:
         return oids
 
     async def point_discovery(self, device_instance: int) -> dict[str, Any]:
+        async with self._exclusive_bus():
+            return await self._point_discovery_impl(device_instance)
+
+    async def _point_discovery_impl(self, device_instance: int) -> dict[str, Any]:
         from rusty_bacnet import ObjectIdentifier, PropertyIdentifier
 
         device = self._find_device(device_instance)
@@ -705,6 +761,12 @@ class BacnetClientService:
     async def read_priority_array(
         self, device_instance: int, object_type: str, object_instance: int
     ) -> dict[str, Any]:
+        async with self._exclusive_bus():
+            return await self._read_priority_array_impl(device_instance, object_type, object_instance)
+
+    async def _read_priority_array_impl(
+        self, device_instance: int, object_type: str, object_instance: int
+    ) -> dict[str, Any]:
         from rusty_bacnet import ObjectIdentifier, PropertyIdentifier
 
         device = self._find_device(device_instance)
@@ -768,9 +830,13 @@ class BacnetClientService:
     # ---- supervisory override audit (supervisory_logic_check) ------------
 
     async def supervisory_logic_check(self, device_instance: int) -> dict[str, Any]:
+        async with self._exclusive_bus():
+            return await self._supervisory_logic_check_impl(device_instance)
+
+    async def _supervisory_logic_check_impl(self, device_instance: int) -> dict[str, Any]:
         from rusty_bacnet import ObjectIdentifier, PropertyIdentifier
 
-        disc = await self.point_discovery(device_instance)
+        disc = await self._point_discovery_impl(device_instance)
         device_address = disc["device_address"]
         objects = disc["objects"]
 
@@ -849,6 +915,10 @@ class BacnetClientService:
     # ---- who-is router-to-network (perform_who_is_router_to_network) -----
 
     async def who_is_router_to_network(self) -> list[dict[str, Any]]:
+        async with self._exclusive_bus():
+            return await self._who_is_router_to_network_impl()
+
+    async def _who_is_router_to_network_impl(self) -> list[dict[str, Any]]:
         """Discover routed networks. rusty_bacnet auto-routes; we derive router
         reachability from I-Am source-network info gathered via a global Who-Is."""
         from rusty_bacnet import BACnetClient

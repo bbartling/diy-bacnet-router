@@ -216,6 +216,14 @@ def load_settings() -> Settings:
     if v := _env("OPENFDD_FIELDBUS_BROADCAST", "RUSTY_GATEWAY_BROADCAST"):
         s.bacnet_server.broadcast = v
         s.bacnet_client.broadcast = v
+    if v := _env("OPENFDD_FIELDBUS_BACNET_PORT", "RUSTY_GATEWAY_BACNET_PORT"):
+        # Some sites run BACnet/IP on a non-default UDP port (e.g. 47809). Point
+        # both the hosted server and the client's Who-Is listener at it so the
+        # whole stack speaks on the building's port. Per-device destination
+        # ports still come from config/field_devices.toml.
+        port = int(v)
+        s.bacnet_server.port = port
+        s.bacnet_client.whois_bind_port = port
     if v := _env("OPENFDD_FIELDBUS_HTTP_HOST", "RUSTY_GATEWAY_HTTP_HOST"):
         s.http_host = v
     if v := _env("OPENFDD_FIELDBUS_HTTP_PORT", "RUSTY_GATEWAY_HTTP_PORT"):

@@ -16,14 +16,17 @@ services:
     container_name: diy-bacnet-server
     network_mode: host
     restart: unless-stopped
+    # Later files override earlier ones: .env.example provides defaults,
+    # .env (gitignored) overrides them for the local deployment.
     env_file:
-      - path: .env
-        required: false
       - path: .env.example
         required: false
+      - path: .env
+        required: false
     environment:
-      RUSTY_GATEWAY_BIND: "${RUSTY_GATEWAY_BIND:-192.168.204.55}"
-      RUSTY_GATEWAY_HTTP_PORT: "${RUSTY_GATEWAY_HTTP_PORT:-8080}"
+      OPENFDD_FIELDBUS_BIND: "${OPENFDD_FIELDBUS_BIND:-${RUSTY_GATEWAY_BIND:-192.168.204.55}}"
+      OPENFDD_FIELDBUS_HTTP_PORT: "${OPENFDD_FIELDBUS_HTTP_PORT:-${RUSTY_GATEWAY_HTTP_PORT:-8080}}"
+      OPENFDD_FIELDBUS_BACNET_PORT: "${OPENFDD_FIELDBUS_BACNET_PORT:-47808}"
       HAYSTACK_BASE_URL: "${HAYSTACK_BASE_URL:-http://127.0.0.1:8081}"
       MODBUS_DEFAULT_HOST: "${MODBUS_DEFAULT_HOST:-127.0.0.1}"
     volumes:

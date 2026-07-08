@@ -18,6 +18,34 @@ Bearer-token auth. Native routes live at the root (`/bacnet/*`, `/modbus/*`,
 so an Open-FDD deployment can reach them with the `/api` prefix it uses
 elsewhere.
 
+## What "Rust wheels in a Python app" means
+
+The protocol stacks (`rusty-bacnet`, `rusty-modbus`, `rusty-haystack`) are
+written in **Rust**, not Python. They reach Python through **[PyO3](https://pyo3.rs)**,
+which compiles the Rust crate into a native **CPython extension module** — a
+shared library (`.so` on Linux) that Python can `import` exactly like a normal
+module. That compiled artifact is packaged and distributed as a **wheel**
+(`.whl`), the standard binary install format for Python.
+
+So when you run `pip install rusty-bacnet`, pip downloads a prebuilt wheel
+containing the compiled Rust code and drops it into your environment. Your
+Python then does `import rusty_bacnet` and calls into Rust at native speed —
+there is no Python BACnet/Modbus/Haystack implementation involved. This app is
+therefore "Python only at the web layer": FastAPI handles HTTP/Swagger, and
+every byte on the wire is produced and parsed by Rust.
+
+Practical consequences:
+
+- **A wheel is platform- and Python-version-specific.** `rusty-bacnet` and
+  `rusty-haystack` publish wheels that work on **CPython 3.12+**; `rusty-modbus`
+  currently only publishes a **CPython 3.14** wheel. If pip can't find a wheel
+  matching your interpreter/OS, the import fails — that is why `/modbus/*`
+  returns a clear "not installed" error on a 3.12 runtime.
+- **No Rust toolchain is needed to *run* the app** — the wheel is already
+  compiled. You only need Rust/`maturin` if you want to build a wheel from
+  source (e.g. for an unpublished branch).
+- Verify what's installed with `pip show rusty-bacnet` / `pip list`.
+
 ## Open-FDD sidecar model
 
 Open-FDD contends for UDP `:47808` when it embeds its own BACnet stack. Running
@@ -40,6 +68,22 @@ the client sends Who-Is on `:47808` and performs unicast reads on ephemeral
 ports. This keeps discovery reliable and avoids two consumers contending for the
 same UDP socket.
 
+### Non-default BACnet UDP port
+
+Default BACnet/IP is UDP `47808` (0xBAC0), but some buildings run the whole
+network on another port (e.g. `47809`). Set **`OPENFDD_FIELDBUS_BACNET_PORT`**
+(or the legacy `RUSTY_GATEWAY_BACNET_PORT`) and both the hosted server and the
+client's Who-Is listener move to that port:
+
+```bash
+# .env
+OPENFDD_FIELDBUS_BACNET_PORT=47809
+```
+
+Per-device *destination* ports are independent and come from
+`config/field_devices.toml` (`port = ...` per device), so you can also talk to a
+device on a different port than the one you host on.
+
 ## Quick start (local dev, Python 3.12+)
 
 ```bash
@@ -57,15 +101,25 @@ chmod +x scripts/*.sh
 > all BACnet / weather / Haystack routes work; `/modbus/*` returns a clear error
 > until the wheel (or the Docker image) is available.
 
-## Docker (Python 3.14 + all three Rust wheels)
+## Docker (long-running deployment)
 
-Build from the parent directory (siblings `rusty-bacnet`, `rusty-haystack`):
+The image is a slim `python:3.12-slim` that installs the `rusty-bacnet` and
+`rusty-haystack` wheels from PyPI — no Rust toolchain or source build required,
+so it builds in seconds. `docker compose` runs it with host networking and
+`restart: unless-stopped`, so it stays up across crashes and host reboots.
 
 ```bash
-cd ..
-cp diy-bacnet-server/.env.example diy-bacnet-server/.env
-docker compose -f diy-bacnet-server/docker-compose.yml up -d --build
+cd diy-bacnet-server
+cp .env.example .env          # then set OPENFDD_FIELDBUS_API_KEY / _BIND / _BACNET_PORT
+docker compose up -d --build
+docker compose logs -f        # follow
 ```
+
+The container exposes a Docker `HEALTHCHECK` against `/health`, so
+`docker ps` shows `healthy` once it's serving.
+
+> `rusty-modbus` only ships a Python 3.14 wheel today, so `/modbus/*` returns a
+> clear "not installed" error on this 3.12 image until that wheel lands on 3.12.
 
 ## Services
 
@@ -77,7 +131,7 @@ docker compose -f diy-bacnet-server/docker-compose.yml up -d --build
 | **Modbus** | Batched Modbus TCP register reads with decode / scale / offset. |
 | **Haystack** | Read-only Haystack client (about / read / nav / hisRead). |
 
-## API (Bearer `RUSTY_GATEWAY_API_KEY` when set)
+## API (Bearer `OPENFDD_FIELDBUS_API_KEY` when set)
 
 **BACnet client (field bus)**
 
@@ -160,9 +214,18 @@ priority-array, supervisory audit, write + Null release, dry-run), checks the
 poll engine and hosted server, and asserts the live bench override on device
 `5007` (`analogOutput:2466` = **55% at priority 8**).
 
+`scripts/soak_test.sh` runs the same feature matrix on a **60-second loop for
+30 minutes** (configurable via `SOAK_MINUTES` / `SOAK_INTERVAL_SECS`), including
+Haystack (about/read/nav/his-read) and Modbus (live read or graceful degradation
+when the 3.12 wheel is unavailable). It records container memory each cycle to
+catch leaks and prints a per-feature pass/fail table at the end.
+
 ```bash
 OPENFDD_FIELDBUS_API_KEY=<key> SMOKE_BASE=http://127.0.0.1:8080 \
   scripts/smoke_test.sh
+
+OPENFDD_FIELDBUS_API_KEY=<key> SOAK_MINUTES=30 \
+  scripts/soak_test.sh
 ```
 
 ## Security
