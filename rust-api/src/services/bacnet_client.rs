@@ -122,6 +122,53 @@ impl BacnetClientService {
             .map_err(|e| e.to_string())
     }
 
+    async fn seed_field_device(
+        &self,
+        client: &BACnetClient<bacnet_transport::bip::BipTransport>,
+        d: &FieldDevice,
+    ) -> Result<(), String> {
+        if d.is_routed() {
+            let ip: Ipv4Addr = d.host.parse().map_err(|e| format!("bad host: {e}"))?;
+            let router_mac = encode_bip_mac(ip.octets(), d.port);
+            let net = d
+                .mstp_network
+                .ok_or_else(|| format!("routed device {} missing mstp_network", d.name))?;
+            let dest_mac = d
+                .mstp_mac
+                .first()
+                .copied()
+                .ok_or_else(|| format!("routed device {} missing mstp_mac", d.name))?;
+            client
+                .add_routed_device(
+                    d.device_instance,
+                    &router_mac,
+                    net,
+                    std::slice::from_ref(&dest_mac),
+                )
+                .await
+                .map_err(|e| e.to_string())
+        } else {
+            let ip: Ipv4Addr = d.host.parse().map_err(|e| format!("bad host: {e}"))?;
+            let mac = encode_bip_mac(ip.octets(), d.port);
+            client
+                .add_device(d.device_instance, &mac)
+                .await
+                .map_err(|e| e.to_string())
+        }
+    }
+
+    async fn seed_configured_field_devices(
+        &self,
+        client: &BACnetClient<bacnet_transport::bip::BipTransport>,
+    ) -> Result<(), String> {
+        for d in &self.field_devices {
+            if d.enabled {
+                self.seed_field_device(client, d).await?;
+            }
+        }
+        Ok(())
+    }
+
     async fn prepare(
         &self,
         client: &BACnetClient<bacnet_transport::bip::BipTransport>,
@@ -130,20 +177,7 @@ impl BacnetClientService {
     ) -> Result<(), String> {
         let cfg = &self.settings.bacnet_client;
         if let Some(d) = device {
-            if d.is_routed() {
-                client
-                    .who_is(Some(device_instance), Some(device_instance))
-                    .await
-                    .map_err(|e| e.to_string())?;
-                tokio::time::sleep(Duration::from_secs_f64(cfg.whois_timeout_secs.min(3.0))).await;
-            } else {
-                let ip: Ipv4Addr = d.host.parse().map_err(|e| format!("bad host: {e}"))?;
-                let mac = encode_bip_mac(ip.octets(), d.port);
-                client
-                    .add_device(device_instance, &mac)
-                    .await
-                    .map_err(|e| e.to_string())?;
-            }
+            self.seed_field_device(client, d).await?;
         } else {
             client
                 .who_is(Some(device_instance), Some(device_instance))
@@ -514,8 +548,12 @@ impl BacnetClientService {
         let _guard = self.bus_lock.lock().await;
         let cfg = &self.settings.bacnet_client;
         let mut client = self.new_client(None).await?;
+        self.seed_configured_field_devices(&client).await?;
         client.who_is(low, high).await.map_err(|e| e.to_string())?;
         tokio::time::sleep(Duration::from_secs_f64(cfg.whois_timeout_secs)).await;
+        // Re-seed so configured bench devices appear even when broadcast I-Am is not
+        // received on the client's ephemeral UDP port (hosted server owns :47808).
+        self.seed_configured_field_devices(&client).await?;
         let devices = client.discovered_devices().await;
         client.stop().await.map_err(|e| e.to_string())?;
         Ok(devices.iter().map(device_summary).collect())

@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 use std::sync::Arc;
 
-use chrono::Utc;
+use chrono::{DateTime, Utc};
 use reqwest::Client;
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
@@ -19,6 +19,7 @@ const AV_DP: u32 = 9103;
 const AV_WIND: u32 = 9104;
 const CSV_LOC: u32 = 9105;
 const BI_APP_FAULT: u32 = 9106;
+const CSV_LAST_UPDATED: u32 = 9107;
 
 #[derive(Debug, Clone)]
 struct WeatherReading {
@@ -27,6 +28,7 @@ struct WeatherReading {
     wind_mph: f64,
     dewpoint_f: f64,
     location: String,
+    timezone: String,
     from_api: bool,
     reason: String,
     updated_at: String,
@@ -61,9 +63,11 @@ impl WeatherService {
                 "wind_mph": c.wind_mph,
                 "dewpoint_f": c.dewpoint_f,
                 "location": c.location,
+                "timezone": c.timezone,
                 "from_api": c.from_api,
                 "reason": c.reason,
                 "updated_at": c.updated_at,
+                "last_updated_label": human_weather_timestamp(c),
             }),
         }
     }
@@ -100,9 +104,11 @@ impl WeatherService {
             "wind_mph": reading.wind_mph,
             "dewpoint_f": reading.dewpoint_f,
             "location": reading.location,
+            "timezone": reading.timezone,
             "from_api": reading.from_api,
             "reason": reading.reason,
             "updated_at": reading.updated_at,
+            "last_updated_label": human_weather_timestamp(&reading),
         }))
     }
 
@@ -133,18 +139,69 @@ impl WeatherService {
 
     async fn mirror_to_bacnet(&self, r: &WeatherReading) -> Result<(), String> {
         use bacnet_types::primitives::PropertyValue;
+        let stamp = human_weather_timestamp(r);
+        let source = if r.from_api {
+            "Open-Meteo live"
+        } else {
+            "fallback (Open-Meteo unavailable)"
+        };
+
         self.bacnet
             .write_present_value("AV", AV_TEMP, PropertyValue::Real(r.temp_f as f32))
             .await?;
         self.bacnet
+            .write_description(
+                "AV",
+                AV_TEMP,
+                &format!(
+                    "Open-Meteo outdoor air temperature — {:.1} °F ({source}; {stamp})",
+                    r.temp_f
+                ),
+            )
+            .await?;
+
+        self.bacnet
             .write_present_value("AV", AV_RH, PropertyValue::Real(r.humidity as f32))
             .await?;
+        self.bacnet
+            .write_description(
+                "AV",
+                AV_RH,
+                &format!(
+                    "Open-Meteo outdoor relative humidity — {:.0}% ({source}; {stamp})",
+                    r.humidity
+                ),
+            )
+            .await?;
+
         self.bacnet
             .write_present_value("AV", AV_WIND, PropertyValue::Real(r.wind_mph as f32))
             .await?;
         self.bacnet
+            .write_description(
+                "AV",
+                AV_WIND,
+                &format!(
+                    "Open-Meteo outdoor wind speed — {:.1} mph ({source}; {stamp})",
+                    r.wind_mph
+                ),
+            )
+            .await?;
+
+        self.bacnet
             .write_present_value("AV", AV_DP, PropertyValue::Real(r.dewpoint_f as f32))
             .await?;
+        self.bacnet
+            .write_description(
+                "AV",
+                AV_DP,
+                &format!(
+                    "Open-Meteo outdoor dewpoint — {:.1} °F ({source}; {stamp})",
+                    r.dewpoint_f
+                ),
+            )
+            .await?;
+
         self.bacnet
             .write_present_value(
                 "CSV",
@@ -153,7 +210,41 @@ impl WeatherService {
             )
             .await?;
         self.bacnet
+            .write_description(
+                "CSV",
+                CSV_LOC,
+                &format!("Open-Meteo geocoded location — {} ({stamp})", r.location),
+            )
+            .await?;
+
+        self.bacnet
+            .write_present_value(
+                "CSV",
+                CSV_LAST_UPDATED,
+                PropertyValue::CharacterString(stamp.clone()),
+            )
+            .await?;
+        self.bacnet
+            .write_description(
+                "CSV",
+                CSV_LAST_UPDATED,
+                &format!(
+                    "Human-readable timestamp of last weather mirror ({source}; tz {})",
+                    r.timezone
+                ),
+            )
+            .await?;
+
+        self.bacnet
             .write_binary_active(BI_APP_FAULT, !r.from_api)
+            .await?;
+        let fault_desc = if r.from_api {
+            format!("Inactive — weather data is live from Open-Meteo ({stamp})")
+        } else {
+            format!("Active — weather data is fallback, not live Open-Meteo ({stamp})")
+        };
+        self.bacnet
+            .write_description("BV", BI_APP_FAULT, &fault_desc)
             .await?;
         Ok(())
     }
@@ -167,6 +258,7 @@ impl WeatherService {
             wind_mph: cfg.fallback_wind_mph,
             dewpoint_f: dp,
             location: format!("{} (fallback)", cfg.city),
+            timezone: "UTC".into(),
             from_api: false,
             reason: reason.to_string(),
             updated_at: Utc::now().to_rfc3339(),
@@ -212,11 +304,33 @@ impl WeatherService {
             wind_mph: wind,
             dewpoint_f: dp,
             location: label,
+            timezone: loc["timezone"]
+                .as_str()
+                .unwrap_or("UTC")
+                .to_string(),
             from_api: true,
             reason: "ok".into(),
             updated_at: Utc::now().to_rfc3339(),
         })
     }
+}
+
+/// Human-readable BACnet label for weather-last-updated (CSV:9107).
+pub fn human_weather_timestamp(r: &WeatherReading) -> String {
+    let dt = DateTime::parse_from_rfc3339(&r.updated_at)
+        .map(|d| d.with_timezone(&Utc))
+        .unwrap_or_else(|_| Utc::now());
+    let source = if r.from_api {
+        "Open-Meteo"
+    } else {
+        "fallback"
+    };
+    format!(
+        "Weather updated {} ({}; local tz: {})",
+        dt.format("%B %d, %Y at %I:%M %p UTC"),
+        source,
+        r.timezone
+    )
 }
 
 pub fn dewpoint_f_from_db_rh(temp_f: f64, rh_percent: f64) -> f64 {
@@ -300,5 +414,24 @@ mod tests {
     fn dewpoint_magnus() {
         let dp = dewpoint_f_from_db_rh(70.0, 50.0);
         assert!(dp > 45.0 && dp < 55.0);
+    }
+
+    #[test]
+    fn human_weather_timestamp_is_readable() {
+        let r = WeatherReading {
+            temp_f: 70.0,
+            humidity: 50.0,
+            wind_mph: 0.0,
+            dewpoint_f: 50.0,
+            location: "Madison".into(),
+            timezone: "America/Chicago".into(),
+            from_api: true,
+            reason: "ok".into(),
+            updated_at: "2026-07-09T14:32:00Z".into(),
+        };
+        let label = human_weather_timestamp(&r);
+        assert!(label.contains("Open-Meteo"));
+        assert!(label.contains("July"));
+        assert!(label.contains("America/Chicago"));
     }
 }

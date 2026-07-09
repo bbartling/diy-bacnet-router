@@ -15,6 +15,7 @@ The hosted BACnet server's objects are defined in **`config/objects.csv`**.
 - **`Commandable`** — `Y` or `N`.
 - **`Default`** — startup present-value.
 - **`Instance`** — BACnet object instance number (`0..4194303`).
+- **`Description`** — BACnet object `description` property (static seed; weather points also get live Open-Meteo text from the mirror loop).
 
 ## Supported `PointType` codes
 

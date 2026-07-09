@@ -11,7 +11,8 @@ broadcast = "192.168.204.255"
 [bacnet_client]
 interface = "192.168.204.55"
 broadcast = "192.168.204.255"
-whois_bind_port = 47808
+# Ephemeral client bind — never share UDP :47808 with the hosted server socket.
+whois_bind_port = 0
 read_bind_port = 0
 apdu_timeout_ms = 6000
 whois_timeout_secs = 8

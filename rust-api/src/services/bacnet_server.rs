@@ -18,6 +18,13 @@ use tracing::info;
 
 use crate::config::{load_objects_csv, HostedObjectRow, Settings};
 
+/// ASHRAE vendor ID for Open-FDD hosted devices (matches openfdd-bacnet-mimic).
+const OPENFDD_VENDOR_ID: u16 = 999;
+
+/// Rejection message when REST tries to write a BACnet-commandable point.
+pub const API_WRITABLE_REJECT_MSG: &str =
+    "rejected: commandable point is BACnet-writable (read-only via API)";
+
 const UNITS_MAP: &[(&str, u32)] = &[
     ("degreesfahrenheit", 62),
     ("degf", 62),
@@ -62,6 +69,15 @@ impl BacnetServerManager {
         !row.commandable
     }
 
+    /// Guard used by REST update paths — commandable points are BACnet-only.
+    pub fn reject_api_write(row: &HostedObjectRow) -> Option<String> {
+        if Self::api_writable(row) {
+            None
+        } else {
+            Some(format!("{}: {}", API_WRITABLE_REJECT_MSG, row.name))
+        }
+    }
+
     async fn server(&self) -> Result<Arc<Mutex<HostedServer>>, String> {
         self.server
             .lock()
@@ -79,6 +95,7 @@ impl BacnetServerManager {
             .interface(cfg.interface)
             .port(cfg.port)
             .broadcast_address(cfg.broadcast)
+            .vendor_id(OPENFDD_VENDOR_ID)
             .database(db)
             .build()
             .await
@@ -117,11 +134,13 @@ impl BacnetServerManager {
         for row in rows {
             let oid = oid_for_point(&row.point_type, row.instance)?;
             let (value, tag) = read_pv(&db, &oid);
+            let description = read_description(&db, &oid);
             out.push(serde_json::json!({
                 "name": row.name,
                 "object_type": row.point_type,
                 "instance": row.instance,
                 "units": row.units,
+                "description": description,
                 "commandable": row.commandable,
                 "api_writable": Self::api_writable(&row),
                 "present_value": value,
@@ -169,11 +188,8 @@ impl BacnetServerManager {
                 result.insert(name, "not found".into());
                 continue;
             };
-            if !Self::api_writable(row) {
-                result.insert(
-                    name,
-                    "rejected: commandable point is BACnet-writable (read-only via API)".into(),
-                );
+            if let Some(msg) = Self::reject_api_write(row) {
+                result.insert(name, msg);
                 continue;
             }
             let pt = row.point_type.to_ascii_uppercase();
@@ -219,6 +235,32 @@ impl BacnetServerManager {
             }
         }
         Ok(result)
+    }
+
+    pub async fn write_description(
+        &self,
+        point_type: &str,
+        instance: u32,
+        description: &str,
+    ) -> Result<(), String> {
+        if description.is_empty() {
+            return Ok(());
+        }
+        let oid = oid_for_point(point_type, instance)?;
+        let srv = self.server().await?;
+        let srv = srv.lock().await;
+        let db = srv.database();
+        let mut db = db.write().await;
+        let obj = db
+            .get_mut(&oid)
+            .ok_or_else(|| format!("object not found: {oid}"))?;
+        obj.write_property(
+            PropertyIdentifier::DESCRIPTION,
+            None,
+            PropertyValue::CharacterString(description.to_string()),
+            None,
+        )
+        .map_err(|e| e.to_string())
     }
 
     pub async fn write_present_value(
@@ -267,6 +309,7 @@ fn build_database(
             "AV" => {
                 let mut av =
                     AnalogValueObject::new(inst, name, units).map_err(|e| e.to_string())?;
+                apply_static_description(&mut av, row);
                 av.set_present_value(parse_float(&row.default, 0.0) as f32);
                 db.add(Box::new(av)).map_err(|e| e.to_string())?;
             }
@@ -274,11 +317,13 @@ fn build_database(
                 let pv = parse_float(&row.default, 0.0) as f32;
                 let mut ai =
                     AnalogInputObject::new(inst, name, units).map_err(|e| e.to_string())?;
+                apply_static_description(&mut ai, row);
                 ai.set_present_value(pv);
                 db.add(Box::new(ai)).map_err(|e| e.to_string())?;
             }
             "BI" => {
                 let mut bi = BinaryInputObject::new(inst, name).map_err(|e| e.to_string())?;
+                apply_static_description(&mut bi, row);
                 if row.default.eq_ignore_ascii_case("active") {
                     bi.set_present_value(1);
                 }
@@ -286,6 +331,7 @@ fn build_database(
             }
             "BV" => {
                 let mut bv = BinaryValueObject::new(inst, name).map_err(|e| e.to_string())?;
+                apply_static_description(&mut bv, row);
                 if !row.default.eq_ignore_ascii_case("active") {
                     bv.write_property(
                         PropertyIdentifier::PRESENT_VALUE,
@@ -300,6 +346,7 @@ fn build_database(
             "CSV" => {
                 let mut csv =
                     CharacterStringValueObject::new(inst, name).map_err(|e| e.to_string())?;
+                apply_static_description_csv(&mut csv, row);
                 if !row.default.is_empty() {
                     csv.write_property(
                         PropertyIdentifier::PRESENT_VALUE,
@@ -324,16 +371,63 @@ fn build_database(
         instance: device_instance,
         name: device_name.to_string(),
         vendor_name: "Open-FDD".into(),
-        vendor_id: 999,
-        model_name: "diy-bacnet-server".into(),
+        vendor_id: OPENFDD_VENDOR_ID,
+        model_name: "openfdd-fieldbus".into(),
         application_software_version: env!("CARGO_PKG_VERSION").into(),
         max_apdu_length: 1476,
         ..DeviceConfig::default()
     })
     .map_err(|e| e.to_string())?;
     device.set_object_list(object_list);
+    device.set_description("Open-FDD field-bus gateway with Open-Meteo weather mirror");
     db.add(Box::new(device)).map_err(|e| e.to_string())?;
     Ok(db)
+}
+
+fn apply_static_description<T: HasDescription>(obj: &mut T, row: &HostedObjectRow) {
+    if !row.description.is_empty() {
+        obj.set_description(&row.description);
+    }
+}
+
+fn apply_static_description_csv(obj: &mut CharacterStringValueObject, row: &HostedObjectRow) {
+    if row.description.is_empty() {
+        return;
+    }
+    let _ = obj.write_property(
+        PropertyIdentifier::DESCRIPTION,
+        None,
+        PropertyValue::CharacterString(row.description.clone()),
+        None,
+    );
+}
+
+trait HasDescription {
+    fn set_description(&mut self, desc: &str);
+}
+
+impl HasDescription for AnalogValueObject {
+    fn set_description(&mut self, desc: &str) {
+        AnalogValueObject::set_description(self, desc);
+    }
+}
+
+impl HasDescription for AnalogInputObject {
+    fn set_description(&mut self, desc: &str) {
+        AnalogInputObject::set_description(self, desc);
+    }
+}
+
+impl HasDescription for BinaryInputObject {
+    fn set_description(&mut self, desc: &str) {
+        BinaryInputObject::set_description(self, desc);
+    }
+}
+
+impl HasDescription for BinaryValueObject {
+    fn set_description(&mut self, desc: &str) {
+        BinaryValueObject::set_description(self, desc);
+    }
 }
 
 async fn apply_csv_defaults(server: &HostedServer, rows: &[HostedObjectRow]) -> Result<(), String> {
@@ -387,6 +481,16 @@ fn oid_for_point(point_type: &str, instance: u32) -> Result<ObjectIdentifier, St
         other => return Err(format!("unknown point type {other}")),
     };
     ObjectIdentifier::new(ot, instance).map_err(|e| e.to_string())
+}
+
+fn read_description(db: &ObjectDatabase, oid: &ObjectIdentifier) -> String {
+    match db.get(oid) {
+        Some(obj) => match obj.read_property(PropertyIdentifier::DESCRIPTION, None) {
+            Ok(PropertyValue::CharacterString(s)) => s,
+            _ => String::new(),
+        },
+        None => String::new(),
+    }
 }
 
 fn read_pv(db: &ObjectDatabase, oid: &ObjectIdentifier) -> (serde_json::Value, String) {
@@ -473,6 +577,7 @@ mod tests {
             commandable: false,
             default: String::new(),
             instance: 1,
+            description: String::new(),
         };
         assert!(BacnetServerManager::api_writable(&row));
         let cmd = HostedObjectRow {
@@ -537,5 +642,41 @@ mod tests {
         assert!(!BacnetServerManager::api_writable(
             &rows["openfdd-optimization-enabled"]
         ));
+    }
+
+    #[test]
+    fn every_commandable_point_rejects_api_write() {
+        std::env::set_var(
+            "OPENFDD_FIELDBUS_CONFIG_DIR",
+            format!("{}/../config", env!("CARGO_MANIFEST_DIR")),
+        );
+        for row in load_objects_csv(None).expect("csv") {
+            if row.commandable {
+                assert!(
+                    BacnetServerManager::reject_api_write(&row).is_some(),
+                    "{} must reject REST writes",
+                    row.name
+                );
+                assert!(!BacnetServerManager::api_writable(&row));
+            } else {
+                assert!(BacnetServerManager::reject_api_write(&row).is_none());
+            }
+        }
+    }
+
+    #[test]
+    fn optimization_enabled_is_only_commandable_hosted_point() {
+        std::env::set_var(
+            "OPENFDD_FIELDBUS_CONFIG_DIR",
+            format!("{}/../config", env!("CARGO_MANIFEST_DIR")),
+        );
+        let commandable: Vec<_> = load_objects_csv(None)
+            .expect("csv")
+            .into_iter()
+            .filter(|r| r.commandable)
+            .collect();
+        assert_eq!(commandable.len(), 1);
+        assert_eq!(commandable[0].name, "openfdd-optimization-enabled");
+        assert_eq!(commandable[0].instance, 9010);
     }
 }

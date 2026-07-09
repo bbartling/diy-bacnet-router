@@ -161,8 +161,22 @@ else bad "POST /bacnet/write-dry-run"; fi
 hdr "Hosted server (device $HOSTED_INSTANCE)"
 if O=$(api "$BASE/bacnet/server/objects"); then
   jq_ok "weather point outside-air-temperature @ AV:9101" "$O" 'any(.objects[]; .name=="outside-air-temperature" and .instance==9101)'
-  jq_ok "openfdd-optimization-enabled is commandable" "$O" 'any(.objects[]; .name=="openfdd-optimization-enabled" and .commandable==true)'
+  jq_ok "weather-last-updated @ CSV:9107" "$O" 'any(.objects[]; .name=="weather-last-updated" and .instance==9107)'
+  jq_ok "weather point has Open-Meteo description" "$O" 'any(.objects[]; .name=="outside-air-temperature" and (.description|test("Open-Meteo")))'
+  jq_ok "openfdd-optimization-enabled is commandable" "$O" 'any(.objects[]; .name=="openfdd-optimization-enabled" and .commandable==true and .api_writable==false)'
 else bad "GET /bacnet/server/objects"; fi
+
+if C=$(api "$BASE/bacnet/server/commandable"); then
+  jq_ok "commandable list includes BV:9010" "$C" 'any(.objects[]; .name=="openfdd-optimization-enabled" and .instance==9010)'
+else bad "GET /bacnet/server/commandable"; fi
+
+if U=$(api -X POST "$BASE/bacnet/server/update" -d '{"updates":{"openfdd-optimization-enabled":true}}'); then
+  jq_ok "REST rejects write to commandable BV:9010" "$U" '.result["openfdd-optimization-enabled"]|test("rejected")'
+else bad "POST /bacnet/server/update (commandable reject)"; fi
+
+if U2=$(api -X POST "$BASE/bacnet/server/update" -d '{"updates":{"openfdd-active-fault-count":1.0}}'); then
+  jq_ok "REST allows write to server-owned AV:9003" "$U2" '.result["openfdd-active-fault-count"]=="updated"'
+else bad "POST /bacnet/server/update (server-owned)"; fi
 
 # ---- poll engine -----------------------------------------------------------
 hdr "Poll engine"
@@ -178,7 +192,8 @@ else bad "GET /bacnet/poll/status"; fi
 hdr "Weather (Open-Meteo)"
 if WX=$(api "$BASE/weather"); then
   jq_ok "weather present" "$WX" '.temp_f != null'
-  echo "${DIM}  $(jq -c '{temp_f,humidity,dewpoint_f,location,from_api}' <<<"$WX")${RST}"
+  jq_ok "weather last_updated_label present" "$WX" '.last_updated_label != null'
+  echo "${DIM}  $(jq -c '{temp_f,humidity,dewpoint_f,location,from_api,last_updated_label}' <<<"$WX")${RST}"
 else bad "GET /weather"; fi
 
 # ---- summary ---------------------------------------------------------------

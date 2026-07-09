@@ -41,7 +41,7 @@ impl Default for BacnetClientSettings {
         Self {
             interface: Ipv4Addr::new(192, 168, 204, 55),
             broadcast: Ipv4Addr::new(192, 168, 204, 255),
-            whois_bind_port: 0xBAC0,
+            whois_bind_port: 0,
             read_bind_port: 0,
             apdu_timeout_ms: 6000,
             whois_timeout_secs: 8.0,
@@ -178,6 +178,7 @@ pub struct HostedObjectRow {
     pub commandable: bool,
     pub default: String,
     pub instance: u32,
+    pub description: String,
 }
 
 #[derive(Debug, Clone)]
@@ -499,7 +500,6 @@ pub fn load_settings() -> Settings {
     if let Some(v) = env_first(&["OPENFDD_FIELDBUS_BACNET_PORT", "RUSTY_GATEWAY_BACNET_PORT"]) {
         if let Ok(port) = v.parse::<u16>() {
             s.bacnet_server.port = port;
-            s.bacnet_client.whois_bind_port = port;
         }
     }
     if let Some(v) = env_first(&["OPENFDD_FIELDBUS_HTTP_HOST", "RUSTY_GATEWAY_HTTP_HOST"]) {
@@ -576,6 +576,7 @@ pub fn load_objects_csv(path: Option<&Path>) -> Result<Vec<HostedObjectRow>, Str
                 .trim()
                 .parse()
                 .map_err(|e| format!("invalid instance: {e}"))?,
+            description: row.get(6).unwrap_or("").trim().to_string(),
         });
     }
     Ok(rows)
@@ -630,9 +631,13 @@ mod tests {
         let rows = load_objects_csv(None).expect("objects.csv");
         let names: HashMap<_, _> = rows.iter().map(|r| (r.name.as_str(), r)).collect();
         assert!(names.contains_key("outside-air-temperature"));
+        assert!(names.contains_key("weather-last-updated"));
         assert!(names.contains_key("openfdd-active-fault-count"));
         assert!(names.contains_key("openfdd-optimization-enabled"));
         assert!(names["openfdd-optimization-enabled"].commandable);
+        assert!(names["outside-air-temperature"]
+            .description
+            .contains("Open-Meteo"));
     }
 
     #[test]
@@ -664,6 +669,7 @@ mod tests {
             "outside-air-wind-speed",
             "outside-air-dewpoint",
             "weather-location",
+            "weather-last-updated",
             "app-fault",
             "openfdd-active-fault-count",
             "openfdd-faults-present",
@@ -683,6 +689,7 @@ mod tests {
         assert_eq!(rows["outside-air-temperature"].instance, 9101);
         assert_eq!(rows["outside-air-humidity"].instance, 9102);
         assert_eq!(rows["outside-air-dewpoint"].instance, 9103);
+        assert_eq!(rows["weather-last-updated"].instance, 9107);
     }
 
     #[test]
@@ -707,16 +714,17 @@ mod tests {
         std::env::remove_var("RUSTY_GATEWAY_BACNET_PORT");
         let s = load_settings();
         assert_eq!(s.bacnet_server.port, 47808);
-        assert_eq!(s.bacnet_client.whois_bind_port, 47808);
+        assert_eq!(s.bacnet_client.whois_bind_port, 0);
 
         std::env::set_var("OPENFDD_FIELDBUS_BACNET_PORT", "47809");
         let s = load_settings();
         assert_eq!(s.bacnet_server.port, 47809);
-        assert_eq!(s.bacnet_client.whois_bind_port, 47809);
+        assert_eq!(s.bacnet_client.whois_bind_port, 0);
 
         std::env::set_var("RUSTY_GATEWAY_BACNET_PORT", "47810");
         std::env::remove_var("OPENFDD_FIELDBUS_BACNET_PORT");
         assert_eq!(load_settings().bacnet_server.port, 47810);
+        assert_eq!(load_settings().bacnet_client.whois_bind_port, 0);
         std::env::remove_var("RUSTY_GATEWAY_BACNET_PORT");
     }
 

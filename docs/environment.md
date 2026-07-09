@@ -21,7 +21,7 @@ set, `OPENFDD_FIELDBUS_*` wins.
 | `OPENFDD_FIELDBUS_BIND` | `RUSTY_GATEWAY_BIND` | Client NIC IP used as the unicast source; the directed `/24` broadcast is derived from it. |
 | `OPENFDD_FIELDBUS_SERVER_BIND` | `RUSTY_GATEWAY_SERVER_BIND` | Override the BACnet **server** bind interface (default `0.0.0.0` so broadcast Who-Is is received). |
 | `OPENFDD_FIELDBUS_BROADCAST` | `RUSTY_GATEWAY_BROADCAST` | Override the BACnet broadcast address for server and client. |
-| `OPENFDD_FIELDBUS_BACNET_PORT` | `RUSTY_GATEWAY_BACNET_PORT` | BACnet/IP UDP port for the hosted server + client Who-Is listener (default `47808`; e.g. `47809`). Per-device destination ports come from `field_devices.toml`. |
+| `OPENFDD_FIELDBUS_BACNET_PORT` | `RUSTY_GATEWAY_BACNET_PORT` | BACnet/IP UDP port for the **hosted server** only (default `47808`). The client uses ephemeral UDP ports so it never contends with the server socket. Per-device destination ports come from `field_devices.toml`. |
 | `OPENFDD_FIELDBUS_POLL_ENABLED` | `RUSTY_GATEWAY_POLL_ENABLED` | `false` disables the background poll engine (default enabled). |
 | `OPENFDD_FIELDBUS_POLL_INTERVAL_SECS` | `RUSTY_GATEWAY_POLL_INTERVAL_SECS` | Poll cycle interval in seconds (default `60`). |
 | `OPENFDD_FIELDBUS_GIT_SHA` | `GIT_SHA` | Build SHA reported by `/health` and `/api/health`. |
