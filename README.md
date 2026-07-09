@@ -214,3 +214,19 @@ cd rust-api && cargo test && cargo clippy -- -D warnings
 ```
 
 Live bench (optional): `OPENFDD_FIELDBUS_API_KEY=... scripts/bench_test.sh`
+
+### Remote Windows client
+
+From your Windows machine (Rust installed), clone the repo and run the standalone bench client — no sibling `rusty-bacnet` deps:
+
+```powershell
+cd diy-bacnet-server\remote-bench
+$env:FIELDBUS_BASE = "http://192.168.204.55:8080"
+$env:OPENFDD_FIELDBUS_API_KEY = "bench-demo-key-1234567890"
+cargo run --release
+```
+
+**Swagger:** `http://192.168.204.55:8080/docs` — Authorize with the same API key.  
+**OpenAPI:** `http://192.168.204.55:8080/openapi.json`
+
+See [`remote-bench/README.md`](remote-bench/README.md).

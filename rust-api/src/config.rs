@@ -547,7 +547,10 @@ pub fn load_settings() -> Settings {
         env_first(&["OPENFDD_FIELDBUS_OPENAPI", "RUSTY_GATEWAY_OPENAPI"]).as_deref(),
         true,
     );
-    s.swagger_servers_url = env_first(&["RUSTY_GATEWAY_SWAGGER_SERVERS_URL"]);
+    s.swagger_servers_url = env_first(&[
+        "OPENFDD_FIELDBUS_SWAGGER_SERVERS_URL",
+        "RUSTY_GATEWAY_SWAGGER_SERVERS_URL",
+    ]);
 
     s
 }
