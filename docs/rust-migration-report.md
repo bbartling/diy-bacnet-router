@@ -128,10 +128,21 @@ Observed traffic (via `tcpdump -r`):
 - I-Am responses from routed MSTP devices (`192.168.204.200`, `.11`, `.13`, `.14`)
 - ReadPropertyMultiple to device 5007 through router
 
-`scripts/pcap_validate.sh` requires `tshark` (not installed on this bench host); install Wireshark CLI for automated I-Am / WriteProperty gates in CI.
+`scripts/pcap_validate.sh` requires `tshark` (not installed on this bench host); the Docker Rust image includes `tshark` for in-container validation.
 
 ```bash
 PCAP_FILE=artifacts/bacnet_rust_capture.pcap PCAP_MIN_IAM=1 scripts/pcap_validate.sh
+```
+
+### 30-minute soak (2026-07-09)
+
+```
+OPENFDD_FIELDBUS_API_KEY=bench-demo-key-1234567890 \
+  SMOKE_BASE=http://127.0.0.1:8080 \
+  SOAK_MINUTES=30 SOAK_CONTAINER="" \
+  scripts/soak_test.sh
+# SOAK PASSED — 15 cycles, override P8: 15 ok / 0 miss
+# All features 15/0 (modbus degrades gracefully when no simulator on :5502)
 ```
 
 ## Completion checklist
