@@ -151,8 +151,8 @@ PCAP_FILE=artifacts/bacnet_rust_capture.pcap PCAP_MIN_IAM=1 scripts/pcap_validat
 | `scripts/smoke_test.sh` (20/20) | Done |
 | PCAP capture + review | Done (33 frames; no Who-Is storm) |
 | `scripts/pcap_validate.sh` | Done (script added; needs `tshark` on host) |
-| Docker `gateway-rust` profile | Done (see `docker compose --profile rust build`) |
-| 30m `scripts/soak_test.sh` on Rust binary | In progress (restarted after modbus parity fix) |
+| Docker `gateway-rust` profile | Done (`docker compose --profile rust build gateway-rust`) |
+| 30m `scripts/soak_test.sh` on Rust binary | Done (15 cycles, 30m, P8 override 15/15) |
 | Migration report + README | Done |
 
 ## Known gaps / differences
