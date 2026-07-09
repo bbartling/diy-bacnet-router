@@ -163,6 +163,28 @@ See [Environment](docs/environment.md) for the full variable list.
 Optional `OPENFDD_FIELDBUS_API_KEY` enables Bearer middleware on protected routes;
 `/`, `/health`, `/api/health`, and Swagger stay public.
 
+## Remote access, Swagger, and OpenAPI
+
+**Login** is Bearer API-key auth (not username/password). Set a strong key in `.env`:
+
+```bash
+OPENFDD_FIELDBUS_API_KEY=$(openssl rand -hex 32)
+OPENFDD_FIELDBUS_HTTP_HOST=0.0.0.0
+OPENFDD_FIELDBUS_HTTP_PORT=8080
+```
+
+From another machine on the network:
+
+| URL | Purpose |
+|-----|---------|
+| `http://<host>:8080/docs` | **Swagger UI** — browse and try endpoints (click **Authorize**, paste your API key) |
+| `http://<host>:8080/openapi.json` | **OpenAPI 3.1** spec (JSON) — generate TypeScript/Python clients |
+| `http://<host>:8080/api/health` | Open-FDD liveness (no auth required) |
+
+Protected routes need: `Authorization: Bearer <your-api-key>`
+
+Optional: set `OPENFDD_FIELDBUS_SWAGGER_SERVERS_URL=http://192.168.x.x:8080` so Swagger "Try it out" hits your bench IP instead of `localhost`.
+
 ## Tests
 
 ```bash
