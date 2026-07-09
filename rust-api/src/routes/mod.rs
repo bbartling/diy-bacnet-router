@@ -30,6 +30,11 @@ pub fn api_routes(state: AppState) -> Router {
 }
 
 pub fn openapi_routes(_state: AppState) -> Router<()> {
-    use utoipa_swagger_ui::SwaggerUi;
-    Router::new().merge(SwaggerUi::new("/docs").url("/openapi.json", ApiDoc::openapi()))
+    use utoipa_swagger_ui::{Config, SwaggerUi};
+    Router::new().merge(
+        SwaggerUi::new("/docs")
+            .url("/openapi.json", ApiDoc::openapi())
+            // Private bench IP — validator.swagger.io cannot reach 192.168.x.x
+            .config(Config::default().validator_url("none")),
+    )
 }
