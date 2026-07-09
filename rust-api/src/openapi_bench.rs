@@ -19,19 +19,6 @@ pub fn swagger_bench_enabled() -> bool {
     true
 }
 
-/// API key configured for the running service (not the Swagger doc fallback).
-pub fn configured_api_key() -> Option<String> {
-    for key in ["OPENFDD_FIELDBUS_API_KEY", "RUSTY_GATEWAY_API_KEY"] {
-        if let Ok(v) = std::env::var(key) {
-            let trimmed = v.trim();
-            if !trimmed.is_empty() {
-                return Some(trimmed.to_string());
-            }
-        }
-    }
-    None
-}
-
 /// Whether OpenAPI text may include the literal demo API key hint.
 pub fn swagger_may_reveal_demo_key() -> bool {
     swagger_bench_enabled()
