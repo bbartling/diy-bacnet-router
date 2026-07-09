@@ -1,8 +1,9 @@
 use utoipa::openapi::security::{Http, HttpAuthScheme, SecurityScheme};
 use utoipa::openapi::Server;
-use utoipa::OpenApi;
+use utoipa::{Modify, OpenApi};
 
 use crate::models::*;
+use crate::openapi_bench::{self, DEFAULT_BENCH_API_KEY};
 use crate::openapi_paths::*;
 
 #[derive(OpenApi)]
@@ -14,7 +15,9 @@ use crate::openapi_paths::*;
             **Remote access:** bind HTTP to `0.0.0.0` (`OPENFDD_FIELDBUS_HTTP_HOST`) and set \
             `OPENFDD_FIELDBUS_API_KEY`. Send `Authorization: Bearer <key>` on protected routes.\n\n\
             **Open-FDD prefix:** every route below (except `/`, `/health`, `/api/health`, docs) \
-            is also available under `/api/*` — e.g. `/api/bacnet/read`, `/api/weather`."
+            is also available under `/api/*` — e.g. `/api/bacnet/read`, `/api/weather`.\n\n\
+            **Swagger bench:** POST bodies are pre-filled for device **5007** (OA-T AI:1173, \
+            AO:2466 P8 override), Modbus **192.168.204.14:1502**, and Haystack Niagara filters."
     ),
     paths(
         doc_root,
@@ -63,7 +66,7 @@ use crate::openapi_paths::*;
         WeatherResponse,
         OkResponse,
     )),
-    modifiers(&SecurityAddon),
+    modifiers(&SecurityAddon, &BenchExamplesAddon),
     tags(
         (name = "Root", description = "Service metadata"),
         (name = "BACnet", description = "BACnet client + hosted server"),
@@ -75,10 +78,16 @@ use crate::openapi_paths::*;
 )]
 pub struct ApiDoc;
 
+/// Build OpenAPI spec with bench examples and runtime server URL.
+pub fn build_openapi() -> utoipa::openapi::OpenApi {
+    ApiDoc::openapi()
+}
+
 pub struct SecurityAddon;
 
-impl utoipa::Modify for SecurityAddon {
+impl Modify for SecurityAddon {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        let api_key = openapi_bench::swagger_api_key();
         if let Some(components) = openapi.components.as_mut() {
             components.add_security_scheme(
                 "BearerAuth",
@@ -86,11 +95,10 @@ impl utoipa::Modify for SecurityAddon {
                     Http::builder()
                         .scheme(HttpAuthScheme::Bearer)
                         .bearer_format("API Key")
-                        .description(Some(
-                            "Set OPENFDD_FIELDBUS_API_KEY in .env, then send \
-                             `Authorization: Bearer <key>` on protected routes. \
-                             Use the Authorize button in Swagger UI.",
-                        ))
+                        .description(Some(format!(
+                            "Set OPENFDD_FIELDBUS_API_KEY in .env, then Authorize with \
+                             `Bearer <key>`. Bench default: `{api_key}`"
+                        )))
                         .build(),
                 ),
             );
@@ -100,7 +108,14 @@ impl utoipa::Modify for SecurityAddon {
             Vec::<String>::new(),
         )]);
 
-        // Optional public URL for Swagger "Try it out" (e.g. http://192.168.204.55:8080).
+        if let Some(info) = openapi.info.description.as_mut() {
+            info.push_str(&format!(
+                "\n\n**Try it out:** click **Authorize** and paste `{api_key}` \
+                 (or your `OPENFDD_FIELDBUS_API_KEY`). POST bodies use hard-coded \
+                 bench targets unless you edit them."
+            ));
+        }
+
         if let Ok(url) = std::env::var("RUSTY_GATEWAY_SWAGGER_SERVERS_URL") {
             let trimmed = url.trim();
             if !trimmed.is_empty() {
@@ -112,5 +127,15 @@ impl utoipa::Modify for SecurityAddon {
                 openapi.servers = Some(vec![Server::new(trimmed)]);
             }
         }
+
+        let _ = DEFAULT_BENCH_API_KEY;
+    }
+}
+
+pub struct BenchExamplesAddon;
+
+impl Modify for BenchExamplesAddon {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        openapi_bench::apply_bench_examples(openapi);
     }
 }

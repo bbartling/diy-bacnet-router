@@ -13,7 +13,8 @@ set, `OPENFDD_FIELDBUS_*` wins.
 |----------------------|-----------------|---------|
 | `OPENFDD_FIELDBUS_API_KEY` | `RUSTY_GATEWAY_API_KEY` | If set, require `Authorization: Bearer <key>` on protected routes. When unset, all routes are open. |
 | `OPENFDD_FIELDBUS_OPENAPI` | `RUSTY_GATEWAY_OPENAPI` | `0` / `false` / `no` disables `/docs`, `/redoc`, `/openapi.json`. Enabled by default. |
-| — | `RUSTY_GATEWAY_SWAGGER_SERVERS_URL` | Optional OpenAPI `servers` URL (e.g. when behind a reverse-proxy path). |
+| `OPENFDD_FIELDBUS_SWAGGER_SERVERS_URL` | `RUSTY_GATEWAY_SWAGGER_SERVERS_URL` | Optional OpenAPI `servers` URL for Swagger Try-it-out (e.g. `http://192.168.204.55:8080`). |
+| `OPENFDD_FIELDBUS_SWAGGER_API_KEY` | — | Optional Swagger docs hint only; defaults to `OPENFDD_FIELDBUS_API_KEY` or bench demo key. POST bodies are pre-filled from `openapi_bench.rs`. |
 | `OPENFDD_FIELDBUS_CONFIG_DIR` | `RUSTY_GATEWAY_CONFIG_DIR` | Override the config directory (defaults to `./config`). |
 | `OPENFDD_FIELDBUS_HTTP_HOST` | `RUSTY_GATEWAY_HTTP_HOST` | HTTP bind host (default `0.0.0.0`). |
 | `OPENFDD_FIELDBUS_HTTP_PORT` | `RUSTY_GATEWAY_HTTP_PORT` | HTTP bind port (default `8080`). |

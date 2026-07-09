@@ -55,6 +55,12 @@ Implementation: `rust-api/src/services/weather.rs` → `mirror_to_bacnet()`.
 2. `scripts/smoke_test.sh` against running container
 3. Optional: `point-discover --device 599999 --address <host>:47808` from rusty-bacnet samples — expect name **OpenFDD** and ≥10 objects
 
+## Swagger / OpenAPI bench examples
+
+- **`rust-api/src/openapi_bench.rs`** — hard-coded Try-it-out bodies for BACnet device **5007**, Modbus **192.168.204.14:1502**, Haystack filters.
+- Default demo API key: **`bench-demo-key-1234567890`** (`.env.example` / `OPENFDD_FIELDBUS_API_KEY`).
+- Swagger UI: `/docs` — Authorize with Bearer key; POST bodies pre-filled from bench examples.
+
 ## Key files
 
 ```

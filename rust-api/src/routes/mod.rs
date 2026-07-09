@@ -6,9 +6,8 @@ pub mod root;
 pub mod weather;
 
 use axum::Router;
-use utoipa::OpenApi;
 
-use crate::openapi::ApiDoc;
+use crate::openapi::build_openapi;
 use crate::state::AppState;
 
 pub fn api_routes(state: AppState) -> Router {
@@ -31,10 +30,16 @@ pub fn api_routes(state: AppState) -> Router {
 
 pub fn openapi_routes(_state: AppState) -> Router<()> {
     use utoipa_swagger_ui::{Config, SwaggerUi};
+
+    let spec = build_openapi();
+
     Router::new().merge(
-        SwaggerUi::new("/docs")
-            .url("/openapi.json", ApiDoc::openapi())
-            // Private bench IP — validator.swagger.io cannot reach 192.168.x.x
-            .config(Config::default().validator_url("none")),
+        SwaggerUi::new("/docs").url("/openapi.json", spec).config(
+            Config::default()
+                .validator_url("none")
+                .persist_authorization(true)
+                .try_it_out_enabled(true)
+                .doc_expansion("list"),
+        ),
     )
 }

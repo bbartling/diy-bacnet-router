@@ -18,7 +18,8 @@
 set -uo pipefail
 
 BASE="${SMOKE_BASE:-http://127.0.0.1:8080}"
-KEY="${OPENFDD_FIELDBUS_API_KEY:-${RUSTY_GATEWAY_API_KEY:-}}"
+# Matches openapi_bench::DEFAULT_BENCH_API_KEY and .env.example (override for production).
+KEY="${OPENFDD_FIELDBUS_API_KEY:-${RUSTY_GATEWAY_API_KEY:-bench-demo-key-1234567890}}"
 TIMEOUT="${SMOKE_TIMEOUT:-45}"
 
 DEV="${SMOKE_DEVICE:-5007}"

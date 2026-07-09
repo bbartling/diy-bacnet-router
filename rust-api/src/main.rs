@@ -5,6 +5,7 @@ mod config;
 mod error;
 mod models;
 mod openapi;
+mod openapi_bench;
 mod openapi_paths;
 mod routes;
 mod services;

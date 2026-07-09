@@ -22,7 +22,7 @@ const BI_APP_FAULT: u32 = 9106;
 const CSV_LAST_UPDATED: u32 = 9107;
 
 #[derive(Debug, Clone)]
-struct WeatherReading {
+pub(crate) struct WeatherReading {
     temp_f: f64,
     humidity: f64,
     wind_mph: f64,
@@ -304,10 +304,7 @@ impl WeatherService {
             wind_mph: wind,
             dewpoint_f: dp,
             location: label,
-            timezone: loc["timezone"]
-                .as_str()
-                .unwrap_or("UTC")
-                .to_string(),
+            timezone: loc["timezone"].as_str().unwrap_or("UTC").to_string(),
             from_api: true,
             reason: "ok".into(),
             updated_at: Utc::now().to_rfc3339(),
@@ -320,11 +317,7 @@ pub fn human_weather_timestamp(r: &WeatherReading) -> String {
     let dt = DateTime::parse_from_rfc3339(&r.updated_at)
         .map(|d| d.with_timezone(&Utc))
         .unwrap_or_else(|_| Utc::now());
-    let source = if r.from_api {
-        "Open-Meteo"
-    } else {
-        "fallback"
-    };
+    let source = if r.from_api { "Open-Meteo" } else { "fallback" };
     format!(
         "Weather updated {} ({}; local tz: {})",
         dt.format("%B %d, %Y at %I:%M %p UTC"),
