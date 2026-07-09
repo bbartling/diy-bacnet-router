@@ -1,4 +1,4 @@
-# Unit tests on Python 3.12 (no PyPI publish / no package build).
+# CI — Rust axum gateway (primary) + legacy Python unit tests.
 
 name: CI
 
@@ -12,7 +12,42 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  rust:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Checkout rusty-bacnet
+        uses: actions/checkout@v5
+        with:
+          repository: bbartling/rusty-bacnet
+          path: rusty-bacnet
+
+      - name: Checkout rusty-haystack
+        uses: actions/checkout@v5
+        with:
+          repository: bbartling/rusty-haystack
+          path: rusty-haystack
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: "1.96"
+          components: rustfmt, clippy
+
+      - name: Rust fmt
+        working-directory: rust-api
+        run: cargo fmt --all --check
+
+      - name: Rust clippy
+        working-directory: rust-api
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Rust tests
+        working-directory: rust-api
+        run: cargo test --workspace
+
+  python-legacy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -28,5 +63,5 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e ".[dev]" rusty-bacnet rusty-haystack
 
-      - name: Run unit tests
+      - name: Run legacy Python unit tests
         run: pytest tests/unit -v --tb=short

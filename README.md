@@ -1,50 +1,22 @@
-# DIY BACnet Server — Open-FDD field-bus sidecar
+# DIY BACnet Server — Open-FDD field-bus sidecar (pure Rust)
 
-A turnkey **FastAPI + Swagger** field-bus sidecar for [Open-FDD](https://github.com/bbartling/open-fdd)
-where **Python is only the web layer** and every protocol stack is **Rust via
-PyO3**. It owns *all* field-bus I/O so the FDD app only ever speaks JSON:
+A turnkey **Rust axum** field-bus sidecar for [Open-FDD](https://github.com/bbartling/open-fdd).
+It owns *all* field-bus I/O so the FDD app only ever speaks JSON:
 
-- **rusty-bacnet** — hosts a BACnet server device (**599999**) on UDP `:47808`
+- **rusty-bacnet** (native) — hosts BACnet server device **599999** on UDP `:47808`
   with Open-Meteo weather objects (20-min refresh) + diagnostic points, runs a
   **background poll engine**, **and** provides the full BACnet client toolkit
-  (read, write, RPM, Who-Is, Who-Is-router-to-network, discovery, priority-array,
-  supervisory override audit).
-- **rusty-modbus** — Modbus TCP read API.
-- **rusty-haystack** — read-only Haystack client (SCRAM).
+  (read, write, RPM, Who-Is, discovery, priority-array, supervisory override audit).
+- **rusty-modbus** (native) — Modbus TCP read API.
+- **rusty-haystack** (native) — read-only Haystack client (SCRAM).
 
-Everything is exposed as a clean REST surface with a Swagger UI and optional
-Bearer-token auth. Native routes live at the root (`/bacnet/*`, `/modbus/*`,
-`/haystack/*`, `/weather`); the same operations are mirrored under **`/api/*`**
-so an Open-FDD deployment can reach them with the `/api` prefix it uses
-elsewhere.
+The HTTP layer is **axum + serde + validator + utoipa** (FastAPI/Pydantic equivalent).
+Native routes live at the root (`/bacnet/*`, `/modbus/*`, `/haystack/*`, `/weather`);
+the same operations are mirrored under **`/api/*`** so Open-FDD can poll the sidecar
+the way it does in production.
 
-## What "Rust wheels in a Python app" means
-
-The protocol stacks (`rusty-bacnet`, `rusty-modbus`, `rusty-haystack`) are
-written in **Rust**, not Python. They reach Python through **[PyO3](https://pyo3.rs)**,
-which compiles the Rust crate into a native **CPython extension module** — a
-shared library (`.so` on Linux) that Python can `import` exactly like a normal
-module. That compiled artifact is packaged and distributed as a **wheel**
-(`.whl`), the standard binary install format for Python.
-
-So when you run `pip install rusty-bacnet`, pip downloads a prebuilt wheel
-containing the compiled Rust code and drops it into your environment. Your
-Python then does `import rusty_bacnet` and calls into Rust at native speed —
-there is no Python BACnet/Modbus/Haystack implementation involved. This app is
-therefore "Python only at the web layer": FastAPI handles HTTP/Swagger, and
-every byte on the wire is produced and parsed by Rust.
-
-Practical consequences:
-
-- **A wheel is platform- and Python-version-specific.** `rusty-bacnet` and
-  `rusty-haystack` publish wheels that work on **CPython 3.12+**; `rusty-modbus`
-  currently only publishes a **CPython 3.14** wheel. If pip can't find a wheel
-  matching your interpreter/OS, the import fails — that is why `/modbus/*`
-  returns a clear "not installed" error on a 3.12 runtime.
-- **No Rust toolchain is needed to *run* the app** — the wheel is already
-  compiled. You only need Rust/`maturin` if you want to build a wheel from
-  source (e.g. for an unpublished branch).
-- Verify what's installed with `pip show rusty-bacnet` / `pip list`.
+Legacy Python/FastAPI + PyO3 code remains under `app/` for reference; use
+`docker compose --profile legacy-python` only if you need the old stack.
 
 ## Open-FDD sidecar model
 
@@ -60,66 +32,60 @@ Haystack — and consume JSON only. The sidecar:
 - exposes `/api/health` with `git_sha`/service shape and a write-safety
   **dry-run / approval** gate for supervised writes.
 
-## Design
+## Quick start (local dev)
 
-The hosted server and the client use **separate sockets**. The server binds
-`0.0.0.0:47808` so it receives broadcast Who-Is from BMS discovery tools, while
-the client sends Who-Is on `:47808` and performs unicast reads on ephemeral
-ports. This keeps discovery reliable and avoids two consumers contending for the
-same UDP socket.
-
-### Non-default BACnet UDP port
-
-Default BACnet/IP is UDP `47808` (0xBAC0), but some buildings run the whole
-network on another port (e.g. `47809`). Set **`OPENFDD_FIELDBUS_BACNET_PORT`**
-(or the legacy `RUSTY_GATEWAY_BACNET_PORT`) and both the hosted server and the
-client's Who-Is listener move to that port:
-
-```bash
-# .env
-OPENFDD_FIELDBUS_BACNET_PORT=47809
-```
-
-Per-device *destination* ports are independent and come from
-`config/field_devices.toml` (`port = ...` per device), so you can also talk to a
-device on a different port than the one you host on.
-
-## Quick start (local dev, Python 3.12+)
+Requires sibling checkouts: `../rusty-bacnet`, `../rusty-haystack`.
 
 ```bash
 cd diy-bacnet-server
-python3 -m venv .venv && . .venv/bin/activate
-pip install -e . rusty-bacnet rusty-haystack
+cp .env.example .env          # set OPENFDD_FIELDBUS_API_KEY, BIND, etc.
 chmod +x scripts/*.sh
-./scripts/run_dev.sh
+
+cd rust-api
+cargo build --release
+OPENFDD_FIELDBUS_CONFIG_DIR=../config cargo run --release
 # Swagger: http://127.0.0.1:8080/docs
 ```
 
 `scripts/preflight_free_47808.sh` frees UDP `:47808` before the server binds.
 
-> `rusty-modbus` currently ships a Python 3.14 wheel. On 3.12 the app boots and
-> all BACnet / weather / Haystack routes work; `/modbus/*` returns a clear error
-> until the wheel (or the Docker image) is available.
-
 ## Docker (long-running deployment)
 
-The image is a slim `python:3.12-slim` that installs the `rusty-bacnet` and
-`rusty-haystack` wheels from PyPI — no Rust toolchain or source build required,
-so it builds in seconds. `docker compose` runs it with host networking and
-`restart: unless-stopped`, so it stays up across crashes and host reboots.
+Build context must be the **parent** directory containing `rusty-bacnet`,
+`rusty-haystack`, and `diy-bacnet-server`:
 
 ```bash
 cd diy-bacnet-server
-cp .env.example .env          # then set OPENFDD_FIELDBUS_API_KEY / _BIND / _BACNET_PORT
+cp .env.example .env
 docker compose up -d --build
-docker compose logs -f        # follow
+docker compose logs -f
 ```
 
-The container exposes a Docker `HEALTHCHECK` against `/health`, so
-`docker ps` shows `healthy` once it's serving.
+The Rust image includes `tshark` for in-container PCAP validation.
 
-> `rusty-modbus` only ships a Python 3.14 wheel today, so `/modbus/*` returns a
-> clear "not installed" error on this 3.12 image until that wheel lands on 3.12.
+## Bench validation
+
+```bash
+# Full smoke (REST + BACnet client on device 5007, P8=55% on AO:2466)
+OPENFDD_FIELDBUS_API_KEY=... SMOKE_BASE=http://127.0.0.1:8080 scripts/smoke_test.sh
+
+# Open-FDD / VOLTTRON-style driver poll cycles via /api/*
+OPENFDD_FIELDBUS_API_KEY=... scripts/openfdd_platform_driver.sh
+
+# Smoke + driver + PCAP gate
+OPENFDD_FIELDBUS_API_KEY=... scripts/openfdd_bench_gate.sh
+```
+
+See [`docs/rust-migration-report.md`](docs/rust-migration-report.md) for the full route map.
+
+## Design
+
+The hosted server and the client use **separate sockets**. The server binds
+`0.0.0.0:47808` so it receives broadcast Who-Is from BMS discovery tools, while
+the client sends Who-Is on `:47808` and performs unicast reads on ephemeral
+ports.
+
+Set **`OPENFDD_FIELDBUS_BACNET_PORT`** when the building uses a non-default BACnet UDP port.
 
 ## Services
 
@@ -162,13 +128,6 @@ is the Open-FDD-named alias of `/bacnet/discover`, and `/api/health` mirrors
 | GET | `/bacnet/server/commandable` | Read commandable (BACnet-writable) points and their current values |
 | POST | `/bacnet/server/update` | Update **server-owned** points (commandable points are rejected) |
 
-> **Read / write split (no data race).** Commandable points (`Commandable=Y`) are
-> BACnet-writable — a field or supervisory device may command them, so the REST
-> API is **read-only** for them and `/bacnet/server/update` rejects writes to
-> them. Server-owned points (`Commandable=N`: weather, fault counts, status) are
-> the only ones the API may write. Either way, current values are always visible
-> via the read endpoints.
-
 **Weather / Modbus / Haystack**
 
 | Method | Path | Description |
@@ -182,63 +141,31 @@ is the Open-FDD-named alias of `/bacnet/discover`, and `/api/health` mirrors
 | POST | `/haystack/his-read` | Haystack hisRead |
 | GET | `/health` | Liveness |
 
-### Write / release example
-
-```bash
-# Override analog-value 1 to 55.0 at priority 8
-curl -X POST http://127.0.0.1:8080/bacnet/write -H "Content-Type: application/json" \
-  -d '{"device_instance":3456790,"object_type":"analog-value","object_instance":1,"value":55.0,"priority":8}'
-
-# Release that override (write Null @ priority 8)
-curl -X POST http://127.0.0.1:8080/bacnet/write -H "Content-Type: application/json" \
-  -d '{"device_instance":3456790,"object_type":"analog-value","object_instance":1,"value":null,"priority":8}'
-```
-
 ## Configuration
 
-- `config/objects.csv` — hosted server point catalog (Name, PointType, Units, Commandable, Default, Instance).
+- `config/objects.csv` — hosted server point catalog.
 - `config/field_devices.toml` — client field devices + points.
 - `config/gateway.toml` — server / client bind + broadcast + timeouts.
 
-The hosted server always binds `0.0.0.0:47808`; the client uses the NIC IP
-(`OPENFDD_FIELDBUS_BIND`, or the legacy `RUSTY_GATEWAY_BIND`) with a derived
-directed broadcast. The poll engine is controlled by
-`OPENFDD_FIELDBUS_POLL_ENABLED` / `OPENFDD_FIELDBUS_POLL_INTERVAL_SECS`. See
-[Environment](docs/environment.md) for the full variable list.
+See [Environment](docs/environment.md) for the full variable list.
 
-## Smoke test
+## Validation scripts
 
-`scripts/smoke_test.sh` mirrors the Open-FDD nightly bench validation: it drives
-the full BACnet client surface through REST (Who-Is, read, RPM, discovery,
-priority-array, supervisory audit, write + Null release, dry-run), checks the
-poll engine and hosted server, and asserts the live bench override on device
-`5007` (`analogOutput:2466` = **55% at priority 8**).
-
-`scripts/soak_test.sh` runs the same feature matrix on a **60-second loop for
-30 minutes** (configurable via `SOAK_MINUTES` / `SOAK_INTERVAL_SECS`), including
-Haystack (about/read/nav/his-read) and Modbus (live read or graceful degradation
-when the 3.12 wheel is unavailable). It records container memory each cycle to
-catch leaks and prints a per-feature pass/fail table at the end.
-
-```bash
-OPENFDD_FIELDBUS_API_KEY=<key> SMOKE_BASE=http://127.0.0.1:8080 \
-  scripts/smoke_test.sh
-
-OPENFDD_FIELDBUS_API_KEY=<key> SOAK_MINUTES=30 \
-  scripts/soak_test.sh
-```
+| Script | Purpose |
+|--------|---------|
+| `scripts/smoke_test.sh` | Full REST + BACnet bench gate (device 5007 P8=55%) |
+| `scripts/openfdd_platform_driver.sh` | Open-FDD / VOLTTRON-style `/api/*` poll cycles |
+| `scripts/openfdd_bench_gate.sh` | Smoke + driver + PCAP capture |
+| `scripts/soak_test.sh` | 30-minute sustained load test |
 
 ## Security
 
-Optional `OPENFDD_FIELDBUS_API_KEY` (or the legacy `RUSTY_GATEWAY_API_KEY`)
-enables Bearer middleware. Send `Authorization: Bearer <key>` on protected
-routes; `/`, `/health`, `/api/health`, and the Swagger docs stay reachable
-without a token, and Swagger's **Authorize** button uses the same value.
+Optional `OPENFDD_FIELDBUS_API_KEY` enables Bearer middleware on protected routes;
+`/`, `/health`, `/api/health`, and Swagger stay public.
 
 ## Tests
 
 ```bash
-pip install -e ".[dev]" rusty-bacnet rusty-haystack
-pytest tests/unit -q
-pytest tests/integration -m integration -q   # needs live devices + :47808 free
+cd rust-api && cargo test && cargo clippy -- -D warnings
+pytest tests/unit -q   # legacy Python helpers only
 ```
