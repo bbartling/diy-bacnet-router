@@ -93,11 +93,19 @@ impl Default for ModbusSettings {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HaystackAuthMode {
+    Scram,
+    Basic,
+}
+
 #[derive(Debug, Clone)]
 pub struct HaystackSettings {
     pub base_url: String,
     pub username: String,
     pub password: String,
+    pub auth_mode: HaystackAuthMode,
+    pub tls_verify: bool,
 }
 
 impl Default for HaystackSettings {
@@ -106,6 +114,8 @@ impl Default for HaystackSettings {
             base_url: "http://127.0.0.1:8081".into(),
             username: "admin".into(),
             password: "admin".into(),
+            auth_mode: HaystackAuthMode::Scram,
+            tls_verify: true,
         }
     }
 }
@@ -259,6 +269,8 @@ struct HaystackToml {
     base_url: Option<String>,
     username: Option<String>,
     password: Option<String>,
+    auth_mode: Option<String>,
+    tls_verify: Option<bool>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -314,6 +326,13 @@ fn env_first(names: &[&str]) -> Option<String> {
         }
     }
     None
+}
+
+fn parse_haystack_auth_mode(raw: &str) -> HaystackAuthMode {
+    match raw.trim().to_ascii_lowercase().as_str() {
+        "basic" | "http_basic" | "niagara" => HaystackAuthMode::Basic,
+        _ => HaystackAuthMode::Scram,
+    }
 }
 
 fn env_bool(value: Option<&str>, default: bool) -> bool {
@@ -436,6 +455,12 @@ pub fn load_settings() -> Settings {
         if let Some(v) = h.password {
             s.haystack.password = v;
         }
+        if let Some(v) = h.auth_mode {
+            s.haystack.auth_mode = parse_haystack_auth_mode(&v);
+        }
+        if let Some(v) = h.tls_verify {
+            s.haystack.tls_verify = v;
+        }
     }
     if let Some(p) = raw.poll {
         if let Some(v) = p.enabled {
@@ -507,6 +532,12 @@ pub fn load_settings() -> Settings {
     }
     if let Some(v) = env_first(&["HAYSTACK_PASS"]) {
         s.haystack.password = v;
+    }
+    if let Some(v) = env_first(&["HAYSTACK_AUTH_MODE"]) {
+        s.haystack.auth_mode = parse_haystack_auth_mode(&v);
+    }
+    if let Some(v) = env_first(&["HAYSTACK_TLS_VERIFY"]) {
+        s.haystack.tls_verify = env_bool(Some(&v), s.haystack.tls_verify);
     }
     if let Some(v) = env_first(&["MODBUS_DEFAULT_HOST"]) {
         s.modbus.default_host = v;
@@ -586,13 +617,120 @@ mod tests {
 
     use super::*;
 
+    fn repo_config_dir() -> PathBuf {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../config")
+    }
+
     #[test]
     fn load_objects_csv_contains_weather_points() {
+        std::env::set_var("OPENFDD_FIELDBUS_CONFIG_DIR", repo_config_dir());
         let rows = load_objects_csv(None).expect("objects.csv");
         let names: HashMap<_, _> = rows.iter().map(|r| (r.name.as_str(), r)).collect();
         assert!(names.contains_key("outside-air-temperature"));
+        assert!(names.contains_key("openfdd-active-fault-count"));
         assert!(names.contains_key("openfdd-optimization-enabled"));
         assert!(names["openfdd-optimization-enabled"].commandable);
+    }
+
+    #[test]
+    fn point_names_lowercase_hyphenated() {
+        std::env::set_var("OPENFDD_FIELDBUS_CONFIG_DIR", repo_config_dir());
+        for row in load_objects_csv(None).expect("objects.csv") {
+            let ok = row
+                .name
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+                && !row.name.starts_with('-')
+                && !row.name.ends_with('-')
+                && !row.name.contains("--");
+            assert!(ok, "{} is not lowercase-hyphenated", row.name);
+        }
+    }
+
+    #[test]
+    fn weather_and_fault_points_not_commandable() {
+        std::env::set_var("OPENFDD_FIELDBUS_CONFIG_DIR", repo_config_dir());
+        let rows: HashMap<_, _> = load_objects_csv(None)
+            .expect("objects.csv")
+            .into_iter()
+            .map(|r| (r.name.clone(), r))
+            .collect();
+        for name in [
+            "outside-air-temperature",
+            "outside-air-humidity",
+            "outside-air-wind-speed",
+            "outside-air-dewpoint",
+            "weather-location",
+            "app-fault",
+            "openfdd-active-fault-count",
+            "openfdd-faults-present",
+        ] {
+            assert!(!rows[name].commandable, "{name} should not be commandable");
+        }
+    }
+
+    #[test]
+    fn weather_instances_match_openfdd() {
+        std::env::set_var("OPENFDD_FIELDBUS_CONFIG_DIR", repo_config_dir());
+        let rows: HashMap<_, _> = load_objects_csv(None)
+            .expect("objects.csv")
+            .into_iter()
+            .map(|r| (r.name.clone(), r))
+            .collect();
+        assert_eq!(rows["outside-air-temperature"].instance, 9101);
+        assert_eq!(rows["outside-air-humidity"].instance, 9102);
+        assert_eq!(rows["outside-air-dewpoint"].instance, 9103);
+    }
+
+    #[test]
+    fn env_alias_precedence_and_poll_settings() {
+        std::env::set_var("RUSTY_GATEWAY_HTTP_PORT", "8080");
+        std::env::set_var("OPENFDD_FIELDBUS_HTTP_PORT", "9091");
+        assert_eq!(load_settings().http_port, 9091);
+        std::env::remove_var("OPENFDD_FIELDBUS_HTTP_PORT");
+        assert_eq!(load_settings().http_port, 8080);
+
+        std::env::set_var("OPENFDD_FIELDBUS_POLL_ENABLED", "false");
+        assert!(!load_settings().poll.enabled);
+        std::env::set_var("OPENFDD_FIELDBUS_POLL_INTERVAL_SECS", "12.5");
+        assert!((load_settings().poll.interval_secs - 12.5).abs() < f64::EPSILON);
+        std::env::remove_var("OPENFDD_FIELDBUS_POLL_ENABLED");
+        std::env::remove_var("OPENFDD_FIELDBUS_POLL_INTERVAL_SECS");
+    }
+
+    #[test]
+    fn bacnet_port_defaults_and_overrides() {
+        std::env::remove_var("OPENFDD_FIELDBUS_BACNET_PORT");
+        std::env::remove_var("RUSTY_GATEWAY_BACNET_PORT");
+        let s = load_settings();
+        assert_eq!(s.bacnet_server.port, 47808);
+        assert_eq!(s.bacnet_client.whois_bind_port, 47808);
+
+        std::env::set_var("OPENFDD_FIELDBUS_BACNET_PORT", "47809");
+        let s = load_settings();
+        assert_eq!(s.bacnet_server.port, 47809);
+        assert_eq!(s.bacnet_client.whois_bind_port, 47809);
+
+        std::env::set_var("RUSTY_GATEWAY_BACNET_PORT", "47810");
+        std::env::remove_var("OPENFDD_FIELDBUS_BACNET_PORT");
+        assert_eq!(load_settings().bacnet_server.port, 47810);
+        std::env::remove_var("RUSTY_GATEWAY_BACNET_PORT");
+    }
+
+    #[test]
+    fn git_sha_from_env() {
+        std::env::set_var("OPENFDD_FIELDBUS_GIT_SHA", "deadbeef");
+        assert_eq!(git_sha(), "deadbeef");
+        std::env::remove_var("OPENFDD_FIELDBUS_GIT_SHA");
+        std::env::remove_var("GIT_SHA");
+        assert_eq!(git_sha(), "unknown");
+    }
+
+    #[test]
+    fn haystack_auth_mode_parsing() {
+        assert_eq!(parse_haystack_auth_mode("basic"), HaystackAuthMode::Basic);
+        assert_eq!(parse_haystack_auth_mode("niagara"), HaystackAuthMode::Basic);
+        assert_eq!(parse_haystack_auth_mode("scram"), HaystackAuthMode::Scram);
     }
 
     #[test]

@@ -195,4 +195,12 @@ mod tests {
         let v = decode_words(&words, Some("float32")).unwrap().unwrap();
         assert!((v.as_f64().unwrap() - 50.0).abs() < 0.01);
     }
+
+    #[test]
+    fn scale_offset() {
+        assert_eq!(
+            apply_scale_offset(Some(serde_json::json!(10)), Some(0.1), Some(1.0)),
+            Some(serde_json::json!(2.0))
+        );
+    }
 }

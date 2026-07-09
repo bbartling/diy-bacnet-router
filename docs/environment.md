@@ -26,7 +26,9 @@ set, `OPENFDD_FIELDBUS_*` wins.
 | `OPENFDD_FIELDBUS_POLL_INTERVAL_SECS` | `RUSTY_GATEWAY_POLL_INTERVAL_SECS` | Poll cycle interval in seconds (default `60`). |
 | `OPENFDD_FIELDBUS_GIT_SHA` | `GIT_SHA` | Build SHA reported by `/health` and `/api/health`. |
 | `HAYSTACK_BASE_URL` | — | Haystack server base URL (default `http://127.0.0.1:8081`). |
-| `HAYSTACK_USER` / `HAYSTACK_PASS` | — | Haystack SCRAM credentials. |
+| `HAYSTACK_USER` / `HAYSTACK_PASS` | — | Haystack credentials. |
+| `HAYSTACK_AUTH_MODE` | `scram` | `basic` for Niagara nHaystack (HTTP Basic + insecure TLS); `scram` for rusty-haystack / SkySpark. |
+| `HAYSTACK_TLS_VERIFY` | `1` | Set `0` to accept self-signed HTTPS when using SCRAM. |
 | `MODBUS_DEFAULT_HOST` | — | Default Modbus TCP host. |
 
 ## Bearer token notes

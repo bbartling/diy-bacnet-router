@@ -1,30 +1,25 @@
----
-title: CI & publishing
-nav_order: 11
----
+# CI and publishing
 
-# CI & publishing
+## GitHub Actions
 
-GitHub Actions runs the unit tests on every push and pull request.
+| Workflow | What it runs |
+|----------|----------------|
+| `.github/workflows/ci.yml` | **Rust 1.96** on `ubuntu-latest`: `cargo fmt --check`, `cargo clippy -D warnings`, `cargo test` (29 unit tests). Clones `rusty-bacnet` and `rusty-haystack` as sibling repos for path dependencies. |
 
-## Workflows
-
-| Workflow | Purpose |
-|----------|---------|
-| `.github/workflows/ci.yml` | **Python 3.12** on `ubuntu-latest`: `pip install -e ".[dev]" rusty-bacnet rusty-haystack`, then `pytest tests/unit`. |
-
-## Tests
+## Local
 
 ```bash
-pip install -e ".[dev]" rusty-bacnet rusty-haystack
-pytest tests/unit -q
-pytest tests/integration -m integration -q   # needs live devices + :47808 free
+cd rust-api
+cargo fmt --all --check
+cargo clippy --workspace --all-targets -- -D warnings
+OPENFDD_FIELDBUS_CONFIG_DIR=../config cargo test
 ```
 
-Unit tests run without hardware. The integration suite talks to real BACnet
-devices and the local Modbus/Haystack sidecars, so it is opt-in via the
-`integration` marker.
+## Live bench (not CI)
 
-## License
+```bash
+OPENFDD_FIELDBUS_API_KEY=... scripts/smoke_test.sh
+OPENFDD_FIELDBUS_API_KEY=... scripts/bench_test.sh
+```
 
-MIT License. See `LICENSE` in the repository root.
+Requires free UDP `:47808`, bench BACnet devices, and optional Modbus/Haystack targets.

@@ -108,26 +108,16 @@ impl PollEngine {
         *self.last_cycle_ts.lock().await = Some(started);
         *self.last_cycle_duration.lock().await = Some(duration);
 
-        let mut errored = 0usize;
-        let max_samples = self.settings.poll.max_samples;
-        let mut samples = self.samples.lock().await;
-        let mut last = self.last.lock().await;
-        for row in &rows {
-            let key = format!(
-                "{}:{},{}",
-                row["device_instance"].as_u64().unwrap_or(0),
-                row["object_type"].as_str().unwrap_or(""),
-                row["object_instance"].as_u64().unwrap_or(0)
-            );
-            last.insert(key, row.clone());
-            samples.push_back(row.clone());
-            while samples.len() > max_samples {
-                samples.pop_front();
-            }
-            if row.get("error").and_then(|v| v.as_str()).is_some() {
-                errored += 1;
-            }
-        }
+        let errored = {
+            let mut samples = self.samples.lock().await;
+            let mut last = self.last.lock().await;
+            ingest_poll_rows(
+                &mut samples,
+                &mut last,
+                &rows,
+                self.settings.poll.max_samples,
+            )
+        };
 
         Ok(json!({
             "points_polled": rows.len(),
@@ -163,5 +153,65 @@ impl PollEngine {
             "samples_buffered": self.samples.lock().await.len(),
             "last_values": last_values,
         })
+    }
+}
+
+/// Buffer poll rows into last-value map + ring buffer; returns errored count.
+fn ingest_poll_rows(
+    samples: &mut VecDeque<Value>,
+    last: &mut HashMap<String, Value>,
+    rows: &[Value],
+    max_samples: usize,
+) -> usize {
+    let mut errored = 0usize;
+    for row in rows {
+        let key = format!(
+            "{}:{},{}",
+            row["device_instance"].as_u64().unwrap_or(0),
+            row["object_type"].as_str().unwrap_or(""),
+            row["object_instance"].as_u64().unwrap_or(0)
+        );
+        last.insert(key, row.clone());
+        samples.push_back(row.clone());
+        while samples.len() > max_samples {
+            samples.pop_front();
+        }
+        if row.get("error").and_then(|v| v.as_str()).is_some() {
+            errored += 1;
+        }
+    }
+    errored
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ingest_poll_rows_tracks_and_counts_errors() {
+        let rows = vec![
+            json!({"device_instance": 5007, "object_type": "analog-input", "object_instance": 1173, "error": null}),
+            json!({"device_instance": 5007, "object_type": "analog-input", "object_instance": 1, "error": "timeout"}),
+        ];
+        let mut samples = VecDeque::new();
+        let mut last = HashMap::new();
+        let errored = ingest_poll_rows(&mut samples, &mut last, &rows, 5000);
+        assert_eq!(errored, 1);
+        assert_eq!(last.len(), 2);
+        assert_eq!(samples.len(), 2);
+    }
+
+    #[test]
+    fn ingest_poll_rows_respects_max_samples() {
+        let rows: Vec<_> = (0..5)
+            .map(|i| {
+                json!({"device_instance": 1, "object_type": "ai", "object_instance": i, "error": null})
+            })
+            .collect();
+        let mut samples = VecDeque::new();
+        let mut last = HashMap::new();
+        ingest_poll_rows(&mut samples, &mut last, &rows, 3);
+        assert_eq!(samples.len(), 3);
+        assert_eq!(last.len(), 5);
     }
 }

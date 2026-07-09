@@ -3,7 +3,7 @@
 Branch: `master` (merged from `feat/rust-axum-migration`)  
 Binary crate: `rust-api/` (`diy-bacnet-server` v1.2.0)
 
-**Status: 100% Rust cutover complete.** Docker `gateway` service is the Rust axum binary by default; Python/FastAPI is available only via `docker compose --profile legacy-python`.
+**Status: 100% Rust — Python/FastAPI removed.** Docker `gateway` service is the Rust axum binary only.
 
 ## Summary
 
@@ -85,7 +85,7 @@ cd diy-bacnet-server
 docker compose --profile rust up -d --build gateway-rust
 ```
 
-Default `docker compose up` still uses the Python image (`Dockerfile`).
+Default `docker compose up` builds the Rust image (`rust-api/Dockerfile`).
 
 ### Swagger / OpenAPI
 

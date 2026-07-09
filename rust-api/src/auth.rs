@@ -81,6 +81,8 @@ mod tests {
         assert!(auth_path_exempt("/health"));
         assert!(auth_path_exempt("/api/health"));
         assert!(auth_path_exempt("/docs"));
+        assert!(auth_path_exempt("/openapi.json"));
         assert!(!auth_path_exempt("/bacnet/read"));
+        assert!(!auth_path_exempt("/api/bacnet/read"));
     }
 }

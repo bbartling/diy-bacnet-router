@@ -57,11 +57,7 @@ async fn run(
     ));
     poll_engine.start().await;
 
-    let haystack = Arc::new(HaystackService::new(
-        settings.haystack.base_url.clone(),
-        settings.haystack.username.clone(),
-        settings.haystack.password.clone(),
-    ));
+    let haystack = Arc::new(HaystackService::new(settings.haystack.clone()));
 
     let api_key = auth::api_key();
     let api_key_opt = if api_key.is_empty() {
@@ -150,11 +146,7 @@ mod tests {
             (*settings).clone(),
             Arc::clone(&bacnet_server),
         ));
-        let haystack = Arc::new(HaystackService::new(
-            settings.haystack.base_url.clone(),
-            settings.haystack.username.clone(),
-            settings.haystack.password.clone(),
-        ));
+        let haystack = Arc::new(HaystackService::new(settings.haystack.clone()));
         AppState {
             settings,
             api_key: None,

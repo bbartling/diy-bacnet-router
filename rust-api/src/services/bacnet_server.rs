@@ -459,7 +459,10 @@ mod hex {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
+    use crate::config::{load_objects_csv, load_settings, HostedObjectRow};
 
     #[test]
     fn api_writable_split() {
@@ -477,5 +480,62 @@ mod tests {
             ..row
         };
         assert!(!BacnetServerManager::api_writable(&cmd));
+    }
+
+    #[tokio::test]
+    async fn update_rejects_commandable_point() {
+        let mgr = BacnetServerManager::new(load_settings());
+        let mut updates = HashMap::new();
+        updates.insert(
+            "openfdd-optimization-enabled".into(),
+            serde_json::json!(true),
+        );
+        let result = mgr.update_points(updates).await.expect("update");
+        assert!(result["openfdd-optimization-enabled"].contains("rejected"));
+    }
+
+    #[tokio::test]
+    async fn update_unknown_point_not_found() {
+        let mgr = BacnetServerManager::new(load_settings());
+        let mut updates = HashMap::new();
+        updates.insert("does-not-exist".into(), serde_json::json!(1));
+        let result = mgr.update_points(updates).await.expect("update");
+        assert_eq!(result["does-not-exist"], "not found");
+    }
+
+    #[tokio::test]
+    async fn update_mixed_rejects_only_commandable() {
+        let mgr = BacnetServerManager::new(load_settings());
+        let mut updates = HashMap::new();
+        updates.insert(
+            "openfdd-optimization-enabled".into(),
+            serde_json::json!(true),
+        );
+        updates.insert("missing-point".into(), serde_json::json!(5));
+        let result = mgr.update_points(updates).await.expect("update");
+        assert!(result["openfdd-optimization-enabled"].contains("rejected"));
+        assert_eq!(result["missing-point"], "not found");
+    }
+
+    #[test]
+    fn server_owned_points_are_api_writable() {
+        std::env::set_var(
+            "OPENFDD_FIELDBUS_CONFIG_DIR",
+            format!("{}/../config", env!("CARGO_MANIFEST_DIR")),
+        );
+        let rows: HashMap<_, _> = load_objects_csv(None)
+            .expect("csv")
+            .into_iter()
+            .map(|r| (r.name.clone(), r))
+            .collect();
+        assert!(BacnetServerManager::api_writable(
+            &rows["outside-air-temperature"]
+        ));
+        assert!(BacnetServerManager::api_writable(
+            &rows["openfdd-active-fault-count"]
+        ));
+        assert!(!BacnetServerManager::api_writable(
+            &rows["openfdd-optimization-enabled"]
+        ));
     }
 }

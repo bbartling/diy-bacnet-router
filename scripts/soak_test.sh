@@ -20,7 +20,12 @@
 #   OPENFDD_FIELDBUS_API_KEY=<key> SOAK_MINUTES=30 scripts/soak_test.sh
 set -uo pipefail
 
-BASE="${SMOKE_BASE:-http://127.0.0.1:8080}"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck source=scripts/bench_lib.sh
+source "$ROOT/scripts/bench_lib.sh"
+bench_load_env "$ROOT"
+
+BASE="${SMOKE_BASE:-$BENCH_BASE}"
 KEY="${OPENFDD_FIELDBUS_API_KEY:-${RUSTY_GATEWAY_API_KEY:-}}"
 MINUTES="${SOAK_MINUTES:-30}"
 INTERVAL="${SOAK_INTERVAL_SECS:-60}"
@@ -146,7 +151,7 @@ while :; do
   # ---- Modbus (graceful on 3.12: real read OR documented "not installed") ----
   MB_CODE=$(curl -s -o "$OUT/modbus_c${CYCLES}.json" -w "%{http_code}" --max-time "$TIMEOUT" "${AUTH[@]}" \
     -H 'Content-Type: application/json' -X POST "$BASE/modbus/read" \
-    -d '{"host":"127.0.0.1","port":5502,"unit_id":1,"registers":[{"address":0,"count":1,"function":"holding"}]}')
+    -d "$(bench_modbus_body)")
   if [[ "$MB_CODE" == "200" ]]; then
     note modbus; echo "  ${GREEN}modbus/read ok (live)${RST}"
   elif grep -q "rusty_modbus not installed" "$OUT/modbus_c${CYCLES}.json" 2>/dev/null; then

@@ -1,11 +1,8 @@
-# Open-FDD field-bus sidecar — pure Rust axum gateway (default).
+# Open-FDD field-bus sidecar — pure Rust axum gateway.
 #
 #   docker compose up -d --build
 #
-# Legacy Python/FastAPI image (deprecated):
-#   docker compose --profile legacy-python up -d --build gateway-python
-#
-# Build context for the Rust image must include sibling repos:
+# Build context must include sibling repos:
 #   ../rusty-bacnet  ../rusty-haystack  diy-bacnet-server/
 #
 # `restart: unless-stopped` keeps it running across crashes and host reboots.
@@ -28,31 +25,8 @@ services:
       OPENFDD_FIELDBUS_BIND: "${OPENFDD_FIELDBUS_BIND:-${RUSTY_GATEWAY_BIND:-192.168.204.55}}"
       OPENFDD_FIELDBUS_HTTP_PORT: "${OPENFDD_FIELDBUS_HTTP_PORT:-${RUSTY_GATEWAY_HTTP_PORT:-8080}}"
       OPENFDD_FIELDBUS_BACNET_PORT: "${OPENFDD_FIELDBUS_BACNET_PORT:-47808}"
-      HAYSTACK_BASE_URL: "${HAYSTACK_BASE_URL:-http://127.0.0.1:8081/api}"
-      MODBUS_DEFAULT_HOST: "${MODBUS_DEFAULT_HOST:-127.0.0.1}"
+      HAYSTACK_BASE_URL: "${HAYSTACK_BASE_URL:-https://192.168.204.11/haystack}"
+      HAYSTACK_AUTH_MODE: "${HAYSTACK_AUTH_MODE:-basic}"
       OPENFDD_FIELDBUS_CONFIG_DIR: /app/config
-    volumes:
-      - ./config:/app/config:ro
-
-  gateway-python:
-    profiles: ["legacy-python"]
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: diy-bacnet-server:python
-    container_name: diy-bacnet-server-python
-    network_mode: host
-    restart: unless-stopped
-    env_file:
-      - path: .env.example
-        required: false
-      - path: .env
-        required: false
-    environment:
-      OPENFDD_FIELDBUS_BIND: "${OPENFDD_FIELDBUS_BIND:-${RUSTY_GATEWAY_BIND:-192.168.204.55}}"
-      OPENFDD_FIELDBUS_HTTP_PORT: "${OPENFDD_FIELDBUS_HTTP_PORT:-${RUSTY_GATEWAY_HTTP_PORT:-8080}}"
-      OPENFDD_FIELDBUS_BACNET_PORT: "${OPENFDD_FIELDBUS_BACNET_PORT:-47808}"
-      HAYSTACK_BASE_URL: "${HAYSTACK_BASE_URL:-http://127.0.0.1:8081/api}"
-      MODBUS_DEFAULT_HOST: "${MODBUS_DEFAULT_HOST:-127.0.0.1}"
     volumes:
       - ./config:/app/config:ro

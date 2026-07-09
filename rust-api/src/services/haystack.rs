@@ -3,12 +3,15 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use haystack_client::config::{AuthMode, ClientConfig};
 use haystack_client::transport::http::HttpTransport;
 use haystack_client::HaystackClient;
 use haystack_core::data::HGrid;
 use haystack_core::kinds::Kind;
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
+
+use crate::config::{HaystackAuthMode, HaystackSettings};
 
 const READ_ONLY_OPS: &[&str] = &[
     "about", "ops", "formats", "read", "nav", "his_read", "defs", "libs",
@@ -26,19 +29,29 @@ impl std::fmt::Display for HaystackNotAllowedError {
 impl std::error::Error for HaystackNotAllowedError {}
 
 pub struct HaystackService {
-    base_url: String,
-    username: String,
-    password: String,
+    settings: HaystackSettings,
     client: Arc<Mutex<Option<HaystackClient<HttpTransport>>>>,
 }
 
 impl HaystackService {
-    pub fn new(base_url: String, username: String, password: String) -> Self {
+    pub fn new(settings: HaystackSettings) -> Self {
         Self {
-            base_url,
-            username,
-            password,
+            settings,
             client: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    fn client_config(&self) -> ClientConfig {
+        match self.settings.auth_mode {
+            HaystackAuthMode::Basic => ClientConfig::niagara_lab(),
+            HaystackAuthMode::Scram if !self.settings.tls_verify => {
+                ClientConfig::scram_insecure_tls()
+            }
+            HaystackAuthMode::Scram => ClientConfig {
+                tls_verify: self.settings.tls_verify,
+                auth_mode: AuthMode::Scram,
+                ..ClientConfig::default()
+            },
         }
     }
 
@@ -61,10 +74,16 @@ impl HaystackService {
     async fn ensure_client(&self) -> Result<(), String> {
         let mut guard = self.client.lock().await;
         if guard.is_none() {
+            let config = self.client_config();
             *guard = Some(
-                HaystackClient::connect(&self.base_url, &self.username, &self.password)
-                    .await
-                    .map_err(|e| e.to_string())?,
+                HaystackClient::connect_with_config(
+                    &self.settings.base_url,
+                    &self.settings.username,
+                    &self.settings.password,
+                    &config,
+                )
+                .await
+                .map_err(|e| e.to_string())?,
             );
         }
         Ok(())
@@ -173,5 +192,19 @@ fn kind_to_json(kind: &Kind) -> Value {
             Value::Object(map)
         }
         Kind::Grid(g) => grid_to_json(g),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::HaystackSettings;
+
+    #[test]
+    fn readonly_blocks_write_ops() {
+        let svc = HaystackService::new(HaystackSettings::default());
+        assert!(svc.check_op("about").is_ok());
+        assert!(svc.check_op("read").is_ok());
+        assert!(svc.check_op("pointWrite").is_err());
     }
 }

@@ -8,15 +8,12 @@ It owns *all* field-bus I/O so the FDD app only ever speaks JSON:
   **background poll engine**, **and** provides the full BACnet client toolkit
   (read, write, RPM, Who-Is, discovery, priority-array, supervisory override audit).
 - **rusty-modbus** (native) — Modbus TCP read API.
-- **rusty-haystack** (native) — read-only Haystack client (SCRAM).
+- **rusty-haystack** (native) — read-only Haystack client (SCRAM or HTTP Basic for Niagara).
 
-The HTTP layer is **axum + serde + validator + utoipa** (FastAPI/Pydantic equivalent).
+The HTTP layer is **axum + serde + validator + utoipa** — pure Rust, no Python runtime.
 Native routes live at the root (`/bacnet/*`, `/modbus/*`, `/haystack/*`, `/weather`);
 the same operations are mirrored under **`/api/*`** so Open-FDD can poll the sidecar
 the way it does in production.
-
-Legacy Python/FastAPI + PyO3 code remains under `app/` for reference; use
-`docker compose --profile legacy-python` only if you need the old stack.
 
 ## Open-FDD sidecar model
 
@@ -65,15 +62,40 @@ The Rust image includes `tshark` for in-container PCAP validation.
 
 ## Bench validation
 
+Modeled on `open-fdd/scripts/smoke_live_fdd_validation.sh` (30m BACnet/Modbus/Haystack cycles).
+
+**Sidecar startup** (`.env`): API key, `OPENFDD_FIELDBUS_BIND`, Haystack upstream (`HAYSTACK_*`).
+
+**Test targets** (scripts): Modbus host/port and BACnet device IDs are passed in REST POST
+bodies — see `scripts/bench.env.example`.
+
 ```bash
-# Full smoke (REST + BACnet client on device 5007, P8=55% on AO:2466)
-OPENFDD_FIELDBUS_API_KEY=... SMOKE_BASE=http://127.0.0.1:8080 scripts/smoke_test.sh
+cp scripts/bench.env.example scripts/bench.env.local   # optional overrides
+chmod +x scripts/*.sh
 
-# Open-FDD / VOLTTRON-style driver poll cycles via /api/*
-OPENFDD_FIELDBUS_API_KEY=... scripts/openfdd_platform_driver.sh
+# Fast smoke (REST + BACnet client on device 5007, P8=55% on AO:2466)
+OPENFDD_FIELDBUS_API_KEY=... scripts/smoke_test.sh
 
-# Smoke + driver + PCAP gate
+# Full bench: per-feature BACnet PCAP + Modbus @ 192.168.204.14:1502 + Haystack Niagara
+OPENFDD_FIELDBUS_API_KEY=... scripts/bench_test.sh
+
+# Half-hour soak (like open-fdd 30m smoke)
+BENCH_MINUTES=30 BENCH_INTERVAL_SECS=60 OPENFDD_FIELDBUS_API_KEY=... scripts/bench_test.sh
+
+# Smoke + bench gate (CI / pre-merge)
 OPENFDD_FIELDBUS_API_KEY=... scripts/openfdd_bench_gate.sh
+
+# Open-FDD / VOLTTRON-style /api/* poll cycles
+OPENFDD_FIELDBUS_API_KEY=... scripts/openfdd_platform_driver.sh
+```
+
+Haystack against Niagara requires sidecar env:
+
+```bash
+HAYSTACK_BASE_URL=https://192.168.204.11/haystack
+HAYSTACK_USER=open_fdd
+HAYSTACK_PASS=...
+HAYSTACK_AUTH_MODE=basic
 ```
 
 See [`docs/rust-migration-report.md`](docs/rust-migration-report.md) for the full route map.
@@ -189,5 +211,6 @@ Optional: set `OPENFDD_FIELDBUS_SWAGGER_SERVERS_URL=http://192.168.x.x:8080` so 
 
 ```bash
 cd rust-api && cargo test && cargo clippy -- -D warnings
-pytest tests/unit -q   # legacy Python helpers only
 ```
+
+Live bench (optional): `OPENFDD_FIELDBUS_API_KEY=... scripts/bench_test.sh`

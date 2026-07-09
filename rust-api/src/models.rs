@@ -228,4 +228,40 @@ mod tests {
         };
         assert!(validate_bacnet_write(&req).is_err());
     }
+
+    #[test]
+    fn write_release_ok_with_priority() {
+        let req = BacnetWriteRequest {
+            device_instance: 5007,
+            object_type: "analog-output".into(),
+            object_instance: 2466,
+            property_id: "present-value".into(),
+            value: None,
+            priority: Some(8),
+            value_type: None,
+            approved: true,
+        };
+        assert!(validate_bacnet_write(&req).is_ok());
+        assert!(req.approved);
+    }
+
+    #[test]
+    fn write_approved_gate() {
+        let req = BacnetWriteRequest {
+            device_instance: 5007,
+            object_type: "analog-output".into(),
+            object_instance: 2466,
+            property_id: "present-value".into(),
+            value: Some(serde_json::json!(55.0)),
+            priority: None,
+            value_type: None,
+            approved: true,
+        };
+        assert!(req.approved);
+        let unapproved = BacnetWriteRequest {
+            approved: false,
+            ..req
+        };
+        assert!(!unapproved.approved);
+    }
 }
