@@ -586,7 +586,7 @@ impl BacnetClientService {
             .filter(|o| object_type_name(o.object_type()) != "device")
             .collect();
 
-        let mut name_map = self
+        let name_map = self
             .read_object_names(&client, device_instance, &oids)
             .await?;
 
