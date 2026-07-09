@@ -79,7 +79,6 @@ impl BacnetServerManager {
             .interface(cfg.interface)
             .port(cfg.port)
             .broadcast_address(cfg.broadcast)
-            .vendor_id(999)
             .database(db)
             .build()
             .await

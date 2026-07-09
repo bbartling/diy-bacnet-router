@@ -15,23 +15,14 @@ jobs:
   rust:
     runs-on: ubuntu-latest
     steps:
-      # Sibling layout: rusty-bacnet/ rusty-haystack/ diy-bacnet-server/
-      # (matches rust-api path deps: ../../rusty-bacnet)
       - uses: actions/checkout@v5
-        with:
-          path: diy-bacnet-server
 
-      - name: Checkout rusty-bacnet
-        uses: actions/checkout@v5
-        with:
-          repository: bbartling/rusty-bacnet
-          path: rusty-bacnet
-
-      - name: Checkout rusty-haystack
-        uses: actions/checkout@v5
-        with:
-          repository: bbartling/rusty-haystack
-          path: rusty-haystack
+      - name: Checkout path deps (sibling layout for ../../rusty-* paths)
+        env:
+          MONOREPO_ROOT: ${{ github.workspace }}/..
+        run: |
+          git clone --depth 1 https://github.com/bbartling/rusty-bacnet.git "$MONOREPO_ROOT/rusty-bacnet"
+          git clone --depth 1 https://github.com/bbartling/rusty-haystack.git "$MONOREPO_ROOT/rusty-haystack"
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -40,23 +31,21 @@ jobs:
           components: rustfmt, clippy
 
       - name: Rust fmt
-        working-directory: diy-bacnet-server/rust-api
+        working-directory: rust-api
         run: cargo fmt --all --check
 
       - name: Rust clippy
-        working-directory: diy-bacnet-server/rust-api
+        working-directory: rust-api
         run: cargo clippy --workspace --all-targets -- -D warnings
 
       - name: Rust tests
-        working-directory: diy-bacnet-server/rust-api
+        working-directory: rust-api
         run: cargo test --workspace
 
   python-legacy:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-        with:
-          path: diy-bacnet-server
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v6
@@ -65,11 +54,9 @@ jobs:
           cache: pip
 
       - name: Install project + Rust protocol wheels
-        working-directory: diy-bacnet-server
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]" rusty-bacnet rusty-haystack
 
       - name: Run legacy Python unit tests
-        working-directory: diy-bacnet-server
         run: pytest tests/unit -v --tb=short
