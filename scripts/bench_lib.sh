@@ -71,7 +71,7 @@ bench_approx() {
   awk -v a="$1" -v b="$2" 'BEGIN{d=a-b; if(d<0)d=-d; exit !(d<=1.0)}'
 }
 
-# Start background PCAP capture to $1 for $2 seconds; echoes PID (empty if unavailable).
+# Start background PCAP capture to $1 for $2 seconds; echoes docker container id or tcpdump PID.
 bench_capture_start() {
   local out="$1" secs="$2"
   local dir file
@@ -81,10 +81,11 @@ bench_capture_start() {
   rm -f "$out"
 
   if command -v docker >/dev/null 2>&1; then
-    docker run --rm --net=host --cap-add=NET_RAW \
+    local cname="bench-pcap-${RANDOM:-0}-$$"
+    docker run -d --rm --name "$cname" --net=host --cap-add=NET_RAW \
       -v "${dir}:/pcap" nicolaka/netshoot \
-      timeout "$secs" tcpdump -i any -nn -s 0 "$BENCH_PCAP_FILTER" -w "/pcap/${file}" 2>/dev/null &
-    echo $!
+      timeout "$secs" tcpdump -i any -nn -s 0 "$BENCH_PCAP_FILTER" -w "/pcap/${file}" 2>/dev/null
+    echo "$cname"
     return
   fi
   if sudo -n true 2>/dev/null; then
@@ -95,9 +96,25 @@ bench_capture_start() {
   echo ""
 }
 
+bench_capture_stop() {
+  local id="$1"
+  [[ -z "$id" ]] && return
+  if docker ps -a --format '{{.Names}}' 2>/dev/null | grep -qx "$id"; then
+    docker stop "$id" >/dev/null 2>&1 || true
+    docker wait "$id" >/dev/null 2>&1 || true
+    return
+  fi
+  if docker ps -q --filter "id=$id" 2>/dev/null | grep -q .; then
+    docker stop "$id" >/dev/null 2>&1 || true
+    docker wait "$id" >/dev/null 2>&1 || true
+    return
+  fi
+  kill "$id" 2>/dev/null || true
+  wait "$id" 2>/dev/null || true
+}
+
 bench_capture_wait() {
-  local pid="$1"
-  [[ -n "$pid" ]] && wait "$pid" 2>/dev/null || true
+  bench_capture_stop "$1"
 }
 
 bench_pcap_frames() {
@@ -106,19 +123,29 @@ bench_pcap_frames() {
     echo 0
     return
   fi
-  if command -v tshark >/dev/null 2>&1 && [[ -n "$2" ]]; then
-    tshark -r "$pcap" -Y "$2" -T fields -e frame.number 2>/dev/null | wc -l | tr -d ' '
-    return
+  if [[ -n "${2:-}" ]]; then
+    if command -v tshark >/dev/null 2>&1; then
+      tshark -r "$pcap" -Y "$2" -T fields -e frame.number 2>/dev/null | wc -l | tr -d ' '
+      return
+    fi
+    if command -v docker >/dev/null 2>&1; then
+      local dir base
+      dir="$(dirname "$(realpath "$pcap")")"
+      base="$(basename "$pcap")"
+      docker run --rm -v "${dir}:/pcap:ro" --entrypoint tshark "${PCAP_VALIDATE_IMAGE:-diy-bacnet-server:rust}" \
+        -r "/pcap/${base}" -Y "$2" -T fields -e frame.number 2>/dev/null | wc -l | tr -d ' '
+      return
+    fi
   fi
   tcpdump -r "$pcap" -nn "$filter" 2>/dev/null | wc -l | tr -d ' '
 }
 
-# tshark display filters for BACnet client phases (skip validation when tshark absent).
-bench_pcap_filter_whois() { echo 'bacnet.type == 0x10 && bacnet.unconfirmed.service == 0x08'; }
-bench_pcap_filter_iam()    { echo 'bacnet.msgtype == 0x00 && bacnet.apdu.type == 0x10'; }
-bench_pcap_filter_read()   { echo 'bacnet.apdu.service == 0x0c'; }
-bench_pcap_filter_rpm()    { echo 'bacnet.apdu.service == 0x0e'; }
-bench_pcap_filter_write()  { echo 'bacnet.apdu.service == 0x0f'; }
+# tshark display filters for BACnet client phases (Wireshark bacapp dissector).
+bench_pcap_filter_whois() { echo 'bacapp.unconfirmed_service == 8'; }
+bench_pcap_filter_iam()    { echo 'bacapp.unconfirmed_service == 0'; }
+bench_pcap_filter_read()   { echo 'bacapp.confirmed_service == 12'; }
+bench_pcap_filter_rpm()    { echo 'bacapp.confirmed_service == 14'; }
+bench_pcap_filter_write()  { echo 'bacapp.confirmed_service == 15'; }
 
 bench_modbus_body() {
   jq -nc \

@@ -76,7 +76,7 @@ pcap_phase() {
 
   local pid
   pid="$(bench_capture_start "$pcap" "$PCAP_PHASE_SECS")"
-  sleep 0.5
+  sleep 4
   local out=""
   if out="$("$@")"; then
     save_json "$phase" "$out"
@@ -84,17 +84,20 @@ pcap_phase() {
   else
     bad "api:$phase"
   fi
-  sleep 1.5
+  sleep 1
+  if [[ -n "$pid" ]]; then
+    bench_capture_stop "$pid"
+  fi
   bench_capture_wait "$pid"
 
-  if [[ ! -s "$pcap" ]]; then
+  if [[ ! -f "$pcap" ]] || [[ ! -s "$pcap" ]]; then
     echo "${YEL}WARN${RST} pcap:$phase — no capture (docker netshoot or sudo tcpdump required)"
     return 0
   fi
 
   local frames udp_frames
   udp_frames="$(bench_pcap_frames "$pcap")"
-  if command -v tshark >/dev/null 2>&1; then
+  if command -v tshark >/dev/null 2>&1 || command -v docker >/dev/null 2>&1; then
     frames="$(bench_pcap_frames "$pcap" "$tshark_filter")"
     if (( frames >= min_frames )); then
       ok "pcap:$phase ($frames matching, $udp_frames udp total)"
@@ -118,6 +121,7 @@ run_bacnet_cycle() {
   if [[ "$PCAP_ON" == "1" && "$PCAP_PER_PHASE" == "1" ]]; then
     hdr "Cycle $cycle — BACnet per-phase PCAP"
     run_bacnet_cycle_per_phase "$cycle"
+    validate_key_pcaps
     return
   fi
 
@@ -127,7 +131,7 @@ run_bacnet_cycle() {
 
   if [[ "$PCAP_ON" == "1" && "$PCAP_PER_PHASE" != "1" ]]; then
     pcap_pid="$(bench_capture_start "$combined_pcap" "$PCAP_CYCLE_SECS")"
-    sleep 3
+    sleep 5
   fi
 
   local whois read rpm discover pa sup write rel dr poll ps
@@ -191,6 +195,9 @@ run_bacnet_cycle() {
 
   if [[ "$PCAP_ON" == "1" ]]; then
     sleep 2
+    if [[ -n "$pcap_pid" ]]; then
+      kill "$pcap_pid" 2>/dev/null || true
+    fi
     bench_capture_wait "$pcap_pid"
     validate_cycle_pcap "$combined_pcap" "$cycle"
   fi
@@ -213,7 +220,7 @@ validate_cycle_pcap() {
     PCAP_MIN_READ="${PCAP_MIN_READ:-2}" \
     PCAP_MIN_RPM="${PCAP_MIN_RPM:-1}" \
     PCAP_MIN_WRITE="${PCAP_MIN_WRITE:-2}" \
-    "$ROOT/scripts/pcap_validate.sh"; then
+    "$ROOT/scripts/pcap_validate_docker.sh"; then
     PCAP_FAIL=$((PCAP_FAIL+1))
     bad "pcap cycle $cycle APDU validation failed"
   else
@@ -221,10 +228,36 @@ validate_cycle_pcap() {
   fi
 }
 
+validate_key_pcaps() {
+  [[ "$PCAP_ON" != "1" ]] && return 0
+  hdr "PCAP APDU validation (discover + supervisory)"
+  local phase pcap
+  for phase in discover supervisory; do
+    pcap="$ARTIFACTS/pcap_${phase}.pcap"
+    if [[ ! -s "$pcap" ]]; then
+      PCAP_FAIL=$((PCAP_FAIL+1))
+      bad "pcap validate:$phase — missing capture"
+      continue
+    fi
+    if PCAP_FILE="$pcap" \
+      PCAP_MIN_IAM=0 \
+      PCAP_MIN_WHOIS=0 \
+      PCAP_MIN_READ=1 \
+      PCAP_MIN_RPM=1 \
+      PCAP_MIN_WRITE=0 \
+      "$ROOT/scripts/pcap_validate_docker.sh"; then
+      ok "pcap validate:$phase APDU gate passed"
+    else
+      PCAP_FAIL=$((PCAP_FAIL+1))
+      bad "pcap validate:$phase APDU gate failed"
+    fi
+  done
+}
+
 run_bacnet_cycle_per_phase() {
   local cycle="$1"
   pcap_phase whois 1 "$(bench_pcap_filter_whois)" \
-    bench_api -X POST "$BENCH_BASE/bacnet/whois" -d "{\"low\":$DEV,\"high\":$DEV}"
+    bench_api -X POST "$BENCH_BASE/bacnet/whois" -d '{}'
   pcap_phase read 1 "$(bench_pcap_filter_read)" \
     bench_api -X POST "$BENCH_BASE/bacnet/read" \
     -d "{\"device_instance\":$DEV,\"object_type\":\"$READ_TYPE\",\"object_instance\":$READ_INST}"
@@ -241,7 +274,7 @@ run_bacnet_cycle_per_phase() {
   pcap_phase release 1 "$(bench_pcap_filter_write)" \
     bench_api -X POST "$BENCH_BASE/bacnet/write" \
     -d "{\"device_instance\":$DEV,\"object_type\":\"$OVR_TYPE\",\"object_instance\":$OVR_INST,\"value\":null,\"priority\":$WRITE_PRIORITY,\"approved\":true}"
-  pcap_phase poll_once 1 "$(bench_pcap_filter_read)" \
+  pcap_phase poll_once 1 "$(bench_pcap_filter_rpm)" \
     bench_apis -X POST "$BENCH_BASE/bacnet/poll/once"
 }
 

@@ -44,11 +44,11 @@ count_frames() {
   tshark -r "$PCAP" -Y "$filter" -T fields -e frame.number 2>/dev/null | wc -l | tr -d ' '
 }
 
-IAM_COUNT=$(count_frames "bacnet.msgtype == 0x00 && bacnet.apdu.type == 0x10")
-WHOIS_COUNT=$(count_frames "bacnet.type == 0x10 && bacnet.unconfirmed.service == 0x08")
-READ_COUNT=$(count_frames "bacnet.apdu.service == 0x0c")
-RPM_COUNT=$(count_frames "bacnet.apdu.service == 0x0e")
-WRITE_COUNT=$(count_frames "bacnet.apdu.service == 0x0f")
+IAM_COUNT=$(count_frames "bacapp.unconfirmed_service == 0")
+WHOIS_COUNT=$(count_frames "bacapp.unconfirmed_service == 8")
+READ_COUNT=$(count_frames "bacapp.confirmed_service == 12")
+RPM_COUNT=$(count_frames "bacapp.confirmed_service == 14")
+WRITE_COUNT=$(count_frames "bacapp.confirmed_service == 15")
 
 MIN_IAM="${PCAP_MIN_IAM:-0}"
 MIN_WHOIS="${PCAP_MIN_WHOIS:-0}"
