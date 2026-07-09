@@ -1,7 +1,9 @@
 # Rust axum migration report
 
-Branch: `feat/rust-axum-migration`  
+Branch: `master` (merged from `feat/rust-axum-migration`)  
 Binary crate: `rust-api/` (`diy-bacnet-server` v1.2.0)
+
+**Status: 100% Rust cutover complete.** Docker `gateway` service is the Rust axum binary by default; Python/FastAPI is available only via `docker compose --profile legacy-python`.
 
 ## Summary
 
