@@ -21,7 +21,7 @@ jobs:
         env:
           MONOREPO_ROOT: ${{ github.workspace }}/..
         run: |
-          git clone --depth 1 --branch examples/network-samples \
+          git clone --depth 1 --branch dev \
             https://github.com/bbartling/rusty-bacnet.git "$MONOREPO_ROOT/rusty-bacnet"
           git clone --depth 1 --branch feat/niagara-nhaystack-basic-auth-demo \
             https://github.com/bbartling/rusty-haystack.git "$MONOREPO_ROOT/rusty-haystack"
