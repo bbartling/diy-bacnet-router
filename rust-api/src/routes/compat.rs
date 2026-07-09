@@ -32,6 +32,10 @@ async fn api_point_discovery(
         .point_discovery(body.device_instance)
         .await
         .map_err(ApiError::Bacnet)?;
+    Ok(Json(merge_discovery_ok(result)))
+}
+
+fn merge_discovery_ok(result: Value) -> Value {
     let mut v = json!({ "ok": true });
     if let Some(obj) = v.as_object_mut() {
         if let Some(r) = result.as_object() {
@@ -40,7 +44,7 @@ async fn api_point_discovery(
             }
         }
     }
-    Ok(Json(v))
+    v
 }
 
 async fn api_server_points(State(state): State<AppState>) -> ApiResult<Json<Value>> {

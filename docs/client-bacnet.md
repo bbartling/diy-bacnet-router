@@ -25,8 +25,7 @@ router automatically.
 | Read Property Multiple | `POST /bacnet/rpm` | Chunked internally (**25** object/property pairs per chunk). |
 | Point discovery | `POST /bacnet/discover` | Object-list walk + object names + commandable detection. |
 | Priority array (one object) | `POST /bacnet/priority-array` | All 16 slots as `{ priority_level, type, value }`. |
-| Supervisory override audit | `POST /bacnet/supervisory` | Commandable points and their active override slots. |
-| Configured point catalog | `GET /bacnet/points` | Field devices + points from config. |
+| Supervisory override audit | `POST /bacnet/supervisory` or `/api/bacnet/supervisory` | Commandable points and active override slots. |
 
 ## `POST /bacnet/whois`
 

@@ -70,29 +70,6 @@ impl BacnetClientService {
         })
     }
 
-    pub fn list_points(&self) -> Vec<Value> {
-        let mut out = Vec::new();
-        for d in &self.field_devices {
-            if !d.enabled {
-                continue;
-            }
-            for p in &d.points {
-                out.push(json!({
-                    "device_name": d.name,
-                    "device_instance": d.device_instance,
-                    "host": d.host,
-                    "port": d.port,
-                    "routed": d.is_routed(),
-                    "mstp_network": d.mstp_network,
-                    "object_type": p.object_type,
-                    "object_instance": p.object_instance,
-                    "point_name": p.point_name,
-                }));
-            }
-        }
-        out
-    }
-
     fn find_device(&self, device_instance: u32) -> Option<&FieldDevice> {
         self.field_devices
             .iter()
@@ -609,34 +586,9 @@ impl BacnetClientService {
             .filter(|o| object_type_name(o.object_type()) != "device")
             .collect();
 
-        let mut name_map = HashMap::new();
-        for chunk in oids.chunks(15) {
-            let specs: Vec<_> = chunk
-                .iter()
-                .map(|o| ReadAccessSpecification {
-                    object_identifier: *o,
-                    list_of_property_references: vec![PropertyReference {
-                        property_identifier: PropertyIdentifier::OBJECT_NAME,
-                        property_array_index: None,
-                    }],
-                })
-                .collect();
-            if let Ok(res) = client
-                .read_property_multiple_from_device(device_instance, specs)
-                .await
-            {
-                for obj in res.list_of_read_access_results {
-                    let oid_str = normalize_oid(&obj.object_identifier);
-                    for r in obj.list_of_results {
-                        if let Some(bytes) = r.property_value {
-                            if let Ok((pv, _)) = decode_application_value(&bytes, 0) {
-                                name_map.insert(oid_str.clone(), property_value_to_json(&pv));
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        let mut name_map = self
+            .read_object_names(&client, device_instance, &oids)
+            .await?;
 
         let mut commandable = HashSet::new();
         let candidates: Vec<_> = oids
@@ -677,7 +629,7 @@ impl BacnetClientService {
                 let oid_str = normalize_oid(o);
                 json!({
                     "object_identifier": oid_str,
-                    "name": name_map.get(&oid_str).cloned().unwrap_or(json!("ERROR - Missing Data")),
+                    "name": name_map.get(&oid_str).cloned().unwrap_or_else(|| json!("?")),
                     "commandable": commandable.contains(&oid_str),
                 })
             })
@@ -864,6 +816,91 @@ impl BacnetClientService {
         }
         slots.sort_by_key(|s| s["priority_level"].as_u64().unwrap_or(0));
         Ok(slots)
+    }
+
+    /// Read object names via RPM batches with per-object ReadProperty fallback
+    /// (mirrors `point-discover` sample).
+    async fn read_object_names(
+        &self,
+        client: &BACnetClient<bacnet_transport::bip::BipTransport>,
+        device_instance: u32,
+        oids: &[ObjectIdentifier],
+    ) -> Result<HashMap<String, Value>, String> {
+        const BATCH: usize = 10;
+        let mut name_map = HashMap::new();
+
+        for chunk in oids.chunks(BATCH) {
+            let specs: Vec<_> = chunk
+                .iter()
+                .map(|o| ReadAccessSpecification {
+                    object_identifier: *o,
+                    list_of_property_references: vec![PropertyReference {
+                        property_identifier: PropertyIdentifier::OBJECT_NAME,
+                        property_array_index: None,
+                    }],
+                })
+                .collect();
+
+            let mut batch_names: HashMap<ObjectIdentifier, String> = HashMap::new();
+            match client
+                .read_property_multiple_from_device(device_instance, specs)
+                .await
+            {
+                Ok(res) => {
+                    for obj in res.list_of_read_access_results {
+                        for r in obj.list_of_results {
+                            if r.property_identifier != PropertyIdentifier::OBJECT_NAME {
+                                continue;
+                            }
+                            if let Some(bytes) = r.property_value {
+                                if let Ok((PropertyValue::CharacterString(name), _)) =
+                                    decode_application_value(&bytes, 0)
+                                {
+                                    batch_names.insert(obj.object_identifier, name);
+                                }
+                            }
+                        }
+                    }
+                }
+                Err(e) => {
+                    warn!("object-name RPM batch failed ({e}); per-object fallback");
+                }
+            }
+
+            for oid in chunk {
+                let oid_str = normalize_oid(oid);
+                let name = if let Some(n) = batch_names.get(oid) {
+                    n.clone()
+                } else {
+                    self.read_object_name(client, device_instance, *oid)
+                        .await
+                        .unwrap_or_else(|| "?".into())
+                };
+                name_map.insert(oid_str, json!(name));
+            }
+        }
+
+        Ok(name_map)
+    }
+
+    async fn read_object_name(
+        &self,
+        client: &BACnetClient<bacnet_transport::bip::BipTransport>,
+        device_instance: u32,
+        oid: ObjectIdentifier,
+    ) -> Option<String> {
+        match client
+            .read_property_from_device(device_instance, oid, PropertyIdentifier::OBJECT_NAME, None)
+            .await
+        {
+            Ok(ack) => decode_application_value(&ack.property_value, 0)
+                .ok()
+                .and_then(|(pv, _)| match pv {
+                    PropertyValue::CharacterString(s) => Some(s),
+                    _ => None,
+                }),
+            Err(_) => None,
+        }
     }
 
     pub async fn supervisory_logic_check(&self, device_instance: u32) -> Result<Value, String> {

@@ -77,15 +77,9 @@ if H=$(api "$BASE/api/health"); then
   echo "${DIM}  service=$(jq -r .service <<<"$H") git_sha=$(jq -r .git_sha <<<"$H")${RST}"
 else bad "GET /api/health unreachable"; fi
 
-# ---- config catalog --------------------------------------------------------
-hdr "Point catalog"
-if P=$(api "$BASE/bacnet/points"); then
-  jq_ok "GET /bacnet/points lists device $DEV" "$P" --arg d "$DEV" 'any(.points[]; (.device_instance|tostring)==$d)'
-else bad "GET /bacnet/points"; fi
-
-# ---- Who-Is discover -------------------------------------------------------
+# ---- Who-Is discover (Open-FDD entry point) --------------------------------
 hdr "Who-Is discover"
-if W=$(api -X POST "$BASE/bacnet/whois" -d "{\"low\":$DEV,\"high\":$DEV}"); then
+if W=$(api -X POST "$BASE/bacnet/whois" -d '{}'); then
   jq_ok "Who-Is finds device $DEV" "$W" --arg d "$DEV" 'any(.devices[]; (.device_instance|tostring)==$d)'
   echo "${DIM}  devices=$(jq -c '[.devices[].device_instance]' <<<"$W")${RST}"
 else bad "POST /bacnet/whois"; fi
@@ -109,6 +103,8 @@ hdr "Point discovery"
 if D=$(apis -X POST "$BASE/bacnet/discover" -d "{\"device_instance\":$DEV}"); then
   jq_ok "discovery finds $OVR_TYPE,$OVR_INST" "$D" --arg oi "$OVR_TYPE,$OVR_INST" 'any(.objects[]; .object_identifier==$oi)'
   jq_ok "$OVR_TYPE,$OVR_INST is commandable" "$D" --arg oi "$OVR_TYPE,$OVR_INST" 'any(.objects[]; .object_identifier==$oi and .commandable==true)'
+  jq_ok "$OVR_TYPE,$OVR_INST has a real object name (not ERROR - Missing Data)" "$D" --arg oi "$OVR_TYPE,$OVR_INST" \
+    'any(.objects[]; .object_identifier==$oi and .name != "ERROR - Missing Data" and .name != "?")'
   echo "${DIM}  objects=$(jq -r '.objects|length' <<<"$D")${RST}"
 else bad "POST /bacnet/discover"; fi
 
@@ -126,7 +122,7 @@ else bad "POST /bacnet/priority-array"; fi
 
 # ---- supervisory override audit --------------------------------------------
 hdr "Supervisory override audit"
-if S=$(apis -X POST "$BASE/bacnet/supervisory" -d "{\"device_instance\":$DEV}"); then
+if S=$(apis -X POST "$BASE/api/bacnet/supervisory" -d "{\"device_instance\":$DEV}"); then
   echo "${DIM}  overrides=$(jq -c '.points_with_overrides' <<<"$S")${RST}"
   jq_ok "supervisory audit reports P${EXPECT_PRIORITY} override on $OVR_TYPE,$OVR_INST" "$S" \
     --arg oi "$OVR_TYPE,$OVR_INST" --argjson p "$EXPECT_PRIORITY" \

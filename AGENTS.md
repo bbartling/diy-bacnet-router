@@ -57,9 +57,9 @@ Implementation: `rust-api/src/services/weather.rs` → `mirror_to_bacnet()`.
 
 ## Swagger / OpenAPI bench examples
 
-- **`rust-api/src/openapi_bench.rs`** — Try-it-out bodies; bench mode uses device **5007**, Modbus **192.168.204.14:1502**, Haystack filters.
-- **`OPENFDD_FIELDBUS_SWAGGER_BENCH=1`** (default on bench when API key is demo default). Set **`=0`** or use a production API key for generic examples (no internal IPs; Who-Is `{}` = scan all devices).
-- Demo API key is never echoed in Swagger when a non-demo production key is configured.
+- **`OPENFDD_FIELDBUS_SWAGGER_BENCH=1`** by default — bench JSON bodies always pre-filled (opt-out with `=0`).
+- **Open-FDD workflow:** `POST /bacnet/whois` `{}` → `POST /api/bacnet/point-discovery` → `POST /api/bacnet/supervisory`.
+- **`GET /bacnet/points` removed** — use Who-Is + point discovery instead.
 
 ## Key files
 

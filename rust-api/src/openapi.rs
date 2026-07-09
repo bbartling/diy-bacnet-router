@@ -12,19 +12,17 @@ use crate::openapi_paths::*;
         title = "Open-FDD Field-Bus Sidecar (Rust)",
         version = "1.2.0",
         description = "Open-FDD field-bus REST API.\n\n\
-            **Auth:** set `OPENFDD_FIELDBUS_API_KEY` and send `Authorization: Bearer <key>` \
-            on protected routes.\n\n\
-            **Routes:** also under `/api/*` (e.g. `/api/bacnet/read`, `/api/weather`). \
-            Public: `/`, `/health`, `/api/health`, docs.\n\n\
-            **Who-Is:** `POST /bacnet/whois` with `{}` scans all device instances \
-            (0–4194303); set `low`/`high` to narrow. **Routed MS/TP:** \
-            `POST /bacnet/whois-router` (no body)."
+            **Auth:** `Authorization: Bearer <key>` (`OPENFDD_FIELDBUS_API_KEY`).\n\n\
+            **Open-FDD workflow:** `POST /bacnet/whois` `{}` → pick a device → \
+            `POST /api/bacnet/point-discovery` → `POST /bacnet/supervisory` for override audit.\n\n\
+            **Routes:** also under `/api/*`. Public: `/`, `/health`, `/api/health`, docs.\n\n\
+            **Who-Is:** `{}` scans all instances (0–4194303); set `low`/`high` to narrow. \
+            **MS/TP routers:** `POST /bacnet/whois-router`."
     ),
     paths(
         doc_root,
         doc_health,
         doc_api_health,
-        doc_bacnet_points,
         doc_bacnet_read,
         doc_bacnet_write,
         doc_bacnet_write_dry_run,
@@ -35,6 +33,7 @@ use crate::openapi_paths::*;
         doc_api_point_discovery,
         doc_bacnet_priority_array,
         doc_bacnet_supervisory,
+        doc_api_supervisory,
         doc_bacnet_poll_status,
         doc_bacnet_poll_once,
         doc_bacnet_server_objects,
@@ -70,7 +69,9 @@ use crate::openapi_paths::*;
     modifiers(&SecurityAddon, &SwaggerExamplesAddon),
     tags(
         (name = "Root", description = "Service metadata"),
-        (name = "BACnet", description = "BACnet client + hosted server"),
+        (name = "Open-FDD", description = "Primary Open-FDD BACnet workflow (Who-Is → point discovery → supervisory)"),
+        (name = "BACnet (bench)", description = "Low-level BACnet client ops for bench/smoke testing"),
+        (name = "Hosted server", description = "Hosted BACnet device (599999) + weather mirror"),
         (name = "Weather", description = "Open-Meteo weather cache"),
         (name = "Modbus", description = "Modbus TCP reads"),
         (name = "Haystack", description = "Read-only Haystack client"),
@@ -88,8 +89,7 @@ pub struct SecurityAddon;
 
 impl Modify for SecurityAddon {
     fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
-        let bench = openapi_bench::swagger_bench_enabled();
-        let auth_desc = if bench && openapi_bench::swagger_may_reveal_demo_key() {
+        let auth_desc = if openapi_bench::swagger_may_reveal_demo_key() {
             format!(
                 "Authorize with `Bearer <key>`. Bench demo key: `{}`",
                 openapi_bench::DEFAULT_BENCH_API_KEY
@@ -116,12 +116,11 @@ impl Modify for SecurityAddon {
             Vec::<String>::new(),
         )]);
 
-        if bench {
+        if openapi_bench::swagger_bench_enabled() {
             if let Some(info) = openapi.info.description.as_mut() {
                 info.push_str(
-                    "\n\n**Bench mode:** POST bodies pre-fill test-bench targets (device 5007, \
-                     Modbus 192.168.204.14:1502, Haystack filters). Set \
-                     `OPENFDD_FIELDBUS_SWAGGER_BENCH=0` or use a non-demo API key to hide them.",
+                    "\n\n**Bench mode:** POST bodies pre-fill test-bench targets. \
+                     Set `OPENFDD_FIELDBUS_SWAGGER_BENCH=0` to use generic placeholders.",
                 );
             }
         }

@@ -173,11 +173,7 @@ async fn main() {
     // ---- BACnet client ----
     b.section("BACnet client");
     let dev = b.args.bacnet_device;
-    match b.get("/bacnet/points").await {
-        Ok(v) => b.print_ok("GET /bacnet/points", &v),
-        Err(e) => b.print_err("GET /bacnet/points", &e),
-    }
-    match b.post("/bacnet/whois", json!({"low": dev, "high": dev})).await {
+    match b.post("/bacnet/whois", json!({})).await {
         Ok(v) => b.print_ok("POST /bacnet/whois", &v),
         Err(e) => b.print_err("POST /bacnet/whois", &e),
     }
@@ -212,9 +208,9 @@ async fn main() {
         Ok(v) => b.print_ok("POST /bacnet/priority-array", &v),
         Err(e) => b.print_err("POST /bacnet/priority-array", &e),
     }
-    match b.post("/bacnet/supervisory", json!({"device_instance": dev})).await {
-        Ok(v) => b.print_ok("POST /bacnet/supervisory", &v),
-        Err(e) => b.print_err("POST /bacnet/supervisory", &e),
+    match b.post("/api/bacnet/supervisory", json!({"device_instance": dev})).await {
+        Ok(v) => b.print_ok("POST /api/bacnet/supervisory", &v),
+        Err(e) => b.print_err("POST /api/bacnet/supervisory", &e),
     }
 
     if !b.args.read_only {

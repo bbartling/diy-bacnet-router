@@ -10,18 +10,13 @@ pub const DEFAULT_BENCH_API_KEY: &str = "bench-demo-key-1234567890";
 
 /// True when Swagger should show bench IPs, device IDs, and demo-key hints.
 ///
-/// Explicit `OPENFDD_FIELDBUS_SWAGGER_BENCH=1` forces on; `=0` forces off.
-/// When unset, auto-enables only if no API key is configured or the key is still
-/// the bench demo default.
+/// Default **on**. Set `OPENFDD_FIELDBUS_SWAGGER_BENCH=0` to disable.
 pub fn swagger_bench_enabled() -> bool {
     if let Ok(v) = std::env::var("OPENFDD_FIELDBUS_SWAGGER_BENCH") {
         let t = v.trim().to_ascii_lowercase();
-        return matches!(t.as_str(), "1" | "true" | "yes" | "on");
+        return !matches!(t.as_str(), "0" | "false" | "no" | "off");
     }
-    match configured_api_key() {
-        None => true,
-        Some(k) => k == DEFAULT_BENCH_API_KEY,
-    }
+    true
 }
 
 /// API key configured for the running service (not the Swagger doc fallback).
@@ -37,13 +32,9 @@ pub fn configured_api_key() -> Option<String> {
     None
 }
 
-/// Whether OpenAPI text may include the literal demo API key.
+/// Whether OpenAPI text may include the literal demo API key hint.
 pub fn swagger_may_reveal_demo_key() -> bool {
     swagger_bench_enabled()
-        && matches!(
-            configured_api_key().as_deref(),
-            None | Some(DEFAULT_BENCH_API_KEY)
-        )
 }
 
 // --- Bench examples (192.168.204.x test hardware) ---
@@ -73,7 +64,7 @@ pub fn bacnet_rpm_bench() -> Value {
 }
 
 pub fn bacnet_whois_bench() -> Value {
-    json!({ "low": 5007, "high": 5007 })
+    json!({})
 }
 
 pub fn bacnet_write_bench() -> Value {
@@ -361,54 +352,23 @@ mod tests {
     }
 
     #[test]
+    fn swagger_bench_on_by_default() {
+        with_env("OPENFDD_FIELDBUS_SWAGGER_BENCH", None, || {
+            assert!(swagger_bench_enabled());
+        });
+    }
+
+    #[test]
     fn swagger_bench_forced_off_with_env() {
         with_env("OPENFDD_FIELDBUS_SWAGGER_BENCH", Some("0"), || {
-            with_env(
-                "OPENFDD_FIELDBUS_API_KEY",
-                Some(DEFAULT_BENCH_API_KEY),
-                || {
-                    assert!(!swagger_bench_enabled());
-                },
-            );
+            assert!(!swagger_bench_enabled());
         });
     }
 
     #[test]
-    fn swagger_bench_auto_on_for_demo_key() {
-        with_env("OPENFDD_FIELDBUS_SWAGGER_BENCH", None, || {
-            with_env(
-                "OPENFDD_FIELDBUS_API_KEY",
-                Some(DEFAULT_BENCH_API_KEY),
-                || {
-                    assert!(swagger_bench_enabled());
-                },
-            );
-        });
-    }
-
-    #[test]
-    fn swagger_bench_auto_off_for_production_key() {
-        with_env("OPENFDD_FIELDBUS_SWAGGER_BENCH", None, || {
-            with_env(
-                "OPENFDD_FIELDBUS_API_KEY",
-                Some("prod-secret-key-not-demo"),
-                || {
-                    assert!(!swagger_bench_enabled());
-                },
-            );
-        });
-    }
-
-    #[test]
-    fn demo_key_not_revealed_in_production_mode() {
-        with_env("OPENFDD_FIELDBUS_SWAGGER_BENCH", None, || {
-            with_env(
-                "OPENFDD_FIELDBUS_API_KEY",
-                Some("prod-secret-key-not-demo"),
-                || {
-                    assert!(!swagger_may_reveal_demo_key());
-                },
-            );
+    fn demo_key_revealed_when_bench_on() {
+        with_env("OPENFDD_FIELDBUS_SWAGGER_BENCH", Some("1"), || {
+            assert!(swagger_may_reveal_demo_key());
         });
     }
 }

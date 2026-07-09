@@ -63,19 +63,13 @@ for ((cycle=1; cycle<=CYCLES; cycle++)); do
     note "poll_running=$(jq -r .poll_running <<<"$H") server=$(jq -r .bacnet_server_instance <<<"$H")"
   else bad "GET /api/health unreachable"; fi
 
-  # 2) Load point catalog (driver config / scrape list)
-  if P=$(api "$BASE/api/bacnet/points"); then
-    check_json "GET /api/bacnet/points" "$P" '.points|length>0'
-    # Read each configured poll point via /api/bacnet/read (on-demand scrape)
-    while IFS=$'\t' read -r di ot oi pn; do
-      [[ -z "$di" ]] && continue
-      if R=$(api -X POST "$BASE/api/bacnet/read" -d "{\"device_instance\":$di,\"object_type\":\"$ot\",\"object_instance\":$oi}"); then
-        check_json "read $pn ($ot:$oi @ dev $di)" "$R" '.value != null'
-      else bad "POST /api/bacnet/read $pn"; fi
-    done < <(jq -r '.points[] | [.device_instance,.object_type,.object_instance,.point_name] | @tsv' <<<"$P")
-  else bad "GET /api/bacnet/points"; fi
+  # 2) Who-Is device discovery (Open-FDD entry point)
+  if W=$(api -X POST "$BASE/api/bacnet/whois" -d '{}'); then
+    check_json "POST /api/bacnet/whois" "$W" '.devices|length>0'
+    note "devices=$(jq -c '[.devices[].device_instance]' <<<"$W")"
+  else bad "POST /api/bacnet/whois"; fi
 
-  # 3) Poll engine — trigger scrape + consume cached values (primary Open-FDD pattern)
+  # 3) Poll engine — trigger scrape + consume cached values (background poll targets)
   if PO=$(apis -X POST "$BASE/api/bacnet/poll/once"); then
     check_json "POST /api/bacnet/poll/once" "$PO" '.points_polled>0'
     note "polled=$(jq -r .points_polled <<<"$PO") errored=$(jq -r .points_errored <<<"$PO")"

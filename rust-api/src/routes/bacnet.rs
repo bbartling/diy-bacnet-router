@@ -9,10 +9,6 @@ use crate::error::{validate, ApiError, ApiResult};
 use crate::models::*;
 use crate::state::AppState;
 
-async fn list_field_points(State(state): State<AppState>) -> Json<Value> {
-    Json(json!({ "ok": true, "points": state.bacnet_client.list_points() }))
-}
-
 async fn bacnet_read(
     State(state): State<AppState>,
     Json(body): Json<BacnetReadRequest>,
@@ -258,7 +254,6 @@ fn merge_ok(result: Value) -> Value {
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/bacnet/points", get(list_field_points))
         .route("/bacnet/read", post(bacnet_read))
         .route("/bacnet/write", post(bacnet_write))
         .route("/bacnet/write-dry-run", post(bacnet_write_dry_run))

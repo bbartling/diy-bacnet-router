@@ -136,11 +136,11 @@ Set **`OPENFDD_FIELDBUS_BACNET_PORT`** when the building uses a non-default BACn
 | POST | `/bacnet/supervisory` | Supervisory override audit |
 | GET | `/bacnet/poll/status` | Background poll engine status + last values |
 | POST | `/bacnet/poll/once` | Run one poll cycle now (present-value, all points) |
-| GET | `/bacnet/points` | Configured field-device catalog |
 
 Every row above is also served under `/api/bacnet/*`. `/api/bacnet/point-discovery`
-is the Open-FDD-named alias of `/bacnet/discover`, and `/api/health` mirrors
-`/health` with the Open-FDD shape (`service`, `version`, `git_sha`, `poll_running`).
+is the Open-FDD-named alias of `/bacnet/discover`, `/api/bacnet/supervisory` mirrors
+`/bacnet/supervisory`, and `/api/health` mirrors `/health` with the Open-FDD shape
+(`service`, `version`, `git_sha`, `poll_running`).
 
 **BACnet server (hosted device 599999)**
 
