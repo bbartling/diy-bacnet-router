@@ -101,6 +101,29 @@ chmod +x scripts/*.sh
 > all BACnet / weather / Haystack routes work; `/modbus/*` returns a clear error
 > until the wheel (or the Docker image) is available.
 
+## Pure Rust mode (experimental — `feat/rust-axum-migration`)
+
+An alternate **axum + serde + utoipa** binary lives in `rust-api/`. It replaces
+FastAPI/PyO3 with native Rust protocol crates (`bacnet-client`, `haystack_client`,
+`rusty-modbus-client`) while preserving the same REST contract (`/bacnet/*`,
+`/api/*`, Bearer auth, Swagger at `/docs`).
+
+```bash
+# Requires sibling checkouts: ../rusty-bacnet, ../rusty-haystack
+cd rust-api
+cargo build --release
+OPENFDD_FIELDBUS_CONFIG_DIR=../config cargo run --release
+```
+
+Docker (monorepo build context):
+
+```bash
+docker compose --profile rust up -d --build gateway-rust
+```
+
+See [`docs/rust-migration-report.md`](docs/rust-migration-report.md) for the full
+route map, bench validation, and PCAP notes.
+
 ## Docker (long-running deployment)
 
 The image is a slim `python:3.12-slim` that installs the `rusty-bacnet` and
