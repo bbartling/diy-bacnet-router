@@ -92,7 +92,7 @@ impl BacnetServerManager {
             "BACnet server {} ({}) listening on {}",
             cfg.device_instance,
             cfg.device_name,
-            format_mac(&mac)
+            format_mac(mac)
         );
 
         *self.server.lock().await = Some(Arc::new(Mutex::new(server)));

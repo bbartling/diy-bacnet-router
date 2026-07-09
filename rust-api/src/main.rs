@@ -40,23 +40,16 @@ async fn run(
     settings: Arc<config::Settings>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bacnet_server = Arc::new(BacnetServerManager::new((*settings).clone()));
-    bacnet_server
-        .start()
-        .await
-        .map_err(|e| std::io::Error::other(e))?;
+    bacnet_server.start().await.map_err(std::io::Error::other)?;
 
     let weather = Arc::new(WeatherService::new(
         (*settings).clone(),
         Arc::clone(&bacnet_server),
     ));
-    weather
-        .start()
-        .await
-        .map_err(|e| std::io::Error::other(e))?;
+    weather.start().await.map_err(std::io::Error::other)?;
 
-    let bacnet_client = Arc::new(
-        BacnetClientService::new((*settings).clone()).map_err(|e| std::io::Error::other(e))?,
-    );
+    let bacnet_client =
+        Arc::new(BacnetClientService::new((*settings).clone()).map_err(std::io::Error::other)?);
     let poll_engine = Arc::new(PollEngine::new(
         (*settings).clone(),
         Arc::clone(&bacnet_client),

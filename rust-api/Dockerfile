@@ -2,7 +2,7 @@
 #
 # Multi-stage build for the pure Rust axum field-bus sidecar.
 
-FROM rust:1.93-bookworm AS builder
+FROM rust:1.96-bookworm AS builder
 WORKDIR /build
 
 # Path deps: rusty-bacnet + rusty-haystack must exist beside diy-bacnet-server in the build context.

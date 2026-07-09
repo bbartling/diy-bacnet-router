@@ -1,6 +1,5 @@
 //! Application settings and config loaders (mirrors `app/config.py`).
 
-use std::collections::HashMap;
 use std::net::Ipv4Addr;
 use std::path::{Path, PathBuf};
 
@@ -135,6 +134,7 @@ pub struct FieldPoint {
     pub object_type: String,
     pub object_instance: u32,
     pub point_name: String,
+    #[allow(dead_code)]
     pub units: String,
 }
 
@@ -582,6 +582,8 @@ pub fn load_field_devices(path: Option<&Path>) -> Result<Vec<FieldDevice>, Strin
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use super::*;
 
     #[test]

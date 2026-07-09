@@ -65,7 +65,7 @@ pub async fn execute_modbus_read(payload: &Value) -> Result<Value, ModbusService
         let offset = spec["offset"].as_f64();
         let label = spec["label"].clone();
 
-        if count < 1 || count > MAX_REGS_PER_OPERATION {
+        if !(1..=MAX_REGS_PER_OPERATION).contains(&count) {
             return Err(ModbusServiceError(format!(
                 "count must be 1..{MAX_REGS_PER_OPERATION}"
             )));
@@ -88,7 +88,7 @@ pub async fn execute_modbus_read(payload: &Value) -> Result<Value, ModbusService
                     .map_err(|e| ModbusServiceError(e.to_string()))?,
                 other => return Err(ModbusServiceError(format!("Invalid function: {other}"))),
             };
-            let words_list: Vec<u16> = words.iter().map(|w| *w & 0xFFFF).collect();
+            let words_list: Vec<u16> = words.to_vec();
             let decoded = decode_words(&words_list, decode)?;
             let decoded = apply_scale_offset(decoded, scale, offset);
             Ok(json!({
@@ -140,8 +140,8 @@ fn decode_words(words: &[u16], decode: Option<&str>) -> Result<Option<Value>, Mo
         return Err(ModbusServiceError("No register words to decode".into()));
     }
     match decode {
-        "uint16" => Ok(Some(json!(words[0] & 0xFFFF))),
-        "int16" => Ok(Some(json!(((words[0] & 0xFFFF) as i16)))),
+        "uint16" => Ok(Some(json!(words[0]))),
+        "int16" => Ok(Some(json!((words[0] as i16)))),
         "uint32" | "int32" | "float32" => {
             if words.len() < 2 {
                 return Err(ModbusServiceError(format!("{decode} needs count >= 2")));
@@ -165,7 +165,7 @@ fn apply_scale_offset(
     scale: Option<f64>,
     offset: Option<f64>,
 ) -> Option<Value> {
-    let Some(v) = value else { return None };
+    let v = value?;
     let n = v.as_f64().or_else(|| v.as_i64().map(|i| i as f64))?;
     let mut out = n;
     if let Some(s) = scale {

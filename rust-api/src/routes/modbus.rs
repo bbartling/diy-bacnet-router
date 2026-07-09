@@ -3,7 +3,7 @@ use serde_json::Value;
 
 use crate::error::{validate, ApiError, ApiResult};
 use crate::models::ModbusReadRequest;
-use crate::services::modbus::{execute_modbus_read, ModbusServiceError};
+use crate::services::modbus::execute_modbus_read;
 use crate::state::AppState;
 
 async fn modbus_read(Json(body): Json<ModbusReadRequest>) -> ApiResult<Json<Value>> {
@@ -19,8 +19,17 @@ async fn modbus_read(Json(body): Json<ModbusReadRequest>) -> ApiResult<Json<Valu
         "timeout": body.timeout,
         "registers": body.registers,
     });
-    let result = execute_modbus_read(&payload).await.map_err(|e| match e {
-        ModbusServiceError(m) => ApiError::BadRequest(m),
+    let result = execute_modbus_read(&payload).await.map_err(|e| {
+        let msg = e.to_string();
+        if msg.contains("transport error")
+            || msg.contains("Connection refused")
+            || msg.contains("timed out")
+            || msg.contains("I/O error")
+        {
+            ApiError::Upstream(format!("modbus_error: {msg}"))
+        } else {
+            ApiError::BadRequest(msg)
+        }
     })?;
     Ok(Json(result))
 }

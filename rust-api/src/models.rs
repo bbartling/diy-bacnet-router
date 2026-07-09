@@ -141,13 +141,28 @@ fn default_holding() -> String {
     "holding".into()
 }
 
+fn default_modbus_port() -> u16 {
+    502
+}
+
+fn default_unit_id() -> u8 {
+    1
+}
+
+fn default_modbus_timeout() -> f64 {
+    5.0
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize, ToSchema, Validate)]
 pub struct ModbusReadRequest {
     pub host: String,
+    #[serde(default = "default_modbus_port")]
     #[validate(range(min = 1, max = 65535))]
     pub port: u16,
+    #[serde(default = "default_unit_id")]
     #[validate(range(min = 0, max = 255))]
     pub unit_id: u8,
+    #[serde(default = "default_modbus_timeout")]
     #[validate(range(min = 0.5, max = 60.0))]
     pub timeout: f64,
     #[validate(length(min = 1, max = 32))]

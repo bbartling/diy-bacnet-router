@@ -213,6 +213,7 @@ impl BacnetClientService {
         }))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub async fn write_property(
         &self,
         device_instance: u32,
@@ -236,6 +237,7 @@ impl BacnetClientService {
         .await
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn write_property_impl(
         &self,
         device_instance: u32,
@@ -311,6 +313,7 @@ impl BacnetClientService {
         }))
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn write_dry_run(
         &self,
         device_instance: u32,
@@ -694,10 +697,10 @@ impl BacnetClientService {
                 Ok(res) => {
                     for r in &res.list_of_read_access_results[0].list_of_results {
                         if let Some(bytes) = &r.property_value {
-                            if let Ok((pv, _)) = decode_application_value(bytes, 0) {
-                                if let PropertyValue::ObjectIdentifier(oid) = pv {
-                                    oids.push(oid);
-                                }
+                            if let Ok((PropertyValue::ObjectIdentifier(oid), _)) =
+                                decode_application_value(bytes, 0)
+                            {
+                                oids.push(oid);
                             }
                         }
                     }
@@ -714,10 +717,10 @@ impl BacnetClientService {
                             )
                             .await
                         {
-                            if let Ok((pv, _)) = decode_application_value(&ack.property_value, 0) {
-                                if let PropertyValue::ObjectIdentifier(oid) = pv {
-                                    oids.push(oid);
-                                }
+                            if let Ok((PropertyValue::ObjectIdentifier(oid), _)) =
+                                decode_application_value(&ack.property_value, 0)
+                            {
+                                oids.push(oid);
                             }
                         }
                     }

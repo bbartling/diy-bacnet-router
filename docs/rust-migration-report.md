@@ -97,7 +97,8 @@ When `OPENFDD_FIELDBUS_OPENAPI=1` (default):
 ```
 cd rust-api
 cargo build --release   # OK
-cargo test              # 10 passed
+cargo test              # 12 passed
+cargo clippy --workspace --all-targets -- -D warnings   # OK
 cargo fmt --all         # OK
 ```
 
@@ -132,6 +133,27 @@ Observed traffic (via `tcpdump -r`):
 ```bash
 PCAP_FILE=artifacts/bacnet_rust_capture.pcap PCAP_MIN_IAM=1 scripts/pcap_validate.sh
 ```
+
+## Completion checklist
+
+| Task | Status |
+|------|--------|
+| FastAPI route audit + migration map | Done — see route table above |
+| axum + serde + validator + utoipa stack | Done |
+| All 45 endpoints ported | Done |
+| Bearer auth + exempt paths | Done |
+| OpenAPI `/openapi.json` + Swagger `/docs` | Done (DTO schemas; per-handler `utoipa::path` partial) |
+| BACnet bus lock (`tokio::Mutex`) | Done |
+| Poll engine + weather loop | Done |
+| `cargo build --release` | Done |
+| `cargo test` (12 tests) | Done |
+| `cargo clippy -D warnings` | Done |
+| `scripts/smoke_test.sh` (20/20) | Done |
+| PCAP capture + review | Done (33 frames; no Who-Is storm) |
+| `scripts/pcap_validate.sh` | Done (script added; needs `tshark` on host) |
+| Docker `gateway-rust` profile | Done (see `docker compose --profile rust build`) |
+| 30m `scripts/soak_test.sh` on Rust binary | In progress (restarted after modbus parity fix) |
+| Migration report + README | Done |
 
 ## Known gaps / differences
 
