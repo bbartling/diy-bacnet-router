@@ -99,7 +99,7 @@ while :; do
                     '(.results|length)>0' \
     && echo "  rpm ok" || echo "  ${RED}rpm FAIL${RST}"
 
-  DISC="$(apis -X POST "$BASE/bacnet/discover" -d "{\"device_instance\":$DEV}")"
+  DISC="$(apis -X POST "$BASE/api/bacnet/point-discovery" -d "{\"device_instance\":$DEV}")"
   check discover    "$DISC" --arg oi "$OVR_TYPE,$OVR_INST" 'any(.objects[]; .object_identifier==$oi and .commandable==true)' \
     && echo "  discover ok ($(jq -r '.objects|length' <<<"$DISC" 2>/dev/null) objs)" || echo "  ${RED}discover FAIL${RST}"
 

@@ -23,7 +23,7 @@ router automatically.
 | Read one property | `POST /bacnet/read` | Returns `{ tag, value, ... }`. |
 | Write property (priority / release) | `POST /bacnet/write` | JSON **`null`** or **`"null"`** + **priority** to release a slot. |
 | Read Property Multiple | `POST /bacnet/rpm` | Chunked internally (**25** object/property pairs per chunk). |
-| Point discovery | `POST /bacnet/discover` | Object-list walk + object names + commandable detection. |
+| Point discovery | `POST /api/bacnet/point-discovery` | Object-list walk + object names + commandable detection. |
 | Priority array (one object) | `POST /bacnet/priority-array` | All 16 slots as `{ priority_level, type, value }`. |
 | Supervisory override audit | `POST /bacnet/supervisory` or `/api/bacnet/supervisory` | Commandable points and active override slots. |
 
@@ -49,9 +49,9 @@ router automatically.
 - **Body:** `{ "device_instance", "objects": [ { "object_type", "object_instance", "properties": [ { "property_id", "array_index": <optional> } ] } ] }`
 - **Returns:** `{ "results": [ { "object_identifier", "property_identifier", "property_array_index", "value" }, ... ] }` (value may be an error string per property).
 
-## `POST /bacnet/discover`
+## `POST /api/bacnet/point-discovery`
 
-- **Body:** `{ "device_instance": 3456790 }`
+- **Body:** `{ "device_instance": 5007 }`
 - **Returns:** `{ "device_address", "device_instance", "objects": [ { "object_identifier", "name", "commandable" }, ... ] }`.
 
 ## `POST /bacnet/priority-array`

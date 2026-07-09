@@ -150,7 +150,7 @@ run_bacnet_cycle() {
   save_json "rpm_c${cycle}" "$rpm"
   jq_ok "rpm" "$rpm" '(.results|length)>0'
 
-  discover="$(bench_apis -X POST "$BENCH_BASE/bacnet/discover" -d "{\"device_instance\":$DEV}")"
+  discover="$(bench_apis -X POST "$BENCH_BASE/api/bacnet/point-discovery" -d "{\"device_instance\":$DEV}")"
   save_json "discover_c${cycle}" "$discover"
   jq_ok "discover $OVR_TYPE,$OVR_INST commandable" "$discover" \
     --arg oi "$OVR_TYPE,$OVR_INST" 'any(.objects[]; .object_identifier==$oi and .commandable==true)'
@@ -265,7 +265,7 @@ run_bacnet_cycle_per_phase() {
     bench_api -X POST "$BENCH_BASE/bacnet/rpm" \
     -d "{\"device_instance\":$DEV,\"objects\":[{\"object_type\":\"$READ_TYPE\",\"object_instance\":$READ_INST,\"properties\":[{\"property_id\":\"present-value\"}]}]}"
   pcap_phase discover 1 "$(bench_pcap_filter_read)" \
-    bench_apis -X POST "$BENCH_BASE/bacnet/discover" -d "{\"device_instance\":$DEV}"
+    bench_apis -X POST "$BENCH_BASE/api/bacnet/point-discovery" -d "{\"device_instance\":$DEV}"
   pcap_phase supervisory 1 "$(bench_pcap_filter_read)" \
     bench_apis -X POST "$BENCH_BASE/bacnet/supervisory" -d "{\"device_instance\":$DEV}"
   pcap_phase write 1 "$(bench_pcap_filter_write)" \

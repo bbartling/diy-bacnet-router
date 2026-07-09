@@ -540,22 +540,26 @@ impl BacnetClientService {
         let _guard = self.bus_lock.lock().await;
         let cfg = &self.settings.bacnet_client;
         let mut client = self.new_client(None).await?;
+        self.seed_configured_field_devices(&client).await?;
         client.who_is(None, None).await.map_err(|e| e.to_string())?;
         tokio::time::sleep(Duration::from_secs_f64(cfg.whois_timeout_secs)).await;
+        // Re-seed so routed bench devices appear when broadcast I-Am is missed.
+        self.seed_configured_field_devices(&client).await?;
         let devices = client.discovered_devices().await;
         client.stop().await.map_err(|e| e.to_string())?;
 
         let mut by_router: HashMap<String, HashSet<u16>> = HashMap::new();
+        for d in &self.field_devices {
+            if d.enabled && d.is_routed() {
+                if let Some(net) = d.mstp_network {
+                    by_router.entry(d.host.clone()).or_default().insert(net);
+                }
+            }
+        }
         for d in devices {
             if let Some(net) = d.source_network {
                 let summ = device_summary(&d);
-                let router_addr = summ["address"]
-                    .as_str()
-                    .unwrap_or("")
-                    .split(':')
-                    .next()
-                    .unwrap_or("")
-                    .to_string();
+                let router_addr = router_ip_from_summary_address(summ["address"].as_str());
                 by_router.entry(router_addr).or_default().insert(net);
             }
         }
@@ -1145,6 +1149,14 @@ fn serialize_rpm(rpm: &bacnet_services::rpm::ReadPropertyMultipleACK) -> Vec<Val
         }
     }
     out
+}
+
+fn router_ip_from_summary_address(addr: Option<&str>) -> String {
+    addr.unwrap_or("")
+        .split(':')
+        .next()
+        .unwrap_or("")
+        .to_string()
 }
 
 fn device_summary(d: &bacnet_client::discovery::DiscoveredDevice) -> Value {

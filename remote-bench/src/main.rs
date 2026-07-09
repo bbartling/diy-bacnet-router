@@ -196,9 +196,9 @@ async fn main() {
         Ok(v) => b.print_ok("POST /bacnet/rpm", &v),
         Err(e) => b.print_err("POST /bacnet/rpm", &e),
     }
-    match b.post("/bacnet/discover", json!({"device_instance": dev})).await {
-        Ok(v) => b.print_ok("POST /bacnet/discover", &v),
-        Err(e) => b.print_err("POST /bacnet/discover", &e),
+    match b.post("/api/bacnet/point-discovery", json!({"device_instance": dev})).await {
+        Ok(v) => b.print_ok("POST /api/bacnet/point-discovery", &v),
+        Err(e) => b.print_err("POST /api/bacnet/point-discovery", &e),
     }
     match b.post("/bacnet/priority-array", json!({
         "device_instance": dev,

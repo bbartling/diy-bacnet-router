@@ -29,7 +29,6 @@ use crate::openapi_paths::*;
         doc_bacnet_rpm,
         doc_bacnet_whois,
         doc_bacnet_whois_router,
-        doc_bacnet_discover,
         doc_api_point_discovery,
         doc_bacnet_priority_array,
         doc_bacnet_supervisory,

@@ -84,6 +84,13 @@ if W=$(api -X POST "$BASE/bacnet/whois" -d '{}'); then
   echo "${DIM}  devices=$(jq -c '[.devices[].device_instance]' <<<"$W")${RST}"
 else bad "POST /bacnet/whois"; fi
 
+# ---- Who-Is router (MS/TP routed device 5007 via 192.168.204.200) ---------
+hdr "Who-Is router-to-network"
+if WR=$(api -X POST "$BASE/bacnet/whois-router" -d '{}'); then
+  jq_ok "whois-router finds network 2000" "$WR" 'any(.routers[]; (.networks[]|tonumber)==2000)'
+  echo "${DIM}  routers=$(jq -c '.routers' <<<"$WR")${RST}"
+else bad "POST /bacnet/whois-router"; fi
+
 # ---- ReadProperty ----------------------------------------------------------
 hdr "ReadProperty"
 if R=$(api -X POST "$BASE/bacnet/read" -d "{\"device_instance\":$DEV,\"object_type\":\"$READ_TYPE\",\"object_instance\":$READ_INST}"); then
@@ -100,13 +107,13 @@ else bad "POST /bacnet/rpm"; fi
 
 # ---- point discovery -------------------------------------------------------
 hdr "Point discovery"
-if D=$(apis -X POST "$BASE/bacnet/discover" -d "{\"device_instance\":$DEV}"); then
+if D=$(apis -X POST "$BASE/api/bacnet/point-discovery" -d "{\"device_instance\":$DEV}"); then
   jq_ok "discovery finds $OVR_TYPE,$OVR_INST" "$D" --arg oi "$OVR_TYPE,$OVR_INST" 'any(.objects[]; .object_identifier==$oi)'
   jq_ok "$OVR_TYPE,$OVR_INST is commandable" "$D" --arg oi "$OVR_TYPE,$OVR_INST" 'any(.objects[]; .object_identifier==$oi and .commandable==true)'
   jq_ok "$OVR_TYPE,$OVR_INST has a real object name (not ERROR - Missing Data)" "$D" --arg oi "$OVR_TYPE,$OVR_INST" \
     'any(.objects[]; .object_identifier==$oi and .name != "ERROR - Missing Data" and .name != "?")'
   echo "${DIM}  objects=$(jq -r '.objects|length' <<<"$D")${RST}"
-else bad "POST /bacnet/discover"; fi
+else bad "POST /api/bacnet/point-discovery"; fi
 
 # ---- priority-array (CRITICAL override validation) -------------------------
 hdr "Priority array (P${EXPECT_PRIORITY} override)"

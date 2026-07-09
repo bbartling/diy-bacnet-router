@@ -166,19 +166,6 @@ async fn bacnet_whois_router(State(state): State<AppState>) -> ApiResult<Json<Va
     ))
 }
 
-async fn bacnet_discover(
-    State(state): State<AppState>,
-    Json(body): Json<DeviceInstanceRequest>,
-) -> ApiResult<Json<Value>> {
-    validate(&body)?;
-    let result = state
-        .bacnet_client
-        .point_discovery(body.device_instance)
-        .await
-        .map_err(ApiError::Bacnet)?;
-    Ok(Json(merge_ok(result)))
-}
-
 async fn bacnet_priority_array(
     State(state): State<AppState>,
     Json(body): Json<BacnetObjectRef>,
@@ -262,7 +249,6 @@ pub fn router() -> Router<AppState> {
         .route("/bacnet/rpm", post(bacnet_rpm))
         .route("/bacnet/whois", post(bacnet_whois))
         .route("/bacnet/whois-router", post(bacnet_whois_router))
-        .route("/bacnet/discover", post(bacnet_discover))
         .route("/bacnet/priority-array", post(bacnet_priority_array))
         .route("/bacnet/supervisory", post(bacnet_supervisory))
         .route("/bacnet/server/objects", get(list_server_objects))

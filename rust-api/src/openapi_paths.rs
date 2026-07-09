@@ -106,17 +106,6 @@ fn doc_bacnet_whois_router() {}
 /// Point discovery — walks object-list, reads object names, flags commandable points.
 #[utoipa::path(
     post,
-    path = "/bacnet/discover",
-    tag = "Open-FDD",
-    request_body = DeviceInstanceRequest,
-    security(("BearerAuth" = [])),
-    responses((status = 200, description = "Discovered objects with names"))
-)]
-fn doc_bacnet_discover() {}
-
-/// Open-FDD point discovery (preferred path) — same as `/bacnet/discover`.
-#[utoipa::path(
-    post,
     path = "/api/bacnet/point-discovery",
     tag = "Open-FDD",
     request_body = DeviceInstanceRequest,
