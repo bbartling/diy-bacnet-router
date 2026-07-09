@@ -1,7 +1,4 @@
-//! Hard-coded test-bench request bodies for Swagger UI "Try it out".
-//!
-//! Values match `scripts/bench.env.example`, `scripts/smoke_test.sh`, and the
-//! BENS-BENCHTEST-BOX / Modbus / Niagara targets on 192.168.204.x.
+//! Swagger Try-it-out examples — bench targets vs generic production placeholders.
 
 use std::collections::BTreeMap;
 
@@ -11,23 +8,47 @@ use utoipa::openapi::{OpenApi, RefOr, Schema};
 /// Default bench API key when env is unset (local/docker demo only).
 pub const DEFAULT_BENCH_API_KEY: &str = "bench-demo-key-1234567890";
 
-pub fn swagger_api_key() -> String {
-    for key in [
-        "OPENFDD_FIELDBUS_SWAGGER_API_KEY",
-        "OPENFDD_FIELDBUS_API_KEY",
-        "RUSTY_GATEWAY_API_KEY",
-    ] {
+/// True when Swagger should show bench IPs, device IDs, and demo-key hints.
+///
+/// Explicit `OPENFDD_FIELDBUS_SWAGGER_BENCH=1` forces on; `=0` forces off.
+/// When unset, auto-enables only if no API key is configured or the key is still
+/// the bench demo default.
+pub fn swagger_bench_enabled() -> bool {
+    if let Ok(v) = std::env::var("OPENFDD_FIELDBUS_SWAGGER_BENCH") {
+        let t = v.trim().to_ascii_lowercase();
+        return matches!(t.as_str(), "1" | "true" | "yes" | "on");
+    }
+    match configured_api_key() {
+        None => true,
+        Some(k) => k == DEFAULT_BENCH_API_KEY,
+    }
+}
+
+/// API key configured for the running service (not the Swagger doc fallback).
+pub fn configured_api_key() -> Option<String> {
+    for key in ["OPENFDD_FIELDBUS_API_KEY", "RUSTY_GATEWAY_API_KEY"] {
         if let Ok(v) = std::env::var(key) {
             let trimmed = v.trim();
             if !trimmed.is_empty() {
-                return trimmed.to_string();
+                return Some(trimmed.to_string());
             }
         }
     }
-    DEFAULT_BENCH_API_KEY.to_string()
+    None
 }
 
-pub fn bacnet_read_example() -> Value {
+/// Whether OpenAPI text may include the literal demo API key.
+pub fn swagger_may_reveal_demo_key() -> bool {
+    swagger_bench_enabled()
+        && matches!(
+            configured_api_key().as_deref(),
+            None | Some(DEFAULT_BENCH_API_KEY)
+        )
+}
+
+// --- Bench examples (192.168.204.x test hardware) ---
+
+pub fn bacnet_read_bench() -> Value {
     json!({
         "device_instance": 5007,
         "object_type": "analog-input",
@@ -36,7 +57,7 @@ pub fn bacnet_read_example() -> Value {
     })
 }
 
-pub fn bacnet_rpm_example() -> Value {
+pub fn bacnet_rpm_bench() -> Value {
     json!({
         "device_instance": 5007,
         "objects": [{
@@ -51,11 +72,11 @@ pub fn bacnet_rpm_example() -> Value {
     })
 }
 
-pub fn bacnet_whois_example() -> Value {
+pub fn bacnet_whois_bench() -> Value {
     json!({ "low": 5007, "high": 5007 })
 }
 
-pub fn bacnet_write_example() -> Value {
+pub fn bacnet_write_bench() -> Value {
     json!({
         "device_instance": 5007,
         "object_type": "analog-output",
@@ -67,9 +88,8 @@ pub fn bacnet_write_example() -> Value {
     })
 }
 
-/// Alternate body for `/bacnet/write-dry-run` (set `approved: false`).
 #[allow(dead_code)]
-pub fn bacnet_write_dry_run_example() -> Value {
+pub fn bacnet_write_dry_run_bench() -> Value {
     json!({
         "device_instance": 5007,
         "object_type": "analog-output",
@@ -81,11 +101,11 @@ pub fn bacnet_write_dry_run_example() -> Value {
     })
 }
 
-pub fn bacnet_discover_example() -> Value {
+pub fn bacnet_discover_bench() -> Value {
     json!({ "device_instance": 5007 })
 }
 
-pub fn bacnet_priority_array_example() -> Value {
+pub fn bacnet_priority_array_bench() -> Value {
     json!({
         "device_instance": 5007,
         "object_type": "analog-output",
@@ -93,7 +113,7 @@ pub fn bacnet_priority_array_example() -> Value {
     })
 }
 
-pub fn bacnet_server_update_example() -> Value {
+pub fn bacnet_server_update_bench() -> Value {
     json!({
         "updates": {
             "openfdd-active-fault-count": 0.0,
@@ -102,7 +122,7 @@ pub fn bacnet_server_update_example() -> Value {
     })
 }
 
-pub fn modbus_read_example() -> Value {
+pub fn modbus_read_bench() -> Value {
     json!({
         "host": "192.168.204.14",
         "port": 1502,
@@ -118,15 +138,15 @@ pub fn modbus_read_example() -> Value {
     })
 }
 
-pub fn haystack_read_example() -> Value {
+pub fn haystack_read_bench() -> Value {
     json!({ "filter": "point and temp" })
 }
 
-pub fn haystack_nav_example() -> Value {
+pub fn haystack_nav_bench() -> Value {
     json!({ "nav_id": null })
 }
 
-pub fn haystack_his_read_example() -> Value {
+pub fn haystack_his_read_bench() -> Value {
     json!({
         "ids": ["@demo:point"],
         "range_start": "yesterday",
@@ -134,67 +154,156 @@ pub fn haystack_his_read_example() -> Value {
     })
 }
 
+// --- Generic examples (no internal IPs or bench device IDs) ---
+
+pub fn bacnet_read_generic() -> Value {
+    json!({
+        "device_instance": 1001,
+        "object_type": "analog-input",
+        "object_instance": 1,
+        "property_id": "present-value"
+    })
+}
+
+pub fn bacnet_rpm_generic() -> Value {
+    json!({
+        "device_instance": 1001,
+        "objects": [{
+            "object_type": "analog-input",
+            "object_instance": 1,
+            "properties": [{ "property_id": "present-value" }]
+        }]
+    })
+}
+
+/// Empty body → defaults scan all BACnet device instances (0–4194303).
+pub fn bacnet_whois_generic() -> Value {
+    json!({})
+}
+
+pub fn bacnet_write_generic() -> Value {
+    json!({
+        "device_instance": 1001,
+        "object_type": "analog-output",
+        "object_instance": 1,
+        "property_id": "present-value",
+        "value": 0.0,
+        "priority": 16,
+        "approved": true
+    })
+}
+
+pub fn bacnet_discover_generic() -> Value {
+    json!({ "device_instance": 1001 })
+}
+
+pub fn bacnet_priority_array_generic() -> Value {
+    json!({
+        "device_instance": 1001,
+        "object_type": "analog-output",
+        "object_instance": 1
+    })
+}
+
+pub fn bacnet_server_update_generic() -> Value {
+    json!({
+        "updates": {
+            "outside-air-temperature": 72.0
+        }
+    })
+}
+
+pub fn modbus_read_generic() -> Value {
+    json!({
+        "host": "modbus-host.example",
+        "port": 502,
+        "unit_id": 1,
+        "timeout": 5.0,
+        "registers": [{
+            "address": 0,
+            "count": 1,
+            "function": "holding",
+            "decode": "uint16"
+        }]
+    })
+}
+
+pub fn haystack_read_generic() -> Value {
+    json!({ "filter": "point" })
+}
+
+pub fn haystack_nav_generic() -> Value {
+    json!({ "nav_id": null })
+}
+
+pub fn haystack_his_read_generic() -> Value {
+    json!({
+        "ids": ["@pointRef"],
+        "range_start": "yesterday",
+        "range_end": "today"
+    })
+}
+
 /// Patch component schemas so Swagger UI pre-fills Try-it-out bodies.
-pub fn apply_bench_examples(openapi: &mut OpenApi) {
+pub fn apply_swagger_examples(openapi: &mut OpenApi) {
+    if swagger_bench_enabled() {
+        apply_examples(openapi, true);
+    } else {
+        apply_examples(openapi, false);
+    }
+}
+
+fn apply_examples(openapi: &mut OpenApi, bench: bool) {
     let Some(components) = openapi.components.as_mut() else {
         return;
     };
 
-    set_schema_example(
-        &mut components.schemas,
-        "BacnetReadRequest",
-        bacnet_read_example(),
-    );
-    set_schema_example(
-        &mut components.schemas,
-        "BacnetRpmRequest",
-        bacnet_rpm_example(),
-    );
-    set_schema_example(
-        &mut components.schemas,
-        "BacnetWhoisRequest",
-        bacnet_whois_example(),
-    );
-    set_schema_example(
-        &mut components.schemas,
-        "BacnetWriteRequest",
-        bacnet_write_example(),
-    );
-    set_schema_example(
-        &mut components.schemas,
-        "BacnetObjectRef",
-        bacnet_priority_array_example(),
-    );
-    set_schema_example(
-        &mut components.schemas,
-        "DeviceInstanceRequest",
-        bacnet_discover_example(),
-    );
+    let (read, rpm, whois, write, prio, discover, server_upd, modbus, hs_read, hs_nav, hs_his) =
+        if bench {
+            (
+                bacnet_read_bench(),
+                bacnet_rpm_bench(),
+                bacnet_whois_bench(),
+                bacnet_write_bench(),
+                bacnet_priority_array_bench(),
+                bacnet_discover_bench(),
+                bacnet_server_update_bench(),
+                modbus_read_bench(),
+                haystack_read_bench(),
+                haystack_nav_bench(),
+                haystack_his_read_bench(),
+            )
+        } else {
+            (
+                bacnet_read_generic(),
+                bacnet_rpm_generic(),
+                bacnet_whois_generic(),
+                bacnet_write_generic(),
+                bacnet_priority_array_generic(),
+                bacnet_discover_generic(),
+                bacnet_server_update_generic(),
+                modbus_read_generic(),
+                haystack_read_generic(),
+                haystack_nav_generic(),
+                haystack_his_read_generic(),
+            )
+        };
+
+    set_schema_example(&mut components.schemas, "BacnetReadRequest", read);
+    set_schema_example(&mut components.schemas, "BacnetRpmRequest", rpm);
+    set_schema_example(&mut components.schemas, "BacnetWhoisRequest", whois);
+    set_schema_example(&mut components.schemas, "BacnetWriteRequest", write);
+    set_schema_example(&mut components.schemas, "BacnetObjectRef", prio);
+    set_schema_example(&mut components.schemas, "DeviceInstanceRequest", discover);
     set_schema_example(
         &mut components.schemas,
         "ServerUpdatePointsRequest",
-        bacnet_server_update_example(),
+        server_upd,
     );
-    set_schema_example(
-        &mut components.schemas,
-        "ModbusReadRequest",
-        modbus_read_example(),
-    );
-    set_schema_example(
-        &mut components.schemas,
-        "HaystackReadRequest",
-        haystack_read_example(),
-    );
-    set_schema_example(
-        &mut components.schemas,
-        "HaystackNavRequest",
-        haystack_nav_example(),
-    );
-    set_schema_example(
-        &mut components.schemas,
-        "HaystackHisReadRequest",
-        haystack_his_read_example(),
-    );
+    set_schema_example(&mut components.schemas, "ModbusReadRequest", modbus);
+    set_schema_example(&mut components.schemas, "HaystackReadRequest", hs_read);
+    set_schema_example(&mut components.schemas, "HaystackNavRequest", hs_nav);
+    set_schema_example(&mut components.schemas, "HaystackHisReadRequest", hs_his);
 }
 
 fn set_schema_example(schemas: &mut BTreeMap<String, RefOr<Schema>>, name: &str, example: Value) {
@@ -208,34 +317,98 @@ fn set_schema_example(schemas: &mut BTreeMap<String, RefOr<Schema>>, name: &str,
 mod tests {
     use super::*;
     use crate::openapi::ApiDoc;
+    use utoipa::openapi::Object;
     use utoipa::OpenApi;
 
-    use utoipa::openapi::Object;
+    fn with_env(key: &str, value: Option<&str>, f: impl FnOnce()) {
+        let prev = std::env::var(key).ok();
+        match value {
+            Some(v) => std::env::set_var(key, v),
+            None => std::env::remove_var(key),
+        }
+        f();
+        match prev {
+            Some(v) => std::env::set_var(key, v),
+            None => std::env::remove_var(key),
+        }
+    }
 
     #[test]
-    fn bench_examples_applied_to_openapi_schemas() {
+    fn bench_examples_use_device_5007() {
         let mut doc = ApiDoc::openapi();
-        apply_bench_examples(&mut doc);
-        let schemas = &doc.components.as_ref().unwrap().schemas;
-        let read = schemas.get("BacnetReadRequest").unwrap();
+        apply_examples(&mut doc, true);
+        let schemas = doc.components.as_ref().unwrap();
+        let read = schemas.schemas.get("BacnetReadRequest").unwrap();
         if let RefOr::T(Schema::Object(Object {
             example: Some(ex), ..
         })) = read
         {
             assert_eq!(ex["device_instance"], 5007);
-            assert_eq!(ex["object_instance"], 1173);
         } else {
             panic!("missing BacnetReadRequest example");
         }
     }
 
     #[test]
-    fn default_bench_api_key_constant() {
-        assert_eq!(DEFAULT_BENCH_API_KEY, "bench-demo-key-1234567890");
+    fn generic_whois_example_is_empty_object() {
+        assert!(bacnet_whois_generic().as_object().unwrap().is_empty());
     }
 
     #[test]
-    fn bench_write_dry_run_example_shape() {
-        assert!(bacnet_write_dry_run_example()["approved"].is_boolean());
+    fn generic_modbus_uses_placeholder_host() {
+        let ex = modbus_read_generic();
+        assert_eq!(ex["host"], "modbus-host.example");
+    }
+
+    #[test]
+    fn swagger_bench_forced_off_with_env() {
+        with_env("OPENFDD_FIELDBUS_SWAGGER_BENCH", Some("0"), || {
+            with_env(
+                "OPENFDD_FIELDBUS_API_KEY",
+                Some(DEFAULT_BENCH_API_KEY),
+                || {
+                    assert!(!swagger_bench_enabled());
+                },
+            );
+        });
+    }
+
+    #[test]
+    fn swagger_bench_auto_on_for_demo_key() {
+        with_env("OPENFDD_FIELDBUS_SWAGGER_BENCH", None, || {
+            with_env(
+                "OPENFDD_FIELDBUS_API_KEY",
+                Some(DEFAULT_BENCH_API_KEY),
+                || {
+                    assert!(swagger_bench_enabled());
+                },
+            );
+        });
+    }
+
+    #[test]
+    fn swagger_bench_auto_off_for_production_key() {
+        with_env("OPENFDD_FIELDBUS_SWAGGER_BENCH", None, || {
+            with_env(
+                "OPENFDD_FIELDBUS_API_KEY",
+                Some("prod-secret-key-not-demo"),
+                || {
+                    assert!(!swagger_bench_enabled());
+                },
+            );
+        });
+    }
+
+    #[test]
+    fn demo_key_not_revealed_in_production_mode() {
+        with_env("OPENFDD_FIELDBUS_SWAGGER_BENCH", None, || {
+            with_env(
+                "OPENFDD_FIELDBUS_API_KEY",
+                Some("prod-secret-key-not-demo"),
+                || {
+                    assert!(!swagger_may_reveal_demo_key());
+                },
+            );
+        });
     }
 }

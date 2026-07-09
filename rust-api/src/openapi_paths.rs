@@ -92,7 +92,7 @@ fn doc_bacnet_write_dry_run() {}
 )]
 fn doc_bacnet_rpm() {}
 
-/// Who-Is device discovery.
+/// Who-Is device discovery. Send `{}` to scan all instances (0–4194303); set `low`/`high` to narrow.
 #[utoipa::path(
     post,
     path = "/bacnet/whois",
@@ -103,7 +103,7 @@ fn doc_bacnet_rpm() {}
 )]
 fn doc_bacnet_whois() {}
 
-/// Who-Is router-to-network (routed MSTP networks).
+/// Who-Is router-to-network — discovers MS/TP routers on the BACnet/IP segment (no request body).
 #[utoipa::path(
     post,
     path = "/bacnet/whois-router",
