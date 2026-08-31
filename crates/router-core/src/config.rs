@@ -5,7 +5,7 @@ use thiserror::Error;
 
 const SUPPORTED_BAUD: [u32; 6] = [9_600, 19_200, 38_400, 57_600, 76_800, 115_200];
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(default, deny_unknown_fields)]
 pub struct RouterConfig {
     pub identity: IdentityConfig,
@@ -58,18 +58,6 @@ pub struct MstpConfig {
     pub network: u16,
     pub max_master: u8,
     pub max_info_frames: u8,
-}
-
-impl Default for RouterConfig {
-    fn default() -> Self {
-        Self {
-            identity: IdentityConfig::default(),
-            management: ManagementConfig::default(),
-            router: RouterControlConfig::default(),
-            bacnet_ip: BacnetIpConfig::default(),
-            mstp: MstpConfig::default(),
-        }
-    }
 }
 
 impl Default for IdentityConfig {
