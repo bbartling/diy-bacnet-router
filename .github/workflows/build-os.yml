@@ -72,7 +72,7 @@ jobs:
         run: |
           root="${RUNNER_TEMP}/dbr-buildroot/output/${{ matrix.target }}"
           tar -C "$root" -cJf "$root/images/legal-info.tar.xz" legal-info
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: diy-bacnet-router-${{ matrix.target }}-${{ github.sha }}
           path: ${{ runner.temp }}/dbr-buildroot/output/${{ matrix.target }}/images/

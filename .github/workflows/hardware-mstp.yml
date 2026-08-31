@@ -45,7 +45,7 @@ jobs:
           echo "Passive mode requires the pinned rusty-bacnet adapter from M1."
           echo "This scaffold will not substitute raw byte counts for valid frame evidence."
           exit 1
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: mstp-inventory-${{ github.sha }}
           path: captures/hardware-inventory.json
