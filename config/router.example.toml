@@ -1,0 +1,32 @@
+[identity]
+name = "diy-bacnet-router-lab"
+location = "test bench"
+
+[management]
+bind = "127.0.0.1:8080"
+web_root = "frontend/web/dist"
+metrics_interval_ms = 1000
+
+[router]
+# Forwarding remains false until the rusty-bacnet adapter and routing gates pass.
+enabled = false
+
+[bacnet_ip]
+interface = "eth0"
+bind_address = "0.0.0.0"
+udp_port = 47808
+network = 1
+bbmd_enabled = false
+foreign_device_enabled = false
+
+[mstp]
+serial = "/dev/serial/by-id/REPLACE_ME"
+adapter_profile = "waveshare-usb-to-rs485-c"
+# This model has an onboard 120 ohm resistor. Count it as one endpoint
+# termination; do not use it as a casual mid-span tap on an already terminated bus.
+termination = "onboard-present"
+baud = 38400
+mac = 3
+network = 2000
+max_master = 127
+max_info_frames = 1

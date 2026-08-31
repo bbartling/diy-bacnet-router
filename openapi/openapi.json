@@ -1,0 +1,19 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "DIY BACnet Router Management API",
+    "version": "0.1.0",
+    "description": "Read-only management contract for the appliance scaffold. BACnet forwarding is not yet enabled."
+  },
+  "servers": [{ "url": "/" }],
+  "paths": {
+    "/healthz": { "get": { "summary": "Management and data-plane health", "responses": { "200": { "description": "Health snapshot" } } } },
+    "/api/v1/status": { "get": { "summary": "Build and runtime status", "responses": { "200": { "description": "Status" } } } },
+    "/api/v1/capabilities": { "get": { "summary": "Truthful implementation capability matrix", "responses": { "200": { "description": "Capabilities" } } } },
+    "/api/v1/config/effective": { "get": { "summary": "Effective non-secret configuration", "responses": { "200": { "description": "Configuration" } } } },
+    "/api/v1/metrics/snapshot": { "get": { "summary": "Current aggregate router and Linux metrics", "responses": { "200": { "description": "Metrics snapshot" } } } },
+    "/api/v1/ws/metrics": { "get": { "summary": "WebSocket aggregate metrics stream", "responses": { "101": { "description": "WebSocket upgrade" } } } },
+    "/metrics": { "get": { "summary": "Prometheus text exposition", "responses": { "200": { "description": "Prometheus metrics" } } } }
+  }
+}
+

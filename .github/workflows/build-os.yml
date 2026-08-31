@@ -1,0 +1,80 @@
+name: build-os
+
+on:
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: "Informational; the current workflow builds the complete matrix"
+        required: false
+        default: "all"
+  push:
+    branches: [develop]
+    paths:
+      - "buildroot-external/**"
+      - "crates/**"
+      - "frontend/**"
+      - "scripts/build-image.sh"
+      - "Cargo.*"
+      - ".github/workflows/build-os.yml"
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-os-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  image:
+    name: ${{ matrix.target }} image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [x86_64, rpi3_64, rpi4_64, rpi5_64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/web/package-lock.json
+      - name: Build management frontend
+        run: npm --prefix frontend/web ci && npm --prefix frontend/web run build
+      - name: Install Buildroot host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends \
+            bc build-essential cpio file git libncurses-dev python3 rsync unzip wget xz-utils
+      - name: Restore Buildroot download cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/dbr-buildroot/buildroot-2025.02.17/dl
+          key: buildroot-dl-2025.02.17-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'frontend/web/package-lock.json') }}
+          restore-keys: |
+            buildroot-dl-2025.02.17-${{ matrix.target }}-
+            buildroot-dl-2025.02.17-
+      - name: Build image
+        env:
+          BUILDROOT_VERSION: 2025.02.17
+          JOBS: "3"
+        run: bash scripts/build-image.sh "${{ matrix.target }}"
+      - name: QEMU boot smoke
+        if: matrix.target == 'x86_64'
+        run: |
+          sudo apt-get install --yes --no-install-recommends qemu-system-x86 curl
+          bash scripts/qemu-smoke.sh "${RUNNER_TEMP}/dbr-buildroot/output/x86_64/images"
+      - name: Package legal information
+        run: |
+          root="${RUNNER_TEMP}/dbr-buildroot/output/${{ matrix.target }}"
+          tar -C "$root" -cJf "$root/images/legal-info.tar.xz" legal-info
+      - uses: actions/upload-artifact@v4
+        with:
+          name: diy-bacnet-router-${{ matrix.target }}-${{ github.sha }}
+          path: ${{ runner.temp }}/dbr-buildroot/output/${{ matrix.target }}/images/
+          if-no-files-found: error
+          retention-days: 14

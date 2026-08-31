@@ -1,0 +1,32 @@
+[workspace]
+resolver = "2"
+members = ["crates/router-core", "crates/routerd"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.82"
+license = "MIT"
+repository = "https://github.com/bbartling/diy-demand-side-management"
+publish = false
+
+[workspace.dependencies]
+anyhow = "1.0"
+axum = { version = "0.8", features = ["macros", "ws"] }
+http-body-util = "0.1"
+router-core = { path = "crates/router-core" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+thiserror = "2.0"
+tokio = { version = "1.47", features = ["macros", "net", "rt-multi-thread", "signal", "sync", "time"] }
+toml = "0.8"
+tower = { version = "0.5", features = ["util"] }
+tower-http = { version = "0.6", features = ["fs", "trace"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[workspace.lints.rust]
+unsafe_code = "forbid"
+
+[workspace.lints.clippy]
+all = "warn"

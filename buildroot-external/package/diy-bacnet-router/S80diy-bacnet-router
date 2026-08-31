@@ -1,0 +1,36 @@
+#!/bin/sh
+
+DAEMON=/usr/bin/diy-bacnet-router
+PIDFILE=/run/diy-bacnet-router.pid
+CONFIG=/etc/diy-bacnet-router/router.toml
+
+case "$1" in
+  start)
+    printf 'Starting diy-bacnet-router: '
+    bind_override="$(sed -n 's/.*dbr.bind=\([^ ]*\).*/\1/p' /proc/cmdline)"
+    if [ -n "$bind_override" ]; then
+      DBR_BIND="$bind_override" start-stop-daemon -S -q -b -m -p "$PIDFILE" -c dbr:dbr -x "$DAEMON" -- --config "$CONFIG"
+    else
+      start-stop-daemon -S -q -b -m -p "$PIDFILE" -c dbr:dbr -x "$DAEMON" -- --config "$CONFIG"
+    fi
+    status=$?
+    [ "$status" -eq 0 ] && echo OK || echo FAIL
+    exit "$status"
+    ;;
+  stop)
+    printf 'Stopping diy-bacnet-router: '
+    start-stop-daemon -K -q -p "$PIDFILE" -x "$DAEMON"
+    status=$?
+    [ "$status" -eq 0 ] && echo OK || echo FAIL
+    rm -f "$PIDFILE"
+    exit "$status"
+    ;;
+  restart)
+    "$0" stop
+    "$0" start
+    ;;
+  *)
+    echo "Usage: $0 {start|stop|restart}"
+    exit 1
+    ;;
+esac

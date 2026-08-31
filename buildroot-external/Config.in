@@ -1,0 +1,4 @@
+menu "DIY BACnet Router"
+source "$BR2_EXTERNAL_DIY_BACNET_ROUTER_PATH/package/diy-bacnet-router/Config.in"
+endmenu
+

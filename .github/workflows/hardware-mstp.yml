@@ -1,0 +1,53 @@
+name: hardware-mstp
+
+on:
+  workflow_dispatch:
+    inputs:
+      serial_by_id:
+        description: "Exact /dev/serial/by-id path for the Waveshare C"
+        required: true
+        type: string
+      baud:
+        description: "MS/TP baud"
+        required: true
+        default: "38400"
+        type: choice
+        options: ["9600", "19200", "38400", "57600", "76800", "115200"]
+      mode:
+        description: "Only inventory is implemented in the scaffold"
+        required: true
+        default: inventory
+        type: choice
+        options: [inventory, passive]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bacnet-mstp-lab
+  cancel-in-progress: false
+
+jobs:
+  inventory:
+    runs-on: [self-hosted, linux, x64, bacnet-lab]
+    environment: bacnet-lab-passive
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inventory only — no transmission
+        env:
+          SERIAL_BY_ID: ${{ inputs.serial_by_id }}
+          MSTP_BAUD: ${{ inputs.baud }}
+        run: bash scripts/hardware-preflight.sh
+      - name: Passive decoder is deliberately gated
+        if: inputs.mode == 'passive'
+        run: |
+          echo "Passive mode requires the pinned rusty-bacnet adapter from M1."
+          echo "This scaffold will not substitute raw byte counts for valid frame evidence."
+          exit 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mstp-inventory-${{ github.sha }}
+          path: captures/hardware-inventory.json
+          if-no-files-found: error
+          retention-days: 30

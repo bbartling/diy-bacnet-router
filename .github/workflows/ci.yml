@@ -1,47 +1,49 @@
-# CI — pure Rust axum field-bus sidecar.
-
-name: CI
+name: ci
 
 on:
-  push:
-    branches: [main, master, develop]
   pull_request:
-    branches: [main, master, develop]
+  push:
+    branches: [develop, master, main]
 
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   rust:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
-
-      - name: Checkout path deps (sibling layout for ../../rusty-* paths)
-        env:
-          MONOREPO_ROOT: ${{ github.workspace }}/..
-        run: |
-          git clone --depth 1 --branch dev \
-            https://github.com/bbartling/rusty-bacnet.git "$MONOREPO_ROOT/rusty-bacnet"
-          git clone --depth 1 --branch feat/niagara-nhaystack-basic-auth-demo \
-            https://github.com/bbartling/rusty-haystack.git "$MONOREPO_ROOT/rusty-haystack"
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: "1.96"
+          toolchain: 1.93.0
           components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+      - run: cargo test --workspace --all-targets --locked
 
-      - name: Rust fmt
-        working-directory: rust-api
-        run: cargo fmt --all --check
+  web:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: frontend/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/web/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
 
-      - name: Rust clippy
-        working-directory: rust-api
-        run: cargo clippy --workspace --all-targets -- -D warnings
-
-      - name: Rust tests
-        working-directory: rust-api
-        env:
-          OPENFDD_FIELDBUS_CONFIG_DIR: ${{ github.workspace }}/config
-        run: cargo test --workspace
+  repository-contract:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash scripts/validate-repository.sh

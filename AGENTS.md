@@ -1,72 +1,82 @@
-# Agent instructions — DIY BACnet Server (Open-FDD field-bus)
+# AGENTS.md — DIY BACnet Router engineering contract
 
-This file is **durable project context**. Do not remove or bypass these rules when refactoring.
+These rules apply to the entire repository. Read this file, `README.md`,
+`docs/agent/SPEC.md`, `docs/ARCHITECTURE.md`, `docs/TESTING.md`, and
+`docs/UPSTREAM_LOCK.md` before changing code.
 
-## Hosted BACnet device (device 599999 / OpenFDD)
+## Mission
 
-The gateway hosts a BACnet/IP server on UDP **47808** (configurable via `OPENFDD_FIELDBUS_BACNET_PORT`).
+Build a trustworthy, original Linux BACnet/IP-to-MS/TP router appliance. The
+deliverable is a reproducible OS image plus a router data plane and a small
+management plane. This is not a BACnet application-device project.
 
-| Requirement | Detail |
-|-------------|--------|
-| Device name | `OpenFDD` (`config/gateway.toml` → `device_name`) |
-| Vendor ID | **999** on `BACnetServer::bip_builder().vendor_id(999)` **and** `DeviceConfig.vendor_id` |
-| Model | `openfdd-fieldbus` |
-| Point catalog | `config/objects.csv` — **do not drop rows** without explicit user request |
+## Non-negotiable boundaries
 
-### Server vs client UDP sockets
+- The router forwards NPDUs between distinct BACnet networks. It must not reuse
+  the Vibe13 mini-device AI/BI/AV/BV database as its data plane.
+- The dashboard, REST API and WebSocket are management surfaces only. They must
+  not block token handling or packet forwarding.
+- Do not copy commercial branding, firmware, HTML, images or trade dress.
+- Do not claim Clause 9 conformance, BTL certification, segmentation, extended
+  frames, BBMD, FDR, routing, or a tested baud unless the named gate has current
+  evidence.
+- Prefer the pinned upstream rusty-bacnet APIs. Do not copy stack internals into
+  this repository to make an API mismatch disappear.
+- The default configuration is fail-closed: forwarding disabled, management
+  bound to loopback, no default password, no write API.
 
-- **Server** binds `0.0.0.0:47808` (or configured port) — only socket on that port.
-- **Client** uses **ephemeral** UDP ports (`whois_bind_port = 0` in `gateway.toml`).
-- Never bind the BACnet client to the same UDP port as the hosted server (causes Workbench `???` / dropped ReadProperty).
+## Dependency policy
 
-## REST vs BACnet write split (critical — no data races)
+- Never depend on a moving `dev` branch in a committed `Cargo.toml`.
+- Audit current upstream `dev`, run its relevant tests, then record a full
+  40-character commit in `config/upstream-lock.toml` and `docs/UPSTREAM_LOCK.md`.
+- Commit `Cargo.lock`. Use `--locked` in CI and Buildroot.
+- Upstream stack changes belong in focused rusty-bacnet PRs with failing tests
+  first. Application policy and appliance integration stay here.
 
-Points in `objects.csv` with **`Commandable=Y`** are **BACnet-writable only**:
+## BACnet and serial safety
 
-- External BMS / Workbench / Niagara may WriteProperty (e.g. `openfdd-optimization-enabled` BV **9010**).
-- REST **`POST /bacnet/server/update` must reject** writes to commandable points.
-- Mechanism: `BacnetServerManager::api_writable()` / `reject_api_write()` in `rust-api/src/services/bacnet_server.rs`.
-- Rejection message constant: `API_WRITABLE_REJECT_MSG`.
+- Use `/dev/serial/by-id/...`, never persist `ttyUSB0`.
+- Allow only 9600, 19200, 38400, 57600, 76800 and 115200 baud. Default 38400.
+- Configure 8N1, no flow control. Waveshare automatic direction means no
+  simultaneous Linux RS-485 ioctl, RTS or GPIO direction control.
+- Exactly one process owns a tty. Never kill an unknown owner automatically.
+- Validate that B/IP and MS/TP network numbers are distinct and in 1..=65534.
+- Validate MS/TP MAC <= Max_Master <= 127 and Max_Info_Frames in 1..=255.
+- Passive decode must pass before any hardware job transmits. Stop on duplicate
+  MAC, loss of the existing trunk, token storm or rising CRC/timeouts.
+- Never run hardware tests from an untrusted pull request.
 
-Points with **`Commandable=N`** are **server-owned** (weather mirror, FDD diagnostics). Only these may be updated via REST.
+## Metrics
 
-### Tests that must stay green
+- Data-plane counters use atomics or a bounded nonblocking channel.
+- Browser updates are aggregate snapshots; no per-packet WebSocket messages.
+- The WebSocket interval is bounded to 250..=5000 ms and defaults to 1000 ms.
+- All queues, histories, captures and support bundles are bounded.
+- Counter names and units are stable API contracts and require tests.
 
-- `every_commandable_point_rejects_api_write`
-- `optimization_enabled_is_only_commandable_hosted_point`
-- `update_rejects_commandable_point`
-- Smoke: `scripts/smoke_test.sh` hosted-server section (commandable reject + weather points)
+## Required tests before handoff
 
-## Weather mirror (Open-Meteo)
-
-Weather AVs **9101–9104**, location CSV **9105**, fault BV **9106**, last-updated CSV **9107**.
-
-On each mirror cycle, update:
-
-1. **Present-value** on weather points
-2. **Description** with live Open-Meteo context (value + timestamp + source)
-3. **`weather-last-updated`** (CSV:9107) with human-readable timestamp
-
-Implementation: `rust-api/src/services/weather.rs` → `mirror_to_bacnet()`.
-
-## Before merging BACnet changes
-
-1. `cargo test` in `rust-api/`
-2. `scripts/smoke_test.sh` against running container
-3. Optional: `point-discover --device 599999 --address <host>:47808` from rusty-bacnet samples — expect name **OpenFDD** and ≥10 objects
-
-## Swagger / OpenAPI bench examples
-
-- **`OPENFDD_FIELDBUS_SWAGGER_BENCH=1`** by default — bench JSON bodies always pre-filled (opt-out with `=0`).
-- **Open-FDD workflow:** `POST /bacnet/whois` `{}` → `POST /api/bacnet/point-discovery` → `POST /api/bacnet/supervisory`.
-- **`GET /bacnet/points` removed** — use Who-Is + point discovery instead.
-
-## Key files
-
+```bash
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --locked -- -D warnings
+cargo test --workspace --all-targets --locked
+npm --prefix frontend/web ci
+npm --prefix frontend/web run check
+npm --prefix frontend/web run build
 ```
-config/objects.csv          # hosted point catalog (+ Description column)
-config/gateway.toml         # device 599999, server bind, client ephemeral ports
-rust-api/src/services/bacnet_server.rs
-rust-api/src/services/weather.rs
-scripts/smoke_test.sh
-```
+
+Also run `scripts/validate-repository.sh`. Hardware and Buildroot tests must be
+reported separately and truthfully; lack of hardware is not a failure and is
+never relabeled as a pass.
+
+## Agent workflow
+
+1. Inspect the working tree and preserve user changes.
+2. Identify one gate from `docs/agent/SPEC.md`.
+3. Add a failing test or executable acceptance check.
+4. Make the smallest implementation that passes it.
+5. Run the required checks.
+6. Update the evidence ledger and upstream lock if relevant.
+7. Stop at hardware, signing, network mutation or release approval boundaries.
+

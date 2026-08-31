@@ -1,0 +1,6 @@
+DIY BACnet Router appliance
+
+The BACnet data plane is fail-closed until its commissioning gates pass.
+Configuration: /etc/diy-bacnet-router/router.toml
+Status:        http://127.0.0.1:8080/healthz
+
