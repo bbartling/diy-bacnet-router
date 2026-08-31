@@ -33,7 +33,7 @@ jobs:
     environment: bacnet-lab-passive
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Inventory only — no transmission
         env:
           SERIAL_BY_ID: ${{ inputs.serial_by_id }}

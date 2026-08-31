@@ -35,7 +35,7 @@ jobs:
       matrix:
         target: [x86_64, rpi3_64, rpi4_64, rpi5_64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - uses: actions/setup-node@v4
