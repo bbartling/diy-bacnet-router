@@ -9,7 +9,10 @@ DIY_BACNET_ROUTER_SITE = $(BR2_EXTERNAL_DIY_BACNET_ROUTER_PATH)/..
 DIY_BACNET_ROUTER_SITE_METHOD = local
 DIY_BACNET_ROUTER_LICENSE = MIT
 DIY_BACNET_ROUTER_LICENSE_FILES = LICENSE
-DIY_BACNET_ROUTER_CARGO_BUILD_OPTS = --package routerd --bin diy-bacnet-router --locked
+# Buildroot's cargo-package infrastructure supplies --locked itself. Keep
+# package selection here so the generated command contains one, and only one,
+# lockfile enforcement flag.
+DIY_BACNET_ROUTER_CARGO_BUILD_OPTS = --package routerd --bin diy-bacnet-router
 
 define DIY_BACNET_ROUTER_INSTALL_TARGET_CMDS
 	$(INSTALL) -D -m 0755 \

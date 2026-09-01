@@ -8,7 +8,7 @@ on:
         required: false
         default: "all"
   push:
-    branches: [develop]
+    branches: [master]
     paths:
       - "buildroot-external/**"
       - "crates/**"
@@ -35,10 +35,10 @@ jobs:
       matrix:
         target: [x86_64, rpi3_64, rpi4_64, rpi5_64]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
           fetch-depth: 0
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
         with:
           node-version: 24
           cache: npm
@@ -51,7 +51,7 @@ jobs:
           sudo apt-get install --yes --no-install-recommends \
             bc build-essential cpio file git libncurses-dev python3 rsync unzip wget xz-utils
       - name: Restore Buildroot download cache
-        uses: actions/cache@v4
+        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: ${{ runner.temp }}/dbr-buildroot/buildroot-2025.02.17/dl
           key: buildroot-dl-2025.02.17-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'frontend/web/package-lock.json') }}
@@ -66,13 +66,50 @@ jobs:
       - name: QEMU boot smoke
         if: matrix.target == 'x86_64'
         run: |
-          sudo apt-get install --yes --no-install-recommends qemu-system-x86 curl
+          sudo apt-get install --yes --no-install-recommends e2fsprogs qemu-system-x86 curl
+          root="${RUNNER_TEMP}/dbr-buildroot/output/x86_64"
+          for path in \
+            "$root/images/bzImage" \
+            "$root/images/rootfs.ext2"; do
+            test -s "$path"
+          done
+          for guest_path in \
+            /usr/bin/diy-bacnet-router \
+            /etc/diy-bacnet-router/router.toml \
+            /etc/init.d/S80diy-bacnet-router \
+            /usr/share/diy-bacnet-router/web/index.html; do
+            debugfs -R "stat $guest_path" "$root/images/rootfs.ext2" 2>/dev/null | grep -q 'Inode:'
+          done
           bash scripts/qemu-smoke.sh "${RUNNER_TEMP}/dbr-buildroot/output/x86_64/images"
-      - name: Package legal information
+      - name: Verify image evidence
         run: |
           root="${RUNNER_TEMP}/dbr-buildroot/output/${{ matrix.target }}"
-          tar -C "$root" -cJf "$root/images/legal-info.tar.xz" legal-info
-      - uses: actions/upload-artifact@v4
+          test -d "$root/legal-info"
+          test -s "$root/images/legal-info.tar.xz"
+          test -s "$root/images/build-manifest.json"
+          test -s "$root/images/buildroot-host-rustc-version.txt"
+          test -s "$root/images/SHA256SUMS"
+          python3 - "$root/images/build-manifest.json" "${{ matrix.target }}" <<'PY'
+          import json
+          import sys
+          with open(sys.argv[1], encoding="utf-8") as handle:
+              manifest = json.load(handle)
+          assert manifest["target"] == sys.argv[2]
+          assert manifest["project_rust_toolchain"] == "1.93.0"
+          assert manifest["rusty_bacnet"] == "not-integrated"
+          assert manifest["buildroot_host_rustc_version"]
+          PY
+          mapfile -t image_files < <(
+            find "$root/images" -maxdepth 1 -type f \
+              ! -name SHA256SUMS \
+              ! -name build-manifest.json \
+              ! -name buildroot-host-rustc-version.txt \
+              ! -name legal-info.tar.xz -print
+          )
+          test "${#image_files[@]}" -gt 0
+          for image in "${image_files[@]}"; do test -s "$image"; done
+          (cd "$root/images" && sha256sum --check --strict SHA256SUMS)
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: diy-bacnet-router-${{ matrix.target }}-${{ github.sha }}
           path: ${{ runner.temp }}/dbr-buildroot/output/${{ matrix.target }}/images/

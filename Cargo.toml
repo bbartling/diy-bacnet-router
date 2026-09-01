@@ -7,7 +7,7 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.82"
 license = "MIT"
-repository = "https://github.com/bbartling/diy-demand-side-management"
+repository = "https://github.com/bbartling/diy-bacnet-router"
 publish = false
 
 [workspace.dependencies]
