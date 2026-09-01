@@ -16,8 +16,7 @@ grep -q 'router.enabled=true is unavailable' crates/router-core/src/config.rs
 # Buildroot's pkg-cargo infrastructure supplies the single --locked flag for
 # its generated cargo build command. Keep package-specific options free of
 # another --locked flag, which makes Cargo reject the command before compiling.
-cargo_build_opts="$(sed -n 's/^DIY_BACNET_ROUTER_CARGO_BUILD_OPTS = //p' \\
-  buildroot-external/package/diy-bacnet-router/diy-bacnet-router.mk)"
+cargo_build_opts="$(sed -n 's/^DIY_BACNET_ROUTER_CARGO_BUILD_OPTS = //p' buildroot-external/package/diy-bacnet-router/diy-bacnet-router.mk)"
 test -n "$cargo_build_opts"
 if grep -Eq '(^|[[:space:]])--locked([[:space:]]|$)' <<<"$cargo_build_opts"; then
   echo "Buildroot cargo package options must not duplicate --locked" >&2
