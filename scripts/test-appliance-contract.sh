@@ -36,7 +36,7 @@ grep -q 'uid=' scripts/qemu-smoke.sh
 
 echo "==> upstream lock documents rusty-bacnet pin"
 grep -q 'rusty-bacnet' config/upstream-lock.toml
-grep -q 'rusty_bacnet' docs/UPSTREAM_LOCK.md
+grep -q 'rusty-bacnet' docs/UPSTREAM_LOCK.md
 
 echo "==> OpenAPI lists core management routes"
 for route in /healthz /api/v1/status /api/v1/metrics/snapshot /api/v1/ws/metrics; do

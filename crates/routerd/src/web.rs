@@ -86,11 +86,7 @@ pub fn app(state: AppState) -> Router {
 
 async fn spa_fallback(uri: Uri, State(state): State<AppState>) -> Response {
     if uri.path().starts_with("/api/") {
-        return (
-            StatusCode::NOT_FOUND,
-            Json(json!({ "error": "not found" })),
-        )
-            .into_response();
+        return (StatusCode::NOT_FOUND, Json(json!({ "error": "not found" }))).into_response();
     }
 
     let web_root = Path::new(&state.config.management.web_root);
