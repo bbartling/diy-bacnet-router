@@ -24,7 +24,7 @@ exists:
 5. Boot the downloaded artifact locally under QEMU (VirtualBox lab VM).
 6. Verify service startup and `GET /healthz` (expects `status: ok`,
    `data_plane: disabled`, `ready_to_route: false`). Optionally
-   `GET /api/v1/status` and WebSocket metrics snapshot.
+   `GET /api/status` and WebSocket metrics snapshot (`/api/ws/metrics`).
 7. Only then perform a clean local Buildroot build of the same SHA.
 8. Compare the locally built artifact manifest/configuration with the Actions
    artifact.

@@ -78,10 +78,15 @@ Buildroot/rootfs tools — not hidden BACnet env vars. Application policy lives 
 
 ### Transport
 
-- REST: `/healthz`, `/api/v1/status`, `/api/v1/capabilities`, `/api/v1/metrics/snapshot`
-- WebSocket: `/api/v1/ws/metrics` — **aggregate snapshots only** (default 1000 ms,
-  bounded 250–5000 ms). Never one message per BACnet frame.
+- REST: `/healthz`, `/api/status`, `/api/capabilities`, `/api/metrics/snapshot`
+- WebSocket: **`/api/ws/metrics`** — **aggregate snapshots only** (default 1000 ms,
+  bounded 250–5000 ms). Primary live feed for MS/TP trunk health in the dashboard.
+  Never one message per BACnet frame.
 - Prometheus: `/metrics`
+
+No URL path versioning — the management API is co-deployed with the appliance
+image for operators on the LAN, not published as a versioned public HTTP product.
+Release identity is the root [`VERSION`](../../VERSION) file (always visible in the UI).
 
 ### Status page (BASRT-inspired, original styling)
 
@@ -123,15 +128,88 @@ Future: **Advanced** (BBMD/FDR — M6 gate), **Security** (TLS/auth — M6 gate)
 
 ## Buildroot / appliance
 
-- Images: x86_64 (QEMU smoke), rpi3_64, rpi4_64, rpi5_64
+### Buildroot version policy
+
+The appliance tracks the **latest stable Buildroot bugfix release**, pinned with
+a full Git commit in [`config/buildroot-lock.toml`](../../config/buildroot-lock.toml).
+Agents must **not** guess the version — read the lock file.
+
+| Field | Current pin (2026-09-02) |
+| --- | --- |
+| Stable release | **2026.05.2** (Aug 2026 bugfix on the 2026.05 LTS line) |
+| Commit | `72d9d4fa636a371ef9eb99c92a735ce9f6d829d5` |
+| Host Rust (in-image build) | **1.96.1** |
+
+Before bumping Buildroot:
+
+1. Confirm the new tag on [buildroot.org/download.html](https://buildroot.org/download.html).
+2. Update `config/buildroot-lock.toml`, CI cache keys in `build-os.yml`, and
+   `docs/UPSTREAM_LOCK.md`.
+3. Pass x86_64 **QEMU smoke** on CI **and** on the local VMware Ubuntu lab VM.
+4. Never advance the pin on a failing or unverified build.
+
+### Image matrix
+
+- Targets: x86_64 (QEMU smoke), rpi3_64, rpi4_64, rpi5_64 (aarch64)
 - Entry: [scripts/build-image.sh](../../scripts/build-image.sh)
 - CI: `.github/workflows/build-os.yml`
-- Lab VM: VirtualBox `ubuntu2` @ `127.0.0.1:2222` — artifact acceptance before
-  Buildroot debugging ([docs/operations/LOCAL_BUILDROOT_VM.md](../operations/LOCAL_BUILDROOT_VM.md))
+- x86 verification: [scripts/qemu-smoke.sh](../../scripts/qemu-smoke.sh) with
+  `-snapshot` (checksums must survive smoke boot)
 
-Buildroot rootfs should include: `openssh`, basic `ip`/`systemd-networkd` or
-Buildroot network init, USB serial udev by-id symlinks, unprivileged `routerd`
-service, embedded web root.
+Buildroot rootfs includes: `openssh`, basic networking tools, USB serial udev
+by-id symlinks, unprivileged `routerd` service, embedded web root.
+
+**Host networking is SSH-managed** on the appliance — IP, routes, DNS and firewall
+are configured with normal Linux tools, not through the browser (until M6 auth).
+
+### Local lab — VMware Ubuntu over SSH (required for Buildroot debug)
+
+**Do not use WSL** for Buildroot work when the host WSL install is corrupt.
+All long Buildroot compiles and QEMU smokes run on an **Ubuntu 24.04 guest in
+VMware**, reached from the **Windows host via SSH** (NAT port forward
+`127.0.0.1:2222` → guest `:22`).
+
+Full runbook: [docs/operations/LOCAL_BUILDROOT_VM.md](../operations/LOCAL_BUILDROOT_VM.md).
+
+Agent loop when `build-os` fails:
+
+1. Inspect the failed GitHub Actions log on the host (`gh run view … --log-failed`).
+2. SSH to the guest and run `scripts/vm-debug-build.sh` (or `.\scripts\vm-ensure.ps1 -DebugBuild` from Windows).
+3. Fix scripts or Buildroot external config on a branch; push.
+4. Confirm green `build-os`, then optional `vm-accept-artifact.sh` on the guest.
+
+Credentials: `config/vm.env` on Windows (`VM_SSH_PASSWORD`, gitignored). One-time
+key install: `scripts/vm-authorize-key.ps1`.
+
+Guest layout:
+
+- `~/src/diy-bacnet-router` — git clone (same pin as CI)
+- `~/dbr-buildroot/` — Buildroot sources, `output/x86_64/images/`, debug logs
+
+Skill: [.cursor/skills/local-buildroot-vm/SKILL.md](../../.cursor/skills/local-buildroot-vm/SKILL.md).
+
+## BACnet stack (Rust only)
+
+- Data plane and MS/TP/B/IP integration use **rusty-bacnet** (pinned in
+  `config/upstream-lock.toml`) — **not Python**.
+- Future `crates/rusty-bacnet-adapter` is the only crate that talks to upstream
+  transport/network APIs.
+- External Vibe13 prototype may reference Python for historical lab work; do not
+  import Python stacks, object databases, or lab scripts into this repository.
+
+## Full-stack audit contract
+
+When performing repository-wide cleanup, refactors, or pre-merge hardening,
+follow [FULL_STACK_AUDIT.md](FULL_STACK_AUDIT.md). It defines:
+
+- Rust + React + Buildroot audit scope and validation gates
+- dependency hygiene, dead-code removal, and API boundary rules
+- static asset serving and SPA/API 404 behavior
+- QEMU, Buildroot, SSH, and serial safety requirements
+- the mandatory completion report template
+
+Do not claim an audit is complete unless every gate in that document was executed
+and reported honestly.
 
 ## Agent execution order (current)
 
@@ -167,3 +245,4 @@ milestone at a time (M1 rusty-bacnet adapter → M2 ports → M3 routing).
 | [TESTING.md](../TESTING.md) | Gate labels G0–G11 |
 | [.cursor/skills/local-buildroot-vm/SKILL.md](../../.cursor/skills/local-buildroot-vm/SKILL.md) | VirtualBox lab workflow |
 | [.cursor/skills/basrt-educational-router/SKILL.md](../../.cursor/skills/basrt-educational-router/SKILL.md) | Product/UI context for agents |
+| [FULL_STACK_AUDIT.md](FULL_STACK_AUDIT.md) | Production-grade audit/refactor checklist |

@@ -119,7 +119,7 @@ function Configuration() {
     <h2>Configuration is managed over SSH</h2>
     <p>Edit <code>/etc/diy-bacnet-router/router.toml</code>, validate it, then restart the service. Browser writes stay disabled until authentication, audit logging, atomic persistence and rollback gates pass.</p>
     <div className="command">sudo vi /etc/diy-bacnet-router/router.toml<br />sudo diy-bacnet-router --config /etc/diy-bacnet-router/router.toml<br />sudo service diy-bacnet-router restart</div>
-    <a className="button-link" href="/api/v1/config/effective">View effective JSON</a>
+    <a className="button-link" href="/api/config/effective">View effective JSON</a>
   </section>;
 }
 
@@ -131,13 +131,16 @@ export function App() {
     <div className="shell">
       <header>
         <div className="brand-mark"><span>DBR</span></div>
-        <div className="brand"><strong>DIY BACnet Router</strong><span>{status?.name ?? "appliance scaffold"}</span></div>
+        <div className="brand">
+          <strong>DIY BACnet Router</strong>
+          <span>{status?.name ?? "appliance scaffold"} · v{status?.version ?? "…"}</span>
+        </div>
         <div className={`connection connection-${connection}`}><i />{connection}</div>
       </header>
       <aside>
         <div className="device-summary"><span className="eyebrow">Data plane</span><strong>{metrics?.runtime.data_plane ?? "disabled"}</strong><small>{status?.location ?? "test bench"}</small></div>
         <nav>{pages.map((item) => <button key={item} className={page === item ? "active" : ""} onClick={() => setPage(item)}>{item === "mstp" ? "MS/TP" : item === "ip" ? "BACnet/IP" : item}</button>)}</nav>
-        <div className="build"><span>Version {status?.version ?? "0.1.0"}</span><span>Stack {status?.rusty_bacnet_rev ?? "not integrated"}</span></div>
+        <div className="build"><span>Release v{status?.version ?? "…"}</span><span>Stack {status?.rusty_bacnet_rev ?? "not integrated"}</span></div>
       </aside>
       <main>
         <div className="page-heading"><div><span className="eyebrow">Router management</span><h1>{page === "mstp" ? "MS/TP statistics" : page === "ip" ? "BACnet/IP statistics" : page}</h1></div><span className="timestamp">{metrics ? new Date(metrics.timestamp_unix_ms).toLocaleTimeString() : "waiting for metrics"}</span></div>

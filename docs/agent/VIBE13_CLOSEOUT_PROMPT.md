@@ -1,5 +1,9 @@
 # Cursor prompt — close Vibe13 without expanding it
 
+> **External repository only** — run this in `bbartling/py-bacnet-stacks-playground`,
+> not in `diy-bacnet-router`. For this appliance, use
+> [SOFTWARE_SPEC.md](SOFTWARE_SPEC.md) and [M0_ARTIFACT_ACCEPTANCE_PROMPT.md](M0_ARTIFACT_ACCEPTANCE_PROMPT.md).
+
 Use this in `bbartling/py-bacnet-stacks-playground` after the operator is ready
 to finish the prototype evidence.
 

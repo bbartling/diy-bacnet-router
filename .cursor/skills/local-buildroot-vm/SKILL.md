@@ -1,15 +1,31 @@
 ---
 name: local-buildroot-vm
 description: >-
-  Local Buildroot debug on VirtualBox ubuntu2 only (no WSL). Requires config/vm.env
-  with VM_SSH_PASSWORD. Use vm-debug-build.sh when build-os fails; port fixes to
-  GitHub Actions. See docs/operations/LOCAL_BUILDROOT_VM.md.
+  Local Buildroot debug on VMware Ubuntu guest over SSH from Windows (no WSL).
+  Requires config/vm.env with VM_SSH_PASSWORD. Use vm-debug-build.sh when build-os
+  fails; port fixes to GitHub Actions. See docs/operations/LOCAL_BUILDROOT_VM.md.
 ---
 
-# VirtualBox Buildroot lab (ubuntu2)
+# VMware Buildroot lab (Ubuntu guest)
 
-**Do not use WSL** on this machine — it is corrupt. All Linux builds run on
-VirtualBox `ubuntu2` via SSH from Windows.
+**Do not use WSL** on this machine when it is corrupt. All Linux Buildroot builds
+run on an **Ubuntu 24.04 guest in VMware**, accessed by **SSH from the Windows
+host** (`ben@127.0.0.1:2222`).
+
+## Topology
+
+```text
+Windows host  --SSH:2222-->  VMware  -->  Ubuntu guest  -->  build-image.sh / QEMU
+```
+
+Read [docs/operations/LOCAL_BUILDROOT_VM.md](../../docs/operations/LOCAL_BUILDROOT_VM.md)
+for port forwarding, credentials, and directory layout.
+
+## Buildroot pin
+
+Always read [`config/buildroot-lock.toml`](../../config/buildroot-lock.toml).
+Current stable pin: **2026.05.2** (`72d9d4fa…`, host Rust 1.96.1). Do not bump
+without green x86 QEMU on CI and the lab VM.
 
 ## Credentials (required)
 
@@ -19,38 +35,28 @@ copy config\vm.env.example config\vm.env
 .\scripts\vm-authorize-key.ps1
 ```
 
-Files:
-
-- `config/vm.env.example` — template (committed)
-- `config/vm.env` — secrets (gitignored)
-- `scripts/vm-load-env.ps1` — loads env for other scripts
-- `scripts/vm-ssh-install-key.py` — paramiko key install
-
 ## Workflow when GitHub Actions fails
 
 1. `gh run view <RUN_ID> --log-failed`
-2. `.\scripts\vm-ensure.ps1 -DebugBuild` on VM
-3. Fix scripts/workflow on Windows branch
-4. Push; confirm `build-os` green
-5. `.\scripts\vm-ensure.ps1 -AcceptRunId <RUN_ID>`
+2. Start Ubuntu guest in VMware; confirm SSH: `ssh -p 2222 ben@127.0.0.1`
+3. `.\scripts\vm-ensure.ps1 -DebugBuild` or on guest: `bash scripts/vm-debug-build.sh`
+4. Fix scripts/workflow on Windows branch; push
+5. Confirm `build-os` green
+6. `.\scripts\vm-ensure.ps1 -AcceptRunId <RUN_ID>`
 
 ## Scripts
 
 | Script | Purpose |
 |--------|---------|
-| `vm-ensure.ps1` | Start VM, probe SSH |
+| `vm-ensure.ps1` | Probe SSH; run setup/debug/accept on guest |
 | `vm-authorize-key.ps1` | One-time key via `config/vm.env` |
-| `vm-setup.sh` | apt, node, rust, clone repo |
+| `vm-setup.sh` | apt, node, rust, clone repo (on guest) |
 | `vm-debug-build.sh` | Full x86 build + CI verify + QEMU + post-QEMU checksum |
-| `vm-build-x86.sh` | Build only |
-| `vm-accept-artifact.sh` | Download GH artifact + QEMU |
+| `vm-accept-artifact.sh` | Download GH artifact + QEMU (needs `gh` on guest or host) |
 
 ## Known fix (rootfs checksum)
 
-QEMU must use `-snapshot` so `rootfs.ext2` is not modified before SHA256 verify
-in `build-os.yml`.
-
-## Track progress
+QEMU must use `-snapshot` so `rootfs.ext2` is not modified before SHA256 verify.
 
 Update [docs/operations/LOCAL_BUILDROOT_VM.md](../../docs/operations/LOCAL_BUILDROOT_VM.md)
-checklist and results table after each run.
+after each lab run.

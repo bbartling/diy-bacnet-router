@@ -282,4 +282,19 @@ mod tests {
         let raw = "[router]\nenabled = false\nsurprise = true\n";
         assert!(toml::from_str::<RouterConfig>(raw).is_err());
     }
+
+    #[test]
+    fn example_router_toml_is_valid() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../config/router.example.toml");
+        RouterConfig::from_path(&path).expect("example router.toml");
+    }
+
+    #[test]
+    fn metrics_interval_bounds_are_enforced() {
+        let mut config = RouterConfig::default();
+        config.management.metrics_interval_ms = 249;
+        assert!(config.validate().is_err());
+        config.management.metrics_interval_ms = 5_001;
+        assert!(config.validate().is_err());
+    }
 }

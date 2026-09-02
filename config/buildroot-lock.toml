@@ -1,0 +1,6 @@
+# Pinned Buildroot release for reproducible appliance images.
+# Update only after a successful x86_64 QEMU smoke on CI and lab VM.
+version = "2026.05.2"
+commit = "72d9d4fa636a371ef9eb99c92a735ce9f6d829d5"
+# Host Rust from Buildroot package/rust (observed on tag checkout 2026-09-02)
+host_rust = "1.96.1"

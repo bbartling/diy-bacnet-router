@@ -6,6 +6,9 @@ cd "$repo_root"
 
 test -f AGENTS.md
 test -f config/upstream-lock.toml
+test -f config/buildroot-lock.toml
+test -f VERSION
+grep -q 'DBR_VERSION' crates/routerd/build.rs
 test -f docs/hardware/WAVESHARE_USB_RS485_C.md
 test -f openapi/openapi.json
 grep -q 'ready_to_route' crates/routerd/src/web.rs
@@ -14,6 +17,7 @@ grep -q 'router.enabled=true is unavailable' crates/router-core/src/config.rs
 ! grep -R -n -E '/dev/ttyUSB[0-9]' config buildroot-external
 grep -q '\-snapshot' scripts/qemu-smoke.sh
 bash scripts/test-image-evidence-contract.sh
+bash scripts/test-appliance-contract.sh
 
 # Buildroot's pkg-cargo infrastructure supplies the single --locked flag for
 # its generated cargo build command. Keep package-specific options free of

@@ -1,3 +1,10 @@
+---
+title: Architecture
+layout: default
+nav_order: 6
+permalink: /architecture/
+---
+
 # Architecture
 
 ## Trust boundaries

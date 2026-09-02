@@ -32,15 +32,18 @@ selected by the Buildroot configuration.
 
 ## M0 Buildroot compatibility lock
 
-Buildroot `2025.02.17` supplies host Rust/Cargo `1.82.0`. The project keeps its
-own declared MSRV and CI toolchain at Rust `1.93`; this is not a project-MSRV
-downgrade. The network-dependent `getrandom` target graph selected
-`wasip2 1.0.4+wasi-0.2.12` and `wit-bindgen 0.57.1` in the seeded lockfile, but
-`wit-bindgen 0.57.1` uses Edition 2024 syntax that Cargo `1.82.0` cannot parse.
-The reviewed M0 `Cargo.lock` therefore pins the compatible transitive pair
-`wasip2 1.0.1+wasi-0.2.4` and `wit-bindgen 0.46.0`. This keeps Buildroot's
-official offline cargo-vendor path usable without changing application source,
-silently installing another compiler, or integrating rusty-bacnet.
+Buildroot version and commit are pinned in `config/buildroot-lock.toml`.
+Current pin: **2026.05.2** (`72d9d4fa636a371ef9eb99c92a735ce9f6d829d5`), host
+Rust **1.96.1** (observed from `package/rust/rust.mk` on 2026-09-02).
+
+The project keeps its declared MSRV and CI toolchain at Rust **1.93** in
+`rust-toolchain.toml`; Buildroot supplies an independent host compiler for the
+offline `cargo-package` path inside the image build.
+
+Previous M0 pin **2025.02.17** shipped host Rust **1.82.0**, which required
+lockfile workarounds for `wasip2` / `wit-bindgen` Edition 2024 syntax. The
+2026.05.2 host Rust satisfies the project MSRV and the future rusty-bacnet
+MSRV (`1.93`) without a side-channel compiler.
 
 The current `jscott3201/rusty-bacnet` `dev` tip observed on 2026-09-02 is
 `65ae4633ea26e24f959991cb4a2ee2d9d982bc98` and advertises MSRV Rust `1.93`.
@@ -49,9 +52,7 @@ Vibe13 evidence pin remains `af4e886`.
 
 Before adding any rusty-bacnet crate to the image, the x86 image job must print
 the Buildroot host `rustc --version` and prove it satisfies the exact audited
-upstream MSRV. If Buildroot 2025.02.x cannot provide that version, solve it as
-a reproducible Buildroot toolchain/package change or move to a reviewed newer
-Buildroot LTS. Never bypass an MSRV check with an untracked host-installed
+upstream MSRV. Never bypass an MSRV check with an untracked host-installed
 compiler.
 
 ## Patch placement

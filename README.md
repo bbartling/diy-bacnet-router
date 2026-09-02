@@ -1,115 +1,148 @@
 # DIY BACnet Router
 
-An original, Linux-based BACnet/IP-to-MS/TP router appliance project for
-Raspberry Pi 3/4/5 and x86-64. The repository combines a Rust data plane, a
-small Rust management API, a React dashboard, reproducible Buildroot images,
-and evidence-gated hardware testing.
+[![docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://bbartling.github.io/diy-bacnet-router/)
 
-> Current status: **Milestone 0 scaffold, not a working BACnet router.** The
-> management API, bounded metrics stream, configuration validation, frontend,
-> CI and image-build framework live here. BACnet NPDU forwarding stays disabled
-> until the rusty-bacnet adapter and isolated routing gates pass.
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![ci](https://github.com/bbartling/diy-bacnet-router/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/bbartling/diy-bacnet-router/actions/workflows/ci.yml)
+[![build-os](https://github.com/bbartling/diy-bacnet-router/actions/workflows/build-os.yml/badge.svg?branch=master)](https://github.com/bbartling/diy-bacnet-router/actions/workflows/build-os.yml)
 
-## Why this repository exists
+| Pin | Lock file | Current value |
+| --- | --- | --- |
+| Rust (CI / dev) | [`rust-toolchain.toml`](rust-toolchain.toml) | **1.93.0** |
+| Buildroot (appliance images) | [`config/buildroot-lock.toml`](config/buildroot-lock.toml) | **2026.05.2** — latest stable bugfix (Aug 2026) |
+| Buildroot host Rust (image build) | `build-manifest.json` / CI log | **1.96.1** (from Buildroot `package/rust`) |
+| rusty-bacnet | [`config/upstream-lock.toml`](config/upstream-lock.toml) | **Not integrated in M0** — observed `dev` tip `65ae4633…` (unaudited; M1 gate) |
+| Cargo.lock | committed | `--locked` in CI and Buildroot |
 
-`vibe_code_apps_13` proved the critical Phase 1 serial path and Phase 2
-standard-frame MS/TP device behavior. This repository is the clean appliance
-boundary. It deliberately does not import the Phase 2 mini-device object
-database into the router.
+Badges reflect **`master`** branch status. Open PRs run the same workflows on their branch before merge.
+
+**DIY BACnet Router** is an open-source project to build a dedicated Linux
+appliance that routes BACnet **IP to MS/TP** — a custom operating system and
+application stack for network programming, commissioning, and field use. The end
+goal is a reproducible, Home Assistant OS–style appliance image: a minimal
+Buildroot-based Linux tuned for **MS/TP timing**, a Rust routing data plane, and
+a built-in **React** web UI served from the same binary — no separate container
+stack required.
+
+Supported boards today: **x86-64** (lab/QEMU) and **Raspberry Pi 3/4/5**. MS/TP
+uses generic **USB RS-485 adapters** identified by stable
+`/dev/serial/by-id/...` paths and adapter profiles in configuration (FTDI, CH340,
+and similar isolated or bus-powered adapters). The project ships with a documented
+reference bench setup; additional adapters are validated through the milestone
+gates rather than hard-coded to one vendor.
+
+> **Today:** Milestone **0** — management scaffold and OS image pipeline. The
+> device boots, serves the web app, and exposes metrics APIs, but **does not yet
+> forward BACnet NPDUs**. Forwarding stays disabled until adapter and routing
+> milestones pass with evidence.
+
+## Milestones
+
+Progress toward a working routing prototype (details in [docs/agent/SPEC.md](docs/agent/SPEC.md)):
+
+- [x] **M0 — Scaffold and OS images** — Rust workspace, React UI, read-only REST/OpenAPI/WebSocket, config validation, CI, Buildroot images (x86 + Pi), QEMU smoke, checksums and manifests
+- [ ] **M1 — rusty-bacnet adapter** — audit upstream, pin SHA, compile fixture using public B/IP and MS/TP APIs (no forked stack internals)
+- [ ] **M2 — Port qualification** — B/IP on Linux networking; MS/TP passive decode and token behavior on USB RS-485 (no forwarding yet)
+- [ ] **M3 — Isolated routing** — NPDU forwarding between distinct BACnet networks on a bench; routed Who-Is / ReadProperty both directions
+- [ ] **M4 — Faults and timing** — unplug, duplicate MAC, baud mismatch, load, and worst-case MS/TP timing characterization
+- [ ] **M5 — Production-shaped images** — unprivileged service, SSH recovery, legal-info/SBOM; Pi hardware validation
+- [ ] **M6 — Management writes** — authenticated config, audit trail, optional BBMD/FDR/TLS (each behind its own gate)
 
 ## Architecture
 
 ```text
-BACnet/IP UDP                 Rust router core                  USB RS-485
- Ethernet NIC   <---->   NPDU forwarding + policy   <---->   MS/TP master
-                                |
-                         bounded atomics/events
-                                |
-                    REST + OpenAPI + WebSocket
-                                |
-                         React dashboard
+  BACnet/IP (UDP)          routerd (Rust)           MS/TP (USB RS-485)
+  host NIC / veth    <-->  NPDU forwarder    <-->  generic adapter
+                               |
+                    atomics + bounded channel
+                               |
+              Axum REST + OpenAPI + WebSocket (management only)
+                               |
+                    React dashboard (static, embedded)
 ```
 
-The management plane must never sit in the packet-forwarding hot path. Packet
-counters are atomic, snapshots are bounded, and the browser receives aggregate
-statistics rather than one event per BACnet frame.
+The **data plane** owns token timing and forwarding; the **management plane**
+(HTTP, WebSocket, dashboard) must never block MS/TP or B/IP packet handling.
+Counters are atomic; the browser receives **aggregate snapshots** (about 1 Hz),
+not one WebSocket message per frame.
 
-## Run the scaffold
+Host IP, routes, and DNS are configured over **SSH** with normal Linux tools.
+Application policy (network numbers, serial path, baud, adapter profile) lives in
+`/etc/diy-bacnet-router/router.toml`.
+
+## Run locally (development)
 
 ```bash
 cp config/router.example.toml config/router.toml
 cargo run -p routerd -- --config config/router.toml
 ```
 
-Then open <http://127.0.0.1:8080>. Useful endpoints:
+Open <http://127.0.0.1:8080>. Key endpoints:
 
-- `GET /healthz`
-- `GET /api/v1/status`
-- `GET /api/v1/capabilities`
-- `GET /api/v1/metrics/snapshot`
-- `GET /api/v1/openapi.json`
-- `GET /api/v1/ws/metrics`
-- `GET /metrics`
+- `GET /healthz` — honest readiness (`ready_to_route` stays false until routing gates pass)
+- `GET /api/status` · `GET /api/capabilities` · `GET /api/metrics/snapshot`
+- `GET /api/openapi.json` · **`GET /api/ws/metrics`** (WebSocket — MS/TP trunk health + counters) · `GET /metrics`
 
-Build the React application:
+Release identity comes from [`VERSION`](VERSION) (shown in the dashboard header by default).
+
+Build the frontend:
 
 ```bash
-cd frontend/web
-npm ci
-npm run check
-npm run build
+npm --prefix frontend/web ci
+npm --prefix frontend/web run check
+npm --prefix frontend/web run build
 ```
 
 ## Configuration
 
-The normal appliance configuration is `/etc/diy-bacnet-router/router.toml`.
-Use a stable `/dev/serial/by-id/...` path. The supported rates are 9600,
-19200, 38400, 57600, 76800 and 115200 baud; 38400 is the default.
+Appliance config: `/etc/diy-bacnet-router/router.toml` (see
+[`config/router.example.toml`](config/router.example.toml)).
 
-The initial reference adapter is the isolated
-[Waveshare USB TO RS485 (C)](https://docs.waveshare.com/USB_TO_RS485_C), using
-its FT232RNL and hardware-automatic direction control. It has an onboard 120 Ω
-resistor, so it counts as a terminated endpoint in the topology. Read
-[docs/hardware/WAVESHARE_USB_RS485_C.md](docs/hardware/WAVESHARE_USB_RS485_C.md)
-before attaching it to an active trunk.
+| Topic | Policy |
+| --- | --- |
+| Serial device | `/dev/serial/by-id/...` only — never persist `ttyUSB0` |
+| Baud rates | 9600, 19200, 38400, 57600, 76800, 115200 (default **38400**) |
+| Adapter | Profile string + termination model in TOML; validate on generic USB RS-485 hardware |
+| BACnet networks | B/IP and MS/TP numbers must be **distinct** (1–65534) |
+| Forwarding | **Off by default** until M3+ evidence (`router.enabled = false`) |
 
-Linux interface addresses, routes, DNS and hostnames remain ordinary Linux
-network configuration. They are not hidden inside BACnet-specific environment
-variables. Environment variables are reserved for deployment overrides such as
-`DBR_CONFIG`, `DBR_BIND`, `DBR_WEB_ROOT` and `RUST_LOG`.
+Reference hardware notes (one validated bench adapter):
+[docs/hardware/WAVESHARE_USB_RS485_C.md](docs/hardware/WAVESHARE_USB_RS485_C.md).
+
+Deployment overrides: `DBR_CONFIG`, `DBR_BIND`, `DBR_WEB_ROOT`, `RUST_LOG`.
 
 ## Build appliance images
 
-GitHub Actions calls `scripts/build-image.sh` with one of:
+Workflow **[build-os](https://github.com/bbartling/diy-bacnet-router/actions/workflows/build-os.yml)**
+runs `scripts/build-image.sh` for:
 
-- `x86_64`
-- `rpi3_64`
-- `rpi4_64`
-- `rpi5_64`
+- `x86_64` — kernel + rootfs; **QEMU boot smoke** + SHA256 verify
+- `rpi3_64` · `rpi4_64` · `rpi5_64` — `sdcard.img` + manifest
 
-The image pipeline is based on a Buildroot `br2-external` tree. Every build
-publishes the images, checksums, legal information and a version manifest.
-The x86-64 image is also eligible for a QEMU boot smoke test.
+Buildroot is pinned in [`config/buildroot-lock.toml`](config/buildroot-lock.toml)
+(**2026.05.2** at time of writing). Each build publishes images, checksums,
+legal-info, and `build-manifest.json` (including host Rust used inside Buildroot).
 
-## Evidence boundaries
+Local rebuilds on a lab VM: [docs/operations/LOCAL_BUILDROOT_VM.md](docs/operations/LOCAL_BUILDROOT_VM.md)
+(Ubuntu guest in **VMware**, SSH from Windows host — not WSL).
 
-- Compilation, unit tests and QEMU do not prove RS-485 behavior.
-- Hardware jobs are manual and use an isolated self-hosted runner.
-- Extended MS/TP frames, segmentation and production conformance are not
-  claimed.
-- No BTL certification or formal PICS claim is made.
-- The router remains fail-closed until both BACnet ports are healthy and their
-  network numbers are valid and distinct.
+## What we claim (and do not)
 
-This project targets an **educational BASRT-class** BACnet/IP-to-MS/TP router on
-Linux (original design — not a commercial clone). Prototype serial/MS/TP evidence
-comes from `py-bacnet-stacks-playground/vibe_code_apps_13`. The MS/TP adapter
-reference is the [Waveshare USB TO RS485 (C)](https://www.waveshare.com/usb-to-rs485-c.htm).
+| Claim | Status |
+| --- | --- |
+| Open-source IP↔MS/TP router **intent** and appliance architecture | Yes |
+| Reproducible Buildroot images and management UI scaffold | M0 (in progress on `master`) |
+| Field-ready routing, BTL certification, or Clause 9 conformance | **No** — gated milestones |
+| QEMU / unit tests prove RS-485 on a live trunk | **No** — hardware jobs are manual and isolated |
+
+Educational comparison to commercial BACnet routers (layout ideas only, original
+UI): [docs/product/BASRT_EDUCATIONAL_REFERENCE.md](docs/product/BASRT_EDUCATIONAL_REFERENCE.md).
 
 **Agent reading (required):**
 
 - [AGENTS.md](AGENTS.md) — engineering contract
 - [docs/agent/SOFTWARE_SPEC.md](docs/agent/SOFTWARE_SPEC.md) — product, UI, metrics, prototype lineage
+- [docs/agent/FULL_STACK_AUDIT.md](docs/agent/FULL_STACK_AUDIT.md) — full-stack audit/refactor checklist (Rust, React, Buildroot, QEMU, SSH)
 - [docs/agent/SPEC.md](docs/agent/SPEC.md) — milestones M0–M6
 
 **Current M0 work:** if GitHub Actions may already be green, start with artifact
@@ -121,7 +154,6 @@ acceptance on the VirtualBox lab VM — do not assume Buildroot is broken:
 **UI reference (education only):** [docs/product/BASRT_EDUCATIONAL_REFERENCE.md](docs/product/BASRT_EDUCATIONAL_REFERENCE.md)
 
 Post-M0 routing integration: [docs/agent/CURSOR_CONTINUATION_PROMPT.md](docs/agent/CURSOR_CONTINUATION_PROMPT.md).
-
 
 ## License
 
