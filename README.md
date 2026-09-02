@@ -1,5 +1,7 @@
 # DIY BACnet Router
 
+[![docs](https://img.shields.io/badge/docs-GitHub%20Pages-blue)](https://bbartling.github.io/diy-bacnet-router/)
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![ci](https://github.com/bbartling/diy-bacnet-router/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/bbartling/diy-bacnet-router/actions/workflows/ci.yml)
 [![build-os](https://github.com/bbartling/diy-bacnet-router/actions/workflows/build-os.yml/badge.svg?branch=master)](https://github.com/bbartling/diy-bacnet-router/actions/workflows/build-os.yml)

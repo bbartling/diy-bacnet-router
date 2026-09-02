@@ -1,3 +1,10 @@
+---
+title: VMware Buildroot lab
+parent: Operations
+nav_order: 1
+permalink: /operations/local-buildroot-vm/
+---
+
 # Local Buildroot lab — VMware Ubuntu guest
 
 Linux image builds and QEMU smoke tests run on an **Ubuntu guest VM** reached by

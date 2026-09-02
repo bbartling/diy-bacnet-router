@@ -1,0 +1,54 @@
+title: DIY BACnet Router
+description: Open-source BACnet/IP to MS/TP router appliance — Buildroot, Rust, React.
+remote_theme: just-the-docs/just-the-docs@v0.10.0
+
+url: https://bbartling.github.io
+baseurl: /diy-bacnet-router
+
+color_scheme: light
+search_enabled: true
+heading_announcement: false
+back_to_top: true
+back_to_top_text: "Back to top"
+
+aux_links:
+  GitHub:
+    - //github.com/bbartling/diy-bacnet-router
+  Actions:
+    - //github.com/bbartling/diy-bacnet-router/actions
+
+callouts:
+  warning:
+    title: Warning
+    color: yellow
+  important:
+    title: Important
+    color: blue
+
+gh_edit_link: true
+gh_edit_link_text: "Edit this page on GitHub"
+gh_edit_repository: "https://github.com/bbartling/diy-bacnet-router"
+gh_edit_branch: "master"
+gh_edit_source: docs
+gh_edit_view_mode: "tree"
+
+exclude:
+  - agent
+  - archive
+  - BOOTSTRAP_STATUS.md
+  - MIGRATION_FROM_PROTOTYPES.md
+  - Gemfile
+  - Gemfile.lock
+  - vendor
+  - .sass-cache
+  - .jekyll-cache
+
+plugins:
+  - jekyll-remote-theme
+  - jekyll-seo-tag
+
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default

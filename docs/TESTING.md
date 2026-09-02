@@ -1,3 +1,10 @@
+---
+title: Testing and evidence
+layout: default
+nav_order: 7
+permalink: /testing/
+---
+
 # Test and evidence strategy
 
 ## Labels

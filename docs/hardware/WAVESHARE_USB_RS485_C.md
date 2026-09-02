@@ -1,3 +1,10 @@
+---
+title: Waveshare RS-485 (C)
+parent: Hardware
+nav_order: 1
+permalink: /hardware/waveshare-rs485-c/
+---
+
 # Waveshare USB TO RS485 (C) reference profile
 
 The first supported lab adapter is the
