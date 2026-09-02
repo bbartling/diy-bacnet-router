@@ -62,8 +62,16 @@ before bench or trunk work.
 
 ## Management UI and metrics
 
-- WebSocket `/api/v1/ws/metrics` delivers **aggregate snapshots** (default 1000 ms,
-  bounded 250–5000 ms). Never one message per BACnet frame.
+The React dashboard is a **LAN-only operator console** behind the firewall — not
+a public internet application. There is **no URL versioning** on management
+routes (`/api/status`, not `/api/v1/status`); the appliance ships as one
+cohesive firmware + UI unit.
+
+- WebSocket **`/api/ws/metrics`** delivers **aggregate snapshots** (default 1000 ms,
+  bounded 250–5000 ms) including MS/TP trunk health (token/PFM, FSM state, CRC
+  errors). Never one message per BACnet frame.
+- The browser **must always display** the release from root [`VERSION`](VERSION)
+  (compiled into `routerd` as `DBR_VERSION`); the sidebar and header show it by default.
 - Counter names in the metrics schema are stable API contracts (B/IP and MS/TP
   packet counts, token/PFM counters, RFSM/MNSM state, CRC errors, system stats).
 - Browser configuration writes remain disabled until M6 auth/audit gates pass.
@@ -138,9 +146,22 @@ for appliance images; **SSH-managed Linux networking** for host IP/routes.
 7. Update the evidence ledger and upstream lock if relevant.
 8. Stop at hardware, signing, network mutation or release approval boundaries.
 
+## Buildroot and local lab
+
+- **Buildroot:** pin the **latest stable bugfix** in
+  [`config/buildroot-lock.toml`](config/buildroot-lock.toml) (currently **2026.05.2**).
+  Bump only after CI **and** lab VM x86 QEMU smoke pass. See
+  [docs/UPSTREAM_LOCK.md](docs/UPSTREAM_LOCK.md).
+- **Local builds:** Ubuntu guest in **VMware**, SSH from Windows host to
+  `127.0.0.1:2222` — **not WSL**. Full topology in
+  [docs/operations/LOCAL_BUILDROOT_VM.md](docs/operations/LOCAL_BUILDROOT_VM.md)
+  and [docs/agent/SOFTWARE_SPEC.md](docs/agent/SOFTWARE_SPEC.md).
+- When `build-os` fails: reproduce with `scripts/vm-debug-build.sh` on the guest,
+  fix on a branch, push, confirm green Actions before claiming PASS.
+
 ## Cursor skills (project)
 
 - [.cursor/skills/local-buildroot-vm/SKILL.md](.cursor/skills/local-buildroot-vm/SKILL.md) —
-  VirtualBox lab, artifact acceptance, optional local Buildroot builds.
+  VMware Ubuntu lab, artifact acceptance, Buildroot debug loop.
 - [.cursor/skills/basrt-educational-router/SKILL.md](.cursor/skills/basrt-educational-router/SKILL.md) —
   product intent, UI/metrics contract, Vibe13 and Waveshare context.

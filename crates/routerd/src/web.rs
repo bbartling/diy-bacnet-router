@@ -72,12 +72,12 @@ impl AppState {
 pub fn app(state: AppState) -> Router {
     Router::new()
         .route("/healthz", get(health))
-        .route("/api/v1/status", get(status))
-        .route("/api/v1/capabilities", get(capabilities))
-        .route("/api/v1/config/effective", get(effective_config))
-        .route("/api/v1/metrics/snapshot", get(metrics_snapshot))
-        .route("/api/v1/openapi.json", get(openapi))
-        .route("/api/v1/ws/metrics", get(metrics_ws))
+        .route("/api/status", get(status))
+        .route("/api/capabilities", get(capabilities))
+        .route("/api/config/effective", get(effective_config))
+        .route("/api/metrics/snapshot", get(metrics_snapshot))
+        .route("/api/openapi.json", get(openapi))
+        .route("/api/ws/metrics", get(metrics_ws))
         .route("/metrics", get(prometheus))
         .fallback(get(spa_fallback))
         .layer(TraceLayer::new_for_http())
@@ -128,6 +128,7 @@ async fn spa_fallback(uri: Uri, State(state): State<AppState>) -> Response {
 async fn health(State(state): State<AppState>) -> Json<Value> {
     Json(json!({
         "status": "ok",
+        "version": env!("DBR_VERSION"),
         "management_plane": "operational",
         "data_plane": state.runtime.snapshot().data_plane,
         "ready_to_route": false,
@@ -138,7 +139,7 @@ async fn status(State(state): State<AppState>) -> Json<Value> {
     Json(json!({
         "name": state.config.identity.name,
         "location": state.config.identity.location,
-        "version": env!("CARGO_PKG_VERSION"),
+        "version": env!("DBR_VERSION"),
         "git_sha": option_env!("DBR_GIT_SHA").unwrap_or("development"),
         "rusty_bacnet_rev": option_env!("RUSTY_BACNET_REV").unwrap_or("not-integrated"),
         "runtime": state.runtime.snapshot(),
@@ -278,7 +279,7 @@ mod tests {
         let response = app(AppState::new(Arc::new(RouterConfig::default())))
             .oneshot(
                 axum::http::Request::builder()
-                    .uri("/api/v1/openapi.json")
+                    .uri("/api/openapi.json")
                     .body(Body::empty())
                     .expect("request"),
             )
@@ -292,7 +293,7 @@ mod tests {
         let response = app(AppState::new(Arc::new(RouterConfig::default())))
             .oneshot(
                 axum::http::Request::builder()
-                    .uri("/api/v1/does-not-exist")
+                    .uri("/api/does-not-exist")
                     .body(Body::empty())
                     .expect("request"),
             )

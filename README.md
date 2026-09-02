@@ -7,7 +7,7 @@
 | Pin | Lock file | Current value |
 | --- | --- | --- |
 | Rust (CI / dev) | [`rust-toolchain.toml`](rust-toolchain.toml) | **1.93.0** |
-| Buildroot (appliance images) | [`config/buildroot-lock.toml`](config/buildroot-lock.toml) | **2026.05.2** (`72d9d4fa…`) |
+| Buildroot (appliance images) | [`config/buildroot-lock.toml`](config/buildroot-lock.toml) | **2026.05.2** — latest stable bugfix (Aug 2026) |
 | Buildroot host Rust (image build) | `build-manifest.json` / CI log | **1.96.1** (from Buildroot `package/rust`) |
 | rusty-bacnet | [`config/upstream-lock.toml`](config/upstream-lock.toml) | **Not integrated in M0** — observed `dev` tip `65ae4633…` (unaudited; M1 gate) |
 | Cargo.lock | committed | `--locked` in CI and Buildroot |
@@ -78,8 +78,10 @@ cargo run -p routerd -- --config config/router.toml
 Open <http://127.0.0.1:8080>. Key endpoints:
 
 - `GET /healthz` — honest readiness (`ready_to_route` stays false until routing gates pass)
-- `GET /api/v1/status` · `GET /api/v1/capabilities` · `GET /api/v1/metrics/snapshot`
-- `GET /api/v1/openapi.json` · `GET /api/v1/ws/metrics` · `GET /metrics`
+- `GET /api/status` · `GET /api/capabilities` · `GET /api/metrics/snapshot`
+- `GET /api/openapi.json` · **`GET /api/ws/metrics`** (WebSocket — MS/TP trunk health + counters) · `GET /metrics`
+
+Release identity comes from [`VERSION`](VERSION) (shown in the dashboard header by default).
 
 Build the frontend:
 
@@ -119,7 +121,8 @@ Buildroot is pinned in [`config/buildroot-lock.toml`](config/buildroot-lock.toml
 (**2026.05.2** at time of writing). Each build publishes images, checksums,
 legal-info, and `build-manifest.json` (including host Rust used inside Buildroot).
 
-Local rebuilds on a lab VM: [docs/operations/LOCAL_BUILDROOT_VM.md](docs/operations/LOCAL_BUILDROOT_VM.md).
+Local rebuilds on a lab VM: [docs/operations/LOCAL_BUILDROOT_VM.md](docs/operations/LOCAL_BUILDROOT_VM.md)
+(Ubuntu guest in **VMware**, SSH from Windows host — not WSL).
 
 ## What we claim (and do not)
 

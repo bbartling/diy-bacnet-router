@@ -153,7 +153,7 @@ Avoid handwritten models drifting independently. Prefer updating OpenAPI + types
 
 ## 13. HTTP and REST hygiene
 
-Verify sensible verbs and status codes on `/healthz`, `/api/v1/*`, and `/metrics`.
+Verify sensible verbs and status codes on `/healthz`, `/api/*`, and `/metrics`.
 
 Frontend must handle non-success responses intentionally. Do not return HTTP 200 for error conditions when a 4xx/5xx is appropriate.
 
@@ -286,11 +286,11 @@ Validate Rust + React together:
 
 - `routerd` starts with built `frontend/web/dist` present
 - `/healthz` returns JSON with honest `ready_to_route`
-- `/api/v1/openapi.json` serves valid OpenAPI
+- `/api/openapi.json` serves valid OpenAPI
 - static JS/CSS load with correct content types
 - SPA fallback works for frontend routes
-- unknown `/api/v1/...` routes do **not** return `index.html`
-- WebSocket `/api/v1/ws/metrics` delivers bounded aggregate snapshots
+- unknown `/api/...` routes do **not** return `index.html`
+- WebSocket **`/api/ws/metrics`** delivers bounded aggregate snapshots
 
 Existing HTTP-level tests in `crates/routerd/src/web.rs` are the baseline. Extend with integration/smoke tests where practical — prefer lightweight Axum/tower tests over heavy browser automation unless justified.
 

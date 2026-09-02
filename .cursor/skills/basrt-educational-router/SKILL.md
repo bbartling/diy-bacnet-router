@@ -39,7 +39,7 @@ FT232RNL, auto direction, onboard 120 Ω. See
 
 ## UI / WebSocket contract
 
-- Endpoint: `GET /api/v1/ws/metrics` — snapshot every 1000 ms (250–5000 allowed)
+- Endpoint: **`GET /api/ws/metrics`** — snapshot every 1000 ms (250–5000 allowed); MS/TP trunk health
 - Schema: [frontend/web/src/types.ts](../../frontend/web/src/types.ts)
 - Status counters to surface when data plane runs (BASRT-analog):
 

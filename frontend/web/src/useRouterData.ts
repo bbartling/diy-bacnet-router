@@ -16,8 +16,8 @@ export function useRouterData() {
   const [connection, setConnection] = useState<ConnectionState>("connecting");
 
   useEffect(() => {
-    void getJson<StatusResponse>("/api/v1/status").then(setStatus).catch(() => setConnection("offline"));
-    void getJson<{ capabilities: Capability[] }>("/api/v1/capabilities")
+    void getJson<StatusResponse>("/api/status").then(setStatus).catch(() => setConnection("offline"));
+    void getJson<{ capabilities: Capability[] }>("/api/capabilities")
       .then((value) => setCapabilities(value.capabilities))
       .catch(() => undefined);
   }, []);
@@ -30,7 +30,7 @@ export function useRouterData() {
 
     const poll = async () => {
       try {
-        setMetrics(await getJson<MetricsEnvelope>("/api/v1/metrics/snapshot"));
+        setMetrics(await getJson<MetricsEnvelope>("/api/metrics/snapshot"));
         setConnection("polling");
       } catch {
         setConnection("offline");
@@ -40,7 +40,7 @@ export function useRouterData() {
     const connect = () => {
       if (stopped) return;
       const scheme = window.location.protocol === "https:" ? "wss" : "ws";
-      socket = new WebSocket(`${scheme}://${window.location.host}/api/v1/ws/metrics`);
+      socket = new WebSocket(`${scheme}://${window.location.host}/api/ws/metrics`);
       socket.onopen = () => setConnection("live");
       socket.onmessage = (event) => {
         try {

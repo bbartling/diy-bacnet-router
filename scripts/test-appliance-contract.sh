@@ -43,7 +43,7 @@ grep -q 'rusty-bacnet' config/upstream-lock.toml
 grep -q 'rusty-bacnet' docs/UPSTREAM_LOCK.md
 
 echo "==> OpenAPI lists core management routes"
-for route in /healthz /api/v1/status /api/v1/metrics/snapshot /api/v1/ws/metrics; do
+for route in /healthz /api/status /api/metrics/snapshot /api/ws/metrics; do
   grep -q "\"$route\"" openapi/openapi.json
 done
 
