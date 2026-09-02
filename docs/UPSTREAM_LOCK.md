@@ -30,6 +30,23 @@ therefore select Rust 1.93.0. Buildroot does **not** automatically honor that
 rustup file: its `cargo-package` infrastructure uses the host Rust toolchain
 selected by the Buildroot configuration.
 
+## M0 Buildroot compatibility lock
+
+Buildroot `2025.02.17` supplies host Rust/Cargo `1.82.0`. The project keeps its
+own declared MSRV and CI toolchain at Rust `1.93`; this is not a project-MSRV
+downgrade. The network-dependent `getrandom` target graph selected
+`wasip2 1.0.4+wasi-0.2.12` and `wit-bindgen 0.57.1` in the seeded lockfile, but
+`wit-bindgen 0.57.1` uses Edition 2024 syntax that Cargo `1.82.0` cannot parse.
+The reviewed M0 `Cargo.lock` therefore pins the compatible transitive pair
+`wasip2 1.0.1+wasi-0.2.4` and `wit-bindgen 0.46.0`. This keeps Buildroot's
+official offline cargo-vendor path usable without changing application source,
+silently installing another compiler, or integrating rusty-bacnet.
+
+The current `jscott3201/rusty-bacnet` `dev` tip observed on 2026-09-02 is
+`65ae4633ea26e24f959991cb4a2ee2d9d982bc98` and advertises MSRV Rust `1.93`.
+It remains unaudited and is not a dependency in this M0 build. The historical
+Vibe13 evidence pin remains `af4e886`.
+
 Before adding any rusty-bacnet crate to the image, the x86 image job must print
 the Buildroot host `rustc --version` and prove it satisfies the exact audited
 upstream MSRV. If Buildroot 2025.02.x cannot provide that version, solve it as
