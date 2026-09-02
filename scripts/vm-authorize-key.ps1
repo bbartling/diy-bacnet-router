@@ -6,7 +6,7 @@
 .DESCRIPTION
   1. Copy config/vm.env.example to config/vm.env
   2. Set VM_SSH_PASSWORD (and user/host/port if needed)
-  3. Run this script once — future sessions use key auth
+  3. Run this script once - future sessions use key auth
 #>
 [CmdletBinding()]
 param(
@@ -36,11 +36,11 @@ if ($LASTEXITCODE -eq 0) {
     exit 0
 }
 
-Write-Host "Installing SSH key via config/vm.env …" -ForegroundColor Cyan
+Write-Host "Installing SSH key via config/vm.env ..." -ForegroundColor Cyan
 python (Join-Path $PSScriptRoot 'vm-ssh-install-key.py')
-if ($LASTEXITCODE -ne 0) { throw "Key install failed — check config/vm.env" }
+if ($LASTEXITCODE -ne 0) { throw "Key install failed - check config/vm.env" }
 
-ssh -o BatchMode=yes -p $Port $target "echo SSH_KEY_OK && uname -sr && nproc"
+ssh -o BatchMode=yes -p $Port $target 'echo SSH_KEY_OK; uname -sr; nproc'
 if ($LASTEXITCODE -ne 0) { throw "BatchMode verification failed" }
 
 Write-Host "Done. Next: .\scripts\vm-ensure.ps1 -RunSetup" -ForegroundColor Green

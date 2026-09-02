@@ -8,7 +8,7 @@ param(
 )
 
 if (-not (Test-Path $EnvFile)) {
-    Write-Warning "Missing $EnvFile — copy config/vm.env.example to config/vm.env and set VM_SSH_PASSWORD"
+    Write-Warning "Missing $EnvFile - copy config/vm.env.example to config/vm.env and set VM_SSH_PASSWORD"
     return
 }
 

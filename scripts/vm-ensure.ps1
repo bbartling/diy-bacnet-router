@@ -37,6 +37,21 @@ function Write-Step([string]$Message) {
     Write-Host "==> $Message" -ForegroundColor Cyan
 }
 
+function Invoke-VmBashScript {
+    param(
+        [Parameter(Mandatory)][string]$ScriptPath,
+        [string]$RemoteCommand = 'bash -s'
+    )
+    if (-not (Test-Path $ScriptPath)) { throw "Missing script: $ScriptPath" }
+    $wrapper = $RemoteCommand
+    if ($env:VM_SSH_PASSWORD) {
+        $b64 = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($env:VM_SSH_PASSWORD))
+        $wrapper = "export VM_SSH_PASSWORD=`$(echo '$b64' | base64 -d); $RemoteCommand"
+    }
+    $content = (Get-Content $ScriptPath -Raw) -replace "`r`n", "`n"
+    $content | & ssh -p $SshPort $SshTarget $wrapper
+}
+
 if (-not (Test-Path $VBox)) {
     throw "VirtualBox not found at $VBox"
 }
@@ -84,7 +99,7 @@ Write-Step "SSH key auth OK"
 
 if ($RunSetup) {
     Write-Step "Running vm-setup.sh on VM"
-    Get-Content (Join-Path $PSScriptRoot 'vm-setup.sh') -Raw | & ssh -p $SshPort $SshTarget "bash -s"
+    Invoke-VmBashScript -ScriptPath (Join-Path $PSScriptRoot 'vm-setup.sh')
     if ($LASTEXITCODE -ne 0) { throw "vm-setup.sh failed" }
 }
 
@@ -95,9 +110,8 @@ if ($RunBuild) {
 }
 
 if ($DebugBuild) {
-    Write-Step "Running vm-debug-build.sh on VM (GH failure reproduction + verify)"
-    Get-Content (Join-Path $PSScriptRoot 'vm-debug-build.sh') -Raw |
-        & ssh -p $SshPort $SshTarget "bash -s"
+    Write-Step "Running vm-debug-build.sh on VM (long-running)"
+    Invoke-VmBashScript -ScriptPath (Join-Path $PSScriptRoot 'vm-debug-build.sh')
     if ($LASTEXITCODE -ne 0) { throw "vm-debug-build.sh failed" }
 }
 

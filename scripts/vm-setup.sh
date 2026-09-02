@@ -8,16 +8,25 @@ REPO_DIR="${REPO_DIR:-$HOME/src/diy-bacnet-router}"
 BRANCH="${BRANCH:-luna-max/m0-buildroot-ci-repair}"
 BUILD_WORK_ROOT="${BUILD_WORK_ROOT:-$HOME/dbr-buildroot}"
 
+vm_sudo() {
+  if [[ -n "${VM_SSH_PASSWORD:-}" ]]; then
+    printf '%s\n' "$VM_SSH_PASSWORD" | sudo -S -p '' "$@"
+  else
+    sudo "$@"
+  fi
+}
+
 echo "==> Installing Buildroot host packages (matches build-os.yml)"
-sudo apt-get update
-sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends \
+vm_sudo apt-get update
+vm_sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends \
   bc build-essential cpio file git libncurses-dev python3 rsync unzip wget xz-utils \
   curl ca-certificates e2fsprogs qemu-system-x86
 
 if ! command -v node >/dev/null 2>&1 || [[ "$(node --version 2>/dev/null || true)" != v24* ]]; then
   echo "==> Installing Node.js 24"
-  curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
-  sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes nodejs
+  curl -fsSL https://deb.nodesource.com/setup_24.x -o /tmp/nodesource-setup.sh
+  vm_sudo -E bash /tmp/nodesource-setup.sh
+  vm_sudo DEBIAN_FRONTEND=noninteractive apt-get install --yes nodejs
 fi
 
 if ! command -v rustc >/dev/null 2>&1; then
