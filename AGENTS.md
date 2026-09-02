@@ -2,6 +2,7 @@
 
 These rules apply to the entire repository. Read this file, [README.md](README.md),
 [docs/agent/SOFTWARE_SPEC.md](docs/agent/SOFTWARE_SPEC.md),
+[docs/agent/FULL_STACK_AUDIT.md](docs/agent/FULL_STACK_AUDIT.md),
 [docs/agent/SPEC.md](docs/agent/SPEC.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),
 [docs/TESTING.md](docs/TESTING.md), and [docs/UPSTREAM_LOCK.md](docs/UPSTREAM_LOCK.md)
 before changing code.
@@ -117,6 +118,12 @@ npm --prefix frontend/web run build
 Also run `scripts/validate-repository.sh`. Hardware and Buildroot tests must be
 reported separately and truthfully; lack of hardware is not a failure and is
 never relabeled as a pass.
+
+For repository-wide audits or refactors, follow
+[docs/agent/FULL_STACK_AUDIT.md](docs/agent/FULL_STACK_AUDIT.md) and include its
+completion report. Key stack facts: **rusty-bacnet (Rust) for BACnet** — no Python
+in the data plane; **QEMU `-snapshot` smoke** for x86_64 images; **Buildroot**
+for appliance images; **SSH-managed Linux networking** for host IP/routes.
 
 ## Agent workflow
 

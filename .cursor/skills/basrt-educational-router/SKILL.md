@@ -17,6 +17,7 @@ Build an **original** Linux BACnet/IP-to-MS/TP router for education — same
 Read:
 
 - [docs/agent/SOFTWARE_SPEC.md](../../docs/agent/SOFTWARE_SPEC.md)
+- [docs/agent/FULL_STACK_AUDIT.md](../../docs/agent/FULL_STACK_AUDIT.md) — audits/refactors
 - [docs/product/BASRT_EDUCATIONAL_REFERENCE.md](../../docs/product/BASRT_EDUCATIONAL_REFERENCE.md)
 - [AGENTS.md](../../AGENTS.md)
 

@@ -123,15 +123,45 @@ Future: **Advanced** (BBMD/FDR — M6 gate), **Security** (TLS/auth — M6 gate)
 
 ## Buildroot / appliance
 
-- Images: x86_64 (QEMU smoke), rpi3_64, rpi4_64, rpi5_64
+- Images: x86_64 (QEMU smoke), rpi3_64, rpi4_64, rpi5_64 (aarch64)
 - Entry: [scripts/build-image.sh](../../scripts/build-image.sh)
 - CI: `.github/workflows/build-os.yml`
+- x86 verification: [scripts/qemu-smoke.sh](../../scripts/qemu-smoke.sh) with
+  `-snapshot` (checksums must survive smoke boot)
 - Lab VM: VirtualBox `ubuntu2` @ `127.0.0.1:2222` — artifact acceptance before
-  Buildroot debugging ([docs/operations/LOCAL_BUILDROOT_VM.md](../operations/LOCAL_BUILDROOT_VM.md))
+  Buildroot debugging ([docs/operations/LOCAL_BUILDROOT_VM.md](../operations/LOCAL_BUILDROOT_VM.md)).
+  **Do not use WSL** for Buildroot lab work when the host WSL environment is unavailable.
 
 Buildroot rootfs should include: `openssh`, basic `ip`/`systemd-networkd` or
 Buildroot network init, USB serial udev by-id symlinks, unprivileged `routerd`
 service, embedded web root.
+
+**Host networking is SSH-managed** — IP, routes, DNS and firewall are configured
+with normal Linux tools on the appliance, not through the browser (until M6 auth
+gates allow config writes).
+
+## BACnet stack (Rust only)
+
+- Data plane and MS/TP/B/IP integration use **rusty-bacnet** (pinned in
+  `config/upstream-lock.toml`) — **not Python**.
+- Future `crates/rusty-bacnet-adapter` is the only crate that talks to upstream
+  transport/network APIs.
+- External Vibe13 prototype may reference Python for historical lab work; do not
+  import Python stacks, object databases, or lab scripts into this repository.
+
+## Full-stack audit contract
+
+When performing repository-wide cleanup, refactors, or pre-merge hardening,
+follow [FULL_STACK_AUDIT.md](FULL_STACK_AUDIT.md). It defines:
+
+- Rust + React + Buildroot audit scope and validation gates
+- dependency hygiene, dead-code removal, and API boundary rules
+- static asset serving and SPA/API 404 behavior
+- QEMU, Buildroot, SSH, and serial safety requirements
+- the mandatory completion report template
+
+Do not claim an audit is complete unless every gate in that document was executed
+and reported honestly.
 
 ## Agent execution order (current)
 
@@ -167,3 +197,4 @@ milestone at a time (M1 rusty-bacnet adapter → M2 ports → M3 routing).
 | [TESTING.md](../TESTING.md) | Gate labels G0–G11 |
 | [.cursor/skills/local-buildroot-vm/SKILL.md](../../.cursor/skills/local-buildroot-vm/SKILL.md) | VirtualBox lab workflow |
 | [.cursor/skills/basrt-educational-router/SKILL.md](../../.cursor/skills/basrt-educational-router/SKILL.md) | Product/UI context for agents |
+| [FULL_STACK_AUDIT.md](FULL_STACK_AUDIT.md) | Production-grade audit/refactor checklist |

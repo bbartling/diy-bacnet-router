@@ -14,6 +14,7 @@ grep -q 'router.enabled=true is unavailable' crates/router-core/src/config.rs
 ! grep -R -n -E '/dev/ttyUSB[0-9]' config buildroot-external
 grep -q '\-snapshot' scripts/qemu-smoke.sh
 bash scripts/test-image-evidence-contract.sh
+bash scripts/test-appliance-contract.sh
 
 # Buildroot's pkg-cargo infrastructure supplies the single --locked flag for
 # its generated cargo build command. Keep package-specific options free of

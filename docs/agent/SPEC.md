@@ -3,6 +3,9 @@
 For product intent, UI/metrics contract, Vibe13 prototype lineage and BASRT-class
 educational scope, read [SOFTWARE_SPEC.md](SOFTWARE_SPEC.md) first.
 
+For repository-wide audits, refactors, or pre-merge hardening, read
+[FULL_STACK_AUDIT.md](FULL_STACK_AUDIT.md).
+
 ## Product outcome
 
 Produce a small Linux appliance that routes BACnet NPDUs between one BACnet/IP

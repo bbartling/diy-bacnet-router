@@ -1,4 +1,5 @@
 use std::{
+    path::Path,
     sync::{Arc, Mutex},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -9,7 +10,7 @@ use axum::{
         ws::{Message, WebSocket},
         State, WebSocketUpgrade,
     },
-    http::{header, StatusCode},
+    http::{header, StatusCode, Uri},
     response::{IntoResponse, Response},
     routing::get,
     Json, Router,
@@ -18,10 +19,7 @@ use router_core::{Counters, RouterConfig, RouterMetrics, RuntimeSnapshot, Runtim
 use serde::Serialize;
 use serde_json::{json, Value};
 use tokio::time::{interval, Duration};
-use tower_http::{
-    services::{ServeDir, ServeFile},
-    trace::TraceLayer,
-};
+use tower_http::trace::TraceLayer;
 
 use crate::system::{SystemMetrics, SystemSampler};
 
@@ -72,8 +70,6 @@ impl AppState {
 }
 
 pub fn app(state: AppState) -> Router {
-    let web_root = state.config.management.web_root.clone();
-    let index = format!("{web_root}/index.html");
     Router::new()
         .route("/healthz", get(health))
         .route("/api/v1/status", get(status))
@@ -83,13 +79,54 @@ pub fn app(state: AppState) -> Router {
         .route("/api/v1/openapi.json", get(openapi))
         .route("/api/v1/ws/metrics", get(metrics_ws))
         .route("/metrics", get(prometheus))
-        .fallback_service(
-            ServeDir::new(web_root)
-                .append_index_html_on_directories(true)
-                .not_found_service(ServeFile::new(index)),
-        )
+        .fallback(get(spa_fallback))
         .layer(TraceLayer::new_for_http())
         .with_state(state)
+}
+
+async fn spa_fallback(uri: Uri, State(state): State<AppState>) -> Response {
+    if uri.path().starts_with("/api/") {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(json!({ "error": "not found" })),
+        )
+            .into_response();
+    }
+
+    let web_root = Path::new(&state.config.management.web_root);
+    let relative = uri.path().trim_start_matches('/');
+    let file_path = if relative.is_empty() {
+        web_root.join("index.html")
+    } else {
+        let candidate = web_root.join(relative);
+        if candidate.is_file() {
+            candidate
+        } else {
+            web_root.join("index.html")
+        }
+    };
+
+    let bytes = match tokio::fs::read(&file_path).await {
+        Ok(bytes) => bytes,
+        Err(_) => return StatusCode::NOT_FOUND.into_response(),
+    };
+
+    let content_type = match file_path.extension().and_then(|ext| ext.to_str()) {
+        Some("html") => "text/html; charset=utf-8",
+        Some("js") => "application/javascript; charset=utf-8",
+        Some("css") => "text/css; charset=utf-8",
+        Some("json") => "application/json; charset=utf-8",
+        Some("svg") => "image/svg+xml",
+        Some("png") => "image/png",
+        Some("ico") => "image/x-icon",
+        _ => "application/octet-stream",
+    };
+
+    Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, content_type)
+        .body(Body::from(bytes))
+        .unwrap_or_else(|_| Response::new(Body::empty()))
 }
 
 async fn health(State(state): State<AppState>) -> Json<Value> {
@@ -252,5 +289,65 @@ mod tests {
             .await
             .expect("response");
         assert_eq!(response.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn unknown_api_route_returns_json_not_spa_html() {
+        let response = app(AppState::new(Arc::new(RouterConfig::default())))
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/v1/does-not-exist")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        let content_type = response
+            .headers()
+            .get(header::CONTENT_TYPE)
+            .and_then(|value| value.to_str().ok())
+            .unwrap_or("");
+        assert!(content_type.contains("application/json"));
+        let bytes = response
+            .into_body()
+            .collect()
+            .await
+            .expect("body")
+            .to_bytes();
+        let body: Value = serde_json::from_slice(&bytes).expect("JSON error body");
+        assert_eq!(body["error"], "not found");
+    }
+
+    #[tokio::test]
+    async fn spa_fallback_serves_index_html_for_frontend_paths() {
+        let temp = std::env::temp_dir().join(format!("dbr-web-test-{}", std::process::id()));
+        std::fs::create_dir_all(&temp).expect("tempdir");
+        std::fs::write(temp.join("index.html"), "<!doctype html><title>DBR</title>")
+            .expect("write index");
+
+        let mut config = RouterConfig::default();
+        config.management.web_root = temp.to_string_lossy().into_owned();
+
+        let response = app(AppState::new(Arc::new(config)))
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/overview")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = response
+            .into_body()
+            .collect()
+            .await
+            .expect("body")
+            .to_bytes();
+        let html = String::from_utf8(bytes.to_vec()).expect("utf8");
+        assert!(html.contains("DBR"));
+
+        let _ = std::fs::remove_dir_all(temp);
     }
 }

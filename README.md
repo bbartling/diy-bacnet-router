@@ -110,6 +110,7 @@ reference is the [Waveshare USB TO RS485 (C)](https://www.waveshare.com/usb-to-r
 
 - [AGENTS.md](AGENTS.md) — engineering contract
 - [docs/agent/SOFTWARE_SPEC.md](docs/agent/SOFTWARE_SPEC.md) — product, UI, metrics, prototype lineage
+- [docs/agent/FULL_STACK_AUDIT.md](docs/agent/FULL_STACK_AUDIT.md) — full-stack audit/refactor checklist (Rust, React, Buildroot, QEMU, SSH)
 - [docs/agent/SPEC.md](docs/agent/SPEC.md) — milestones M0–M6
 
 **Current M0 work:** if GitHub Actions may already be green, start with artifact
