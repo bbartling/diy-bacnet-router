@@ -11,7 +11,17 @@ case "$target" in
 esac
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-buildroot_version="${BUILDROOT_VERSION:-2025.02.17}"
+lock_file="$repo_root/config/buildroot-lock.toml"
+if [[ ! -f "$lock_file" ]]; then
+  echo "missing Buildroot lock: $lock_file" >&2
+  exit 2
+fi
+buildroot_version="${BUILDROOT_VERSION:-$(sed -n 's/^version = "\(.*\)"/\1/p' "$lock_file")}"
+buildroot_expected_sha="$(sed -n 's/^commit = "\(.*\)"/\1/p' "$lock_file")"
+if [[ -z "$buildroot_version" || -z "$buildroot_expected_sha" ]]; then
+  echo "invalid Buildroot lock: $lock_file" >&2
+  exit 2
+fi
 work_root="${BUILD_WORK_ROOT:-${RUNNER_TEMP:-/tmp}/dbr-buildroot}"
 source_dir="$work_root/buildroot-$buildroot_version"
 output_dir="${OUTPUT_DIR:-$work_root/output/$target}"
@@ -22,14 +32,7 @@ source_archive="$work_root/$source_archive_name"
 buildroot_dl_dir="$source_dir/dl"
 
 # Keep the Buildroot input immutable.  The tag is human-readable, while the
-# expected commit makes a retagged/moved reference fail closed.
-case "$buildroot_version" in
-  2025.02.17) buildroot_expected_sha=d0820dd09916edcefc44e525355afbea30d5bee4 ;;
-  *)
-    echo "unsupported Buildroot version: $buildroot_version" >&2
-    exit 2
-    ;;
-esac
+# expected commit in config/buildroot-lock.toml makes a retagged reference fail closed.
 
 mkdir -p "$work_root" "$output_dir"
 if [[ ! -d "$source_dir/.git" ]]; then

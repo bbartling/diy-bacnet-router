@@ -34,6 +34,10 @@ grep -q '\-snapshot' scripts/qemu-smoke.sh
 grep -q 'ready_to_route' scripts/qemu-smoke.sh
 grep -q 'uid=' scripts/qemu-smoke.sh
 
+echo "==> Buildroot lock is pinned with commit"
+grep -q '^version = ' config/buildroot-lock.toml
+grep -q '^commit = ' config/buildroot-lock.toml
+
 echo "==> upstream lock documents rusty-bacnet pin"
 grep -q 'rusty-bacnet' config/upstream-lock.toml
 grep -q 'rusty-bacnet' docs/UPSTREAM_LOCK.md

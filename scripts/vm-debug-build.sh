@@ -9,7 +9,8 @@
 set -euo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export BUILDROOT_VERSION="${BUILDROOT_VERSION:-2025.02.17}"
+# Pin Buildroot via config/buildroot-lock.toml (currently 2026.05.2).
+# Optional override for experiments: BUILDROOT_VERSION=... bash scripts/build-image.sh x86_64
 export BUILD_WORK_ROOT="${BUILD_WORK_ROOT:-$HOME/dbr-buildroot}"
 export JOBS="${JOBS:-$(nproc)}"
 export OUTPUT_DIR="$BUILD_WORK_ROOT/output/x86_64"

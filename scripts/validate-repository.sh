@@ -6,6 +6,7 @@ cd "$repo_root"
 
 test -f AGENTS.md
 test -f config/upstream-lock.toml
+test -f config/buildroot-lock.toml
 test -f docs/hardware/WAVESHARE_USB_RS485_C.md
 test -f openapi/openapi.json
 grep -q 'ready_to_route' crates/routerd/src/web.rs

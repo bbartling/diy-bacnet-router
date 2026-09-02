@@ -125,6 +125,7 @@ Future: **Advanced** (BBMD/FDR — M6 gate), **Security** (TLS/auth — M6 gate)
 
 - Images: x86_64 (QEMU smoke), rpi3_64, rpi4_64, rpi5_64 (aarch64)
 - Entry: [scripts/build-image.sh](../../scripts/build-image.sh)
+- Pin: [config/buildroot-lock.toml](../../config/buildroot-lock.toml) (currently **2026.05.2**)
 - CI: `.github/workflows/build-os.yml`
 - x86 verification: [scripts/qemu-smoke.sh](../../scripts/qemu-smoke.sh) with
   `-snapshot` (checksums must survive smoke boot)

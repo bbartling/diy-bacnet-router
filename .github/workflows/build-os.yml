@@ -8,6 +8,7 @@ on:
       - "frontend/**"
       - "scripts/build-image.sh"
       - "scripts/qemu-smoke.sh"
+      - "config/buildroot-lock.toml"
       - "Cargo.*"
       - ".github/workflows/build-os.yml"
   workflow_dispatch:
@@ -26,6 +27,7 @@ on:
       - "frontend/**"
       - "scripts/build-image.sh"
       - "scripts/qemu-smoke.sh"
+      - "config/buildroot-lock.toml"
       - "Cargo.*"
       - ".github/workflows/build-os.yml"
     tags: ["v*"]
@@ -98,14 +100,13 @@ jobs:
       - name: Restore Buildroot download cache
         uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
-          path: ${{ runner.temp }}/dbr-buildroot/buildroot-2025.02.17/dl
-          key: buildroot-dl-2025.02.17-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'frontend/web/package-lock.json') }}
+          path: ${{ runner.temp }}/dbr-buildroot/buildroot-2026.05.2/dl
+          key: buildroot-dl-2026.05.2-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'frontend/web/package-lock.json', 'config/buildroot-lock.toml') }}
           restore-keys: |
-            buildroot-dl-2025.02.17-${{ matrix.target }}-
-            buildroot-dl-2025.02.17-
+            buildroot-dl-2026.05.2-${{ matrix.target }}-
+            buildroot-dl-2026.05.2-
       - name: Build image
         env:
-          BUILDROOT_VERSION: 2025.02.17
           JOBS: "3"
           BUILD_LOG: ${{ runner.temp }}/dbr-buildroot-${{ matrix.target }}.log
         run: |
