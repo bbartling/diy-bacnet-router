@@ -101,13 +101,28 @@ The x86-64 image is also eligible for a QEMU boot smoke test.
 - The router remains fail-closed until both BACnet ports are healthy and their
   network numbers are valid and distinct.
 
-Read [AGENTS.md](AGENTS.md) and [docs/agent/SPEC.md](docs/agent/SPEC.md) before
-asking an AI coding agent to continue implementation.
+This project targets an **educational BASRT-class** BACnet/IP-to-MS/TP router on
+Linux (original design — not a commercial clone). Prototype serial/MS/TP evidence
+comes from `py-bacnet-stacks-playground/vibe_code_apps_13`. The MS/TP adapter
+reference is the [Waveshare USB TO RS485 (C)](https://www.waveshare.com/usb-to-rs485-c.htm).
 
-For a focused first run whose only job is to make the non-hardware scaffold and
-OS image matrix honestly green, use
-[docs/agent/LUNA_MAX_GITHUB_ACTIONS_PROMPT.md](docs/agent/LUNA_MAX_GITHUB_ACTIONS_PROMPT.md).
+**Agent reading (required):**
 
-For the exact checks completed when this scaffold was generated, and the
-network-dependent checks that remain for the first GitHub Actions run, read
-[docs/BOOTSTRAP_STATUS.md](docs/BOOTSTRAP_STATUS.md).
+- [AGENTS.md](AGENTS.md) — engineering contract
+- [docs/agent/SOFTWARE_SPEC.md](docs/agent/SOFTWARE_SPEC.md) — product, UI, metrics, prototype lineage
+- [docs/agent/SPEC.md](docs/agent/SPEC.md) — milestones M0–M6
+
+**Current M0 work:** if GitHub Actions may already be green, start with artifact
+acceptance on the VirtualBox lab VM — do not assume Buildroot is broken:
+
+- [docs/agent/M0_ARTIFACT_ACCEPTANCE_PROMPT.md](docs/agent/M0_ARTIFACT_ACCEPTANCE_PROMPT.md)
+- [docs/operations/LOCAL_BUILDROOT_VM.md](docs/operations/LOCAL_BUILDROOT_VM.md)
+
+**UI reference (education only):** [docs/product/BASRT_EDUCATIONAL_REFERENCE.md](docs/product/BASRT_EDUCATIONAL_REFERENCE.md)
+
+Post-M0 routing integration: [docs/agent/CURSOR_CONTINUATION_PROMPT.md](docs/agent/CURSOR_CONTINUATION_PROMPT.md).
+
+
+## License
+
+MIT — see [LICENSE](LICENSE).

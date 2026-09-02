@@ -12,11 +12,13 @@
 .EXAMPLE
   .\scripts\vm-ensure.ps1
   .\scripts\vm-ensure.ps1 -RunSetup
+  .\scripts\vm-ensure.ps1 -AcceptRunId 33642454599
 #>
 [CmdletBinding()]
 param(
     [switch]$RunSetup,
     [switch]$RunBuild,
+    [string]$AcceptRunId = '',
     [int]$BootWaitSeconds = 20
 )
 
@@ -88,6 +90,13 @@ if ($RunBuild) {
     Write-Step "Running vm-build-x86.sh on VM (long-running)"
     & ssh -p $SshPort $SshTarget 'cd ~/src/diy-bacnet-router && git pull --ff-only && bash scripts/vm-build-x86.sh'
     if ($LASTEXITCODE -ne 0) { throw "vm-build-x86.sh failed" }
+}
+
+if ($AcceptRunId) {
+    Write-Step "Running vm-accept-artifact.sh for run $AcceptRunId"
+    Get-Content (Join-Path $PSScriptRoot 'vm-accept-artifact.sh') -Raw |
+        & ssh -p $SshPort $SshTarget "bash -s -- $AcceptRunId"
+    if ($LASTEXITCODE -ne 0) { throw "vm-accept-artifact.sh failed" }
 }
 
 Write-Step "VM ready"

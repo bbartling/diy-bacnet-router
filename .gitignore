@@ -10,5 +10,4 @@
 captures/*.json
 !captures/.gitkeep
 .env
-config/router.toml
-
+frontend/web/tsconfig.*.tsbuildinfo

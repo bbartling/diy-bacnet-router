@@ -1,3 +1,7 @@
+> **Historical snapshot** from scaffold generation. Live CI status and
+> [M0_ARTIFACT_ACCEPTANCE_PROMPT.md](agent/M0_ARTIFACT_ACCEPTANCE_PROMPT.md)
+> are authoritative for current M0 work.
+
 # Bootstrap status
 
 This file is the evidence boundary for the generated Milestone 0 scaffold. It
