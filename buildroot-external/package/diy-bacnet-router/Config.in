@@ -1,8 +1,8 @@
 config BR2_PACKAGE_DIY_BACNET_ROUTER
 	bool "diy-bacnet-router"
 	depends on BR2_PACKAGE_HOST_RUSTC_TARGET_ARCH_SUPPORTS
+	select BR2_PACKAGE_HOST_RUSTC
 	select BR2_PACKAGE_CA_CERTIFICATES
 	help
 	  Rust management and BACnet router service. The data plane remains
 	  fail-closed until its runtime configuration and evidence gates allow it.
-

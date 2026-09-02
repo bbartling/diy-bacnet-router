@@ -1,0 +1,7 @@
+# Labels used by the intentionally isolated hardware workflow.
+self-hosted-runner:
+  labels:
+    - self-hosted
+    - linux
+    - x64
+    - bacnet-lab

@@ -1,6 +1,2 @@
-* text=auto eol=lf
-*.ps1 text eol=crlf
-*.png binary
-*.jpg binary
-*.xz binary
-
+# Shell scripts must use LF so they run on Linux VM via SSH pipe.
+*.sh text eol=lf

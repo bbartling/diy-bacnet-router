@@ -4,6 +4,10 @@ Copy the text below into a Cursor agent after installing this scaffold into the
 repository. This is an implementation assignment, not permission to claim
 unverified BACnet behavior.
 
+> **M0 image pipeline / Actions acceptance:** use
+> [M0_ARTIFACT_ACCEPTANCE_PROMPT.md](M0_ARTIFACT_ACCEPTANCE_PROMPT.md) first.
+> Use this prompt for post-M0 milestones (M1+ routing integration).
+
 ---
 
 You are the lead engineer resuming the DIY BACnet Router appliance repository.

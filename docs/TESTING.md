@@ -28,6 +28,31 @@
 Vibe13 artifacts are prior evidence and test-vector inputs, not automatic passes
 for G4–G11 in a different process and OS image.
 
+## Milestone 0 non-hardware commands
+
+The non-hardware gate is reproducible with the same locked inputs used by CI:
+
+```text
+cargo fmt --all -- --check
+cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
+cargo test --workspace --all-targets --all-features --locked
+npm ci --ignore-scripts
+npm audit --audit-level=high
+npm run check
+npm run build
+cargo metadata --locked --no-deps --format-version 1
+cargo audit
+cargo deny check advisories
+bash scripts/validate-workflows.sh
+```
+
+The Buildroot workflow records the host Rust compiler independently from the
+project's `rust-toolchain.toml`: `buildroot-host-rustc-version.txt` and the
+same value in `build-manifest.json`. This is evidence of the Buildroot host
+toolchain, not a change to the project's Rust toolchain pin. The image
+artifact also contains `SHA256SUMS`, the manifest and the Buildroot
+`legal-info.tar.xz` archive.
+
 ## Hardware job ordering
 
 1. Inventory kernel, PREEMPT settings, CPU governor, USB topology and adapter.
@@ -60,4 +85,3 @@ Initial budgets to validate rather than assume:
 - no token timing regression when 10 dashboard clients connect/disconnect;
 - bounded WebSocket connection count and send failure cleanup;
 - routing soak reports zero silent truncations and zero duplicate forwarding.
-

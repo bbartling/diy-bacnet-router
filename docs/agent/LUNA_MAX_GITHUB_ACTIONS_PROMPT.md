@@ -1,3 +1,6 @@
+> **SUPERSEDED** — use [M0_ARTIFACT_ACCEPTANCE_PROMPT.md](M0_ARTIFACT_ACCEPTANCE_PROMPT.md)
+> and [SOFTWARE_SPEC.md](SOFTWARE_SPEC.md). Kept for history only.
+
 # Luna Max prompt — make Milestone 0 and OS Actions honestly green
 
 Paste the following into a Cursor agent using Luna Max **after** the scaffold

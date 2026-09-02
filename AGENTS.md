@@ -1,22 +1,56 @@
 # AGENTS.md — DIY BACnet Router engineering contract
 
-These rules apply to the entire repository. Read this file, `README.md`,
-`docs/agent/SPEC.md`, `docs/ARCHITECTURE.md`, `docs/TESTING.md`, and
-`docs/UPSTREAM_LOCK.md` before changing code.
+These rules apply to the entire repository. Read this file, [README.md](README.md),
+[docs/agent/SOFTWARE_SPEC.md](docs/agent/SOFTWARE_SPEC.md),
+[docs/agent/SPEC.md](docs/agent/SPEC.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md),
+[docs/TESTING.md](docs/TESTING.md), and [docs/UPSTREAM_LOCK.md](docs/UPSTREAM_LOCK.md)
+before changing code.
 
 ## Mission
 
-Build a trustworthy, original Linux BACnet/IP-to-MS/TP router appliance. The
-deliverable is a reproducible OS image plus a router data plane and a small
-management plane. This is not a BACnet application-device project.
+Build a trustworthy, **original** Linux BACnet/IP-to-MS/TP router appliance for
+**education and lab use** — functionally in the class of a Contemporary Controls
+BASRT-B, but implemented as open Rust + Buildroot with honest evidence gates.
+
+Deliverables:
+
+- reproducible OS images (x86_64, Raspberry Pi 3/4/5);
+- Rust data plane (`routerd`) for NPDU forwarding between distinct BACnet networks;
+- management plane: Axum REST, OpenAPI, bounded WebSocket metrics, React dashboard;
+- SSH-managed Linux networking and TOML application config.
+
+This is **not** a BACnet application-device project (no AI/BI/AV/BV object database
+as the router data plane).
+
+## Prototype lineage
+
+Phase 1–2 serial and MS/TP evidence lives in the external prototype:
+
+```text
+py-bacnet-stacks-playground/vibe_code_apps_13
+```
+
+Reuse: Waveshare C wiring runbooks, passive-decode gates, supervisory metrics
+ideas, rusty-bacnet integration lessons.
+
+**Do not import** the Vibe13 mini-device object database into this router.
+
+## Reference hardware
+
+Primary MS/TP adapter: [Waveshare USB TO RS485 (C)](https://www.waveshare.com/usb-to-rs485-c.htm)
+(FT232RNL, isolated RS-485, automatic direction, onboard 120 Ω termination).
+
+Read [docs/hardware/WAVESHARE_USB_RS485_C.md](docs/hardware/WAVESHARE_USB_RS485_C.md)
+before bench or trunk work.
 
 ## Non-negotiable boundaries
 
 - The router forwards NPDUs between distinct BACnet networks. It must not reuse
   the Vibe13 mini-device AI/BI/AV/BV database as its data plane.
-- The dashboard, REST API and WebSocket are management surfaces only. They must
+- The dashboard, REST API and WebSocket are **management surfaces only**. They must
   not block token handling or packet forwarding.
-- Do not copy commercial branding, firmware, HTML, images or trade dress.
+- Do not copy commercial branding, firmware, HTML, images or trade dress (including
+  BASRT-B web pages). Functional comparison for education is fine in private docs.
 - Do not claim Clause 9 conformance, BTL certification, segmentation, extended
   frames, BBMD, FDR, routing, or a tested baud unless the named gate has current
   evidence.
@@ -24,6 +58,20 @@ management plane. This is not a BACnet application-device project.
   this repository to make an API mismatch disappear.
 - The default configuration is fail-closed: forwarding disabled, management
   bound to loopback, no default password, no write API.
+
+## Management UI and metrics
+
+- WebSocket `/api/v1/ws/metrics` delivers **aggregate snapshots** (default 1000 ms,
+  bounded 250–5000 ms). Never one message per BACnet frame.
+- Counter names in the metrics schema are stable API contracts (B/IP and MS/TP
+  packet counts, token/PFM counters, RFSM/MNSM state, CRC errors, system stats).
+- Browser configuration writes remain disabled until M6 auth/audit gates pass.
+  Host IP and routes are configured over **SSH** with normal Linux tools.
+- UI layout may follow industrial router **patterns** (grouped config sections,
+  status counters); styling must be original DBR branding.
+
+See [docs/agent/SOFTWARE_SPEC.md](docs/agent/SOFTWARE_SPEC.md) and
+[docs/product/BASRT_EDUCATIONAL_REFERENCE.md](docs/product/BASRT_EDUCATIONAL_REFERENCE.md).
 
 ## Dependency policy
 
@@ -73,10 +121,19 @@ never relabeled as a pass.
 ## Agent workflow
 
 1. Inspect the working tree and preserve user changes.
-2. Identify one gate from `docs/agent/SPEC.md`.
-3. Add a failing test or executable acceptance check.
-4. Make the smallest implementation that passes it.
-5. Run the required checks.
-6. Update the evidence ledger and upstream lock if relevant.
-7. Stop at hardware, signing, network mutation or release approval boundaries.
+2. For M0 image pipeline work, start with
+   [docs/agent/M0_ARTIFACT_ACCEPTANCE_PROMPT.md](docs/agent/M0_ARTIFACT_ACCEPTANCE_PROMPT.md)
+   — verify Actions artifacts before editing Buildroot.
+3. Identify one gate from [docs/agent/SPEC.md](docs/agent/SPEC.md).
+4. Add a failing test or executable acceptance check.
+5. Make the smallest implementation that passes it.
+6. Run the required checks.
+7. Update the evidence ledger and upstream lock if relevant.
+8. Stop at hardware, signing, network mutation or release approval boundaries.
 
+## Cursor skills (project)
+
+- [.cursor/skills/local-buildroot-vm/SKILL.md](.cursor/skills/local-buildroot-vm/SKILL.md) —
+  VirtualBox lab, artifact acceptance, optional local Buildroot builds.
+- [.cursor/skills/basrt-educational-router/SKILL.md](.cursor/skills/basrt-educational-router/SKILL.md) —
+  product intent, UI/metrics contract, Vibe13 and Waveshare context.

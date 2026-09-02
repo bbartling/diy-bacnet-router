@@ -14,7 +14,25 @@ case "$1" in
       start-stop-daemon -S -q -b -m -p "$PIDFILE" -c dbr:dbr -x "$DAEMON" -- --config "$CONFIG"
     fi
     status=$?
-    [ "$status" -eq 0 ] && echo OK || echo FAIL
+    if [ "$status" -eq 0 ]; then
+      expected_uid="$(id -u dbr)"
+      actual_uid=""
+      for _ in 1 2 3 4 5; do
+        if [ -s "$PIDFILE" ]; then
+          pid="$(cat "$PIDFILE")"
+          actual_uid="$(awk '/^Uid:/ {print $2; exit}' "/proc/$pid/status" 2>/dev/null || true)"
+          [ "$actual_uid" = "$expected_uid" ] && break
+        fi
+        sleep 1
+      done
+      if [ "$actual_uid" != "$expected_uid" ]; then
+        echo "FAIL (service is not running as dbr)"
+        exit 1
+      fi
+      echo "OK (uid=$actual_uid)"
+    else
+      echo FAIL
+    fi
     exit "$status"
     ;;
   stop)
