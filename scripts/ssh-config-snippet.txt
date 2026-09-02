@@ -1,0 +1,6 @@
+Host ubuntu2-buildroot
+    HostName 127.0.0.1
+    Port 2222
+    User ben
+    IdentityFile ~/.ssh/id_rsa
+    StrictHostKeyChecking accept-new
