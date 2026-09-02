@@ -24,11 +24,13 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'vm-load-env.ps1')
+
 $VBox = 'C:\Program Files\Oracle\VirtualBox\VBoxManage.exe'
 $VmName = 'ubuntu2'
-$SshHost = '127.0.0.1'
-$SshPort = 2222
-$SshUser = 'ben'
+$SshHost = if ($env:VM_SSH_HOST) { $env:VM_SSH_HOST } else { '127.0.0.1' }
+$SshPort = if ($env:VM_SSH_PORT) { [int]$env:VM_SSH_PORT } else { 2222 }
+$SshUser = if ($env:VM_SSH_USER) { $env:VM_SSH_USER } else { 'ben' }
 $SshTarget = "${SshUser}@${SshHost}"
 
 function Write-Step([string]$Message) {
@@ -70,9 +72,8 @@ try {
 if ($sshExit -ne 0) {
     Write-Host ""
     Write-Host "SSH is up but your Windows key is not authorized on the VM yet." -ForegroundColor Yellow
-    Write-Host "Run this ONCE in PowerShell (enter VM password when prompted):" -ForegroundColor Yellow
-    Write-Host ""
-    Write-Host "  .\scripts\vm-authorize-key.ps1" -ForegroundColor White
+    Write-Host "1. Copy config/vm.env.example to config/vm.env and set VM_SSH_PASSWORD" -ForegroundColor Yellow
+    Write-Host "2. Run: .\scripts\vm-authorize-key.ps1" -ForegroundColor White
     Write-Host ""
     Write-Host "Then re-run: .\scripts\vm-ensure.ps1$(if ($RunSetup) { ' -RunSetup' })$(if ($RunBuild) { ' -RunBuild' })" -ForegroundColor Yellow
     exit 2

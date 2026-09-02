@@ -1,33 +1,46 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  One-time: authorize the Windows SSH public key on ubuntu2.
+  Authorize Windows SSH key on ubuntu2 using config/vm.env credentials.
 
 .DESCRIPTION
-  Prompts for the VM password once, then future agent/ssh sessions use keys.
+  1. Copy config/vm.env.example to config/vm.env
+  2. Set VM_SSH_PASSWORD (and user/host/port if needed)
+  3. Run this script once — future sessions use key auth
 #>
 [CmdletBinding()]
 param(
-    [int]$Port = 2222,
-    [string]$User = 'ben',
-    [string]$HostName = '127.0.0.1'
+    [int]$Port = 0,
+    [string]$User = '',
+    [string]$HostName = ''
 )
 
 $ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'vm-load-env.ps1')
+
+$Port = if ($Port) { $Port } else { [int]$env:VM_SSH_PORT }
+if (-not $Port) { $Port = 2222 }
+$User = if ($User) { $User } else { $env:VM_SSH_USER }
+if (-not $User) { $User = 'ben' }
+$HostName = if ($HostName) { $HostName } else { $env:VM_SSH_HOST }
+if (-not $HostName) { $HostName = '127.0.0.1' }
 $target = "${User}@${HostName}"
-$pub = "$env:USERPROFILE\.ssh\id_rsa.pub"
-if (-not (Test-Path $pub)) { $pub = "$env:USERPROFILE\.ssh\id_ed25519.pub" }
-if (-not (Test-Path $pub)) { throw "No SSH public key found under $env:USERPROFILE\.ssh" }
 
-Write-Host "Authorizing $(Split-Path $pub -Leaf) on $target (port $Port)" -ForegroundColor Cyan
-Write-Host "Enter the VM password when prompted." -ForegroundColor Yellow
+# Already authorized?
+$prevEap = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+$probe = ssh -o BatchMode=yes -o ConnectTimeout=8 -p $Port $target "echo SSH_KEY_OK" 2>&1
+$ErrorActionPreference = $prevEap
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "SSH key already authorized: $probe" -ForegroundColor Green
+    exit 0
+}
 
-Get-Content $pub | ssh -p $Port -o StrictHostKeyChecking=accept-new $target `
-    "umask 077; mkdir -p ~/.ssh; cat >> ~/.ssh/authorized_keys; chmod 700 ~/.ssh; chmod 600 ~/.ssh/authorized_keys; echo KEY_INSTALLED"
+Write-Host "Installing SSH key via config/vm.env …" -ForegroundColor Cyan
+python (Join-Path $PSScriptRoot 'vm-ssh-install-key.py')
+if ($LASTEXITCODE -ne 0) { throw "Key install failed — check config/vm.env" }
 
-if ($LASTEXITCODE -ne 0) { throw "Key authorization failed" }
+ssh -o BatchMode=yes -p $Port $target "echo SSH_KEY_OK && uname -sr && nproc"
+if ($LASTEXITCODE -ne 0) { throw "BatchMode verification failed" }
 
-ssh -o BatchMode=yes -p $Port $target "echo SSH_KEY_OK"
-if ($LASTEXITCODE -ne 0) { throw "BatchMode verification failed after key install" }
-
-Write-Host "Done. Run: .\scripts\vm-ensure.ps1 -RunSetup" -ForegroundColor Green
+Write-Host "Done. Next: .\scripts\vm-ensure.ps1 -RunSetup" -ForegroundColor Green

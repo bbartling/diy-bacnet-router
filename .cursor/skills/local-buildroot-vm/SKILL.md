@@ -1,70 +1,56 @@
 ---
 name: local-buildroot-vm
 description: >-
-  M0 artifact acceptance and local Buildroot debug on VirtualBox ubuntu2 (or WSL
-  fallback) when GitHub Actions build-os fails. Use vm-debug-build.sh to reproduce
-  CI, fix scripts, port back to build-os.yml.
+  Local Buildroot debug on VirtualBox ubuntu2 only (no WSL). Requires config/vm.env
+  with VM_SSH_PASSWORD. Use vm-debug-build.sh when build-os fails; port fixes to
+  GitHub Actions. See docs/operations/LOCAL_BUILDROOT_VM.md.
 ---
 
-# Local Buildroot VM workflow
+# VirtualBox Buildroot lab (ubuntu2)
 
-## Roles
+**Do not use WSL** on this machine — it is corrupt. All Linux builds run on
+VirtualBox `ubuntu2` via SSH from Windows.
 
-| Surface | Purpose |
-|---------|---------|
-| **Windows + Cursor** | Edit, commit, push, `gh`, Rust/npm CI |
-| **VirtualBox ubuntu2** | Local Buildroot debug + artifact acceptance |
-| **WSL Ubuntu** | Fallback Linux lab when VM SSH key not ready |
-| **GitHub Actions** | CI truth after fixes ported from local |
-
-Git on **Windows only**.
-
-## When GitHub Actions fails
-
-1. Fetch logs: `gh run view <RUN_ID> --repo bbartling/diy-bacnet-router --log-failed`
-2. Common failure (fixed): QEMU smoke mutating `rootfs.ext2` before SHA256 verify —
-   `qemu-smoke.sh` must use `-snapshot`.
-3. Reproduce locally: `bash scripts/vm-debug-build.sh` (full build + CI-identical verify + QEMU + post-QEMU checksum).
-4. Fix scripts/workflow on Windows branch, push, confirm `build-os` green.
-5. Log in [docs/operations/LOCAL_BUILDROOT_VM.md](../../docs/operations/LOCAL_BUILDROOT_VM.md).
-
-## Windows scripts
+## Credentials (required)
 
 ```powershell
-.\scripts\vm-ensure.ps1
-.\scripts\vm-authorize-key.ps1       # once — required for VM
-.\scripts\vm-ensure.ps1 -RunSetup
-.\scripts\vm-ensure.ps1 -DebugBuild   # reproduce GH build-os on VM
-.\scripts\vm-ensure.ps1 -AcceptRunId <RUN_ID>
-.\scripts\vm-ensure.ps1 -RunBuild
+copy config\vm.env.example config\vm.env
+# Edit config\vm.env — set VM_SSH_PASSWORD
+.\scripts\vm-authorize-key.ps1
 ```
 
-WSL fallback (from repo root):
+Files:
 
-```powershell
-wsl -e bash -lc "cd /mnt/c/Users/ben/Documents/diy-demand-side-management && bash scripts/vm-setup.sh && bash scripts/vm-debug-build.sh"
-```
+- `config/vm.env.example` — template (committed)
+- `config/vm.env` — secrets (gitignored)
+- `scripts/vm-load-env.ps1` — loads env for other scripts
+- `scripts/vm-ssh-install-key.py` — paramiko key install
 
-## vm-debug-build.sh
+## Workflow when GitHub Actions fails
 
-Same verification sequence as `.github/workflows/build-os.yml`:
+1. `gh run view <RUN_ID> --log-failed`
+2. `.\scripts\vm-ensure.ps1 -DebugBuild` on VM
+3. Fix scripts/workflow on Windows branch
+4. Push; confirm `build-os` green
+5. `.\scripts\vm-ensure.ps1 -AcceptRunId <RUN_ID>`
 
-1. `build-image.sh x86_64`
-2. Verify SHA256SUMS (pristine)
-3. `qemu-smoke.sh` with `-snapshot`
-4. Verify SHA256SUMS again (must still pass)
+## Scripts
 
-Log: `$HOME/dbr-buildroot/x86_64-debug-*.log`
+| Script | Purpose |
+|--------|---------|
+| `vm-ensure.ps1` | Start VM, probe SSH |
+| `vm-authorize-key.ps1` | One-time key via `config/vm.env` |
+| `vm-setup.sh` | apt, node, rust, clone repo |
+| `vm-debug-build.sh` | Full x86 build + CI verify + QEMU + post-QEMU checksum |
+| `vm-build-x86.sh` | Build only |
+| `vm-accept-artifact.sh` | Download GH artifact + QEMU |
 
-## Agent behavior
+## Known fix (rootfs checksum)
 
-1. Read [docs/operations/LOCAL_BUILDROOT_VM.md](../../docs/operations/LOCAL_BUILDROOT_VM.md).
-2. Diagnose GH failure before editing Buildroot configs.
-3. Prefer script/workflow fixes that local debug proves.
-4. Port proven fixes to `build-os.yml` in same PR.
+QEMU must use `-snapshot` so `rootfs.ext2` is not modified before SHA256 verify
+in `build-os.yml`.
 
-## Related docs
+## Track progress
 
-- [docs/agent/M0_ARTIFACT_ACCEPTANCE_PROMPT.md](../../docs/agent/M0_ARTIFACT_ACCEPTANCE_PROMPT.md)
-- [scripts/vm-debug-build.sh](../../scripts/vm-debug-build.sh)
-- `.github/workflows/build-os.yml`
+Update [docs/operations/LOCAL_BUILDROOT_VM.md](../../docs/operations/LOCAL_BUILDROOT_VM.md)
+checklist and results table after each run.
