@@ -10,17 +10,27 @@ this file to keep context across sessions.
 **Prototype bench:** `py-bacnet-stacks-playground/vibe_code_apps_13`  
 **Branch:** `luna-max/m0-buildroot-ci-repair`
 
-## Workflow (artifact-first)
+## Workflow (GH failure → local debug → port fix)
 
 | Phase | Action |
 |-------|--------|
-| 1 | SSH key auth: `.\scripts\vm-authorize-key.ps1` |
+| 1 | SSH key: `.\scripts\vm-authorize-key.ps1` |
 | 2 | VM setup: `.\scripts\vm-ensure.ps1 -RunSetup` |
-| 3 | **Accept Actions artifact:** `.\scripts\vm-ensure.ps1 -AcceptRunId <RUN_ID>` |
-| 4 | Optional reproducibility: `.\scripts\vm-ensure.ps1 -RunBuild` |
+| 3 | **Debug build:** `.\scripts\vm-ensure.ps1 -DebugBuild` (or WSL below) |
+| 4 | Fix scripts/workflow on Windows, push, confirm `build-os` green |
+| 5 | Accept artifact: `.\scripts\vm-ensure.ps1 -AcceptRunId <RUN_ID>` |
 
-Do **not** debug Buildroot until a successful Actions x86 artifact boots under
-QEMU locally. See [docs/agent/M0_ARTIFACT_ACCEPTANCE_PROMPT.md](../agent/M0_ARTIFACT_ACCEPTANCE_PROMPT.md).
+### Known GH failure (2026-09-02)
+
+Run `33636224392` built successfully but **Verify image evidence** failed:
+`rootfs.ext2: FAILED` in SHA256SUMS — QEMU boot wrote to rootfs before verify.
+Fix: `qemu-smoke.sh` now uses `-snapshot`. Local proof: `vm-debug-build.sh`.
+
+### WSL fallback (when VM SSH not ready)
+
+```powershell
+wsl -e bash -lc "cd /mnt/c/Users/ben/Documents/diy-demand-side-management && bash scripts/vm-setup.sh && bash scripts/vm-debug-build.sh"
+```
 
 ## Quick commands (Windows)
 

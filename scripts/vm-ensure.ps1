@@ -18,6 +18,7 @@
 param(
     [switch]$RunSetup,
     [switch]$RunBuild,
+    [switch]$DebugBuild,
     [string]$AcceptRunId = '',
     [int]$BootWaitSeconds = 20
 )
@@ -90,6 +91,13 @@ if ($RunBuild) {
     Write-Step "Running vm-build-x86.sh on VM (long-running)"
     & ssh -p $SshPort $SshTarget 'cd ~/src/diy-bacnet-router && git pull --ff-only && bash scripts/vm-build-x86.sh'
     if ($LASTEXITCODE -ne 0) { throw "vm-build-x86.sh failed" }
+}
+
+if ($DebugBuild) {
+    Write-Step "Running vm-debug-build.sh on VM (GH failure reproduction + verify)"
+    Get-Content (Join-Path $PSScriptRoot 'vm-debug-build.sh') -Raw |
+        & ssh -p $SshPort $SshTarget "bash -s"
+    if ($LASTEXITCODE -ne 0) { throw "vm-debug-build.sh failed" }
 }
 
 if ($AcceptRunId) {

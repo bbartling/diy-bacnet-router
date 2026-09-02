@@ -12,6 +12,7 @@ trap cleanup EXIT
 
 qemu-system-x86_64 \
   -M pc -m 512 -smp 2 \
+  -snapshot \
   -kernel "$images/bzImage" \
   -drive "file=$images/rootfs.ext2,if=virtio,format=raw" \
   -append "root=/dev/vda console=ttyS0 dbr.bind=0.0.0.0:8080" \
