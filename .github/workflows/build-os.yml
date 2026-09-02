@@ -1,12 +1,23 @@
 name: build-os
 
 on:
+  pull_request:
+    paths:
+      - "buildroot-external/**"
+      - "crates/**"
+      - "frontend/**"
+      - "scripts/build-image.sh"
+      - "scripts/qemu-smoke.sh"
+      - "Cargo.*"
+      - ".github/workflows/build-os.yml"
   workflow_dispatch:
     inputs:
       targets:
-        description: "Informational; the current workflow builds the complete matrix"
-        required: false
-        default: "all"
+        description: "Build one target or the complete image matrix"
+        required: true
+        type: choice
+        options: [x86_64, rpi3_64, rpi4_64, rpi5_64, all]
+        default: "x86_64"
   push:
     branches: [master]
     paths:
@@ -14,6 +25,7 @@ on:
       - "crates/**"
       - "frontend/**"
       - "scripts/build-image.sh"
+      - "scripts/qemu-smoke.sh"
       - "Cargo.*"
       - ".github/workflows/build-os.yml"
     tags: ["v*"]
@@ -26,14 +38,47 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  select-targets:
+    name: Select image targets
+    runs-on: ubuntu-24.04
+    outputs:
+      targets: ${{ steps.targets.outputs.targets }}
+    steps:
+      - name: Resolve requested target set
+        id: targets
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REQUESTED_TARGETS: ${{ inputs.targets || 'all' }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == pull_request ]]; then
+            targets='["x86_64"]'
+          else
+            case "$REQUESTED_TARGETS" in
+              x86_64|rpi3_64|rpi4_64|rpi5_64)
+                targets="[\"$REQUESTED_TARGETS\"]"
+                ;;
+              all)
+                targets='["x86_64","rpi3_64","rpi4_64","rpi5_64"]'
+                ;;
+              *)
+                echo "Unsupported target selection: $REQUESTED_TARGETS" >&2
+                exit 2
+                ;;
+            esac
+          fi
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
+          echo "Selected targets: $targets"
+
   image:
     name: ${{ matrix.target }} image
+    needs: select-targets
     runs-on: ubuntu-24.04
     timeout-minutes: 300
     strategy:
       fail-fast: false
       matrix:
-        target: [x86_64, rpi3_64, rpi4_64, rpi5_64]
+        target: ${{ fromJSON(needs.select-targets.outputs.targets) }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
@@ -62,7 +107,10 @@ jobs:
         env:
           BUILDROOT_VERSION: 2025.02.17
           JOBS: "3"
-        run: bash scripts/build-image.sh "${{ matrix.target }}"
+          BUILD_LOG: ${{ runner.temp }}/dbr-buildroot-${{ matrix.target }}.log
+        run: |
+          set -o pipefail
+          bash scripts/build-image.sh "${{ matrix.target }}" 2>&1 | tee "$BUILD_LOG"
       - name: QEMU boot smoke
         if: matrix.target == 'x86_64'
         run: |
@@ -80,7 +128,8 @@ jobs:
             /usr/share/diy-bacnet-router/web/index.html; do
             debugfs -R "stat $guest_path" "$root/images/rootfs.ext2" 2>/dev/null | grep -q 'Inode:'
           done
-          bash scripts/qemu-smoke.sh "${RUNNER_TEMP}/dbr-buildroot/output/x86_64/images"
+          QEMU_LOG="${RUNNER_TEMP}/dbr-qemu-x86_64.log" \
+            bash scripts/qemu-smoke.sh "${RUNNER_TEMP}/dbr-buildroot/output/x86_64/images"
       - name: Verify image evidence
         run: |
           root="${RUNNER_TEMP}/dbr-buildroot/output/${{ matrix.target }}"
@@ -88,6 +137,7 @@ jobs:
           test -s "$root/images/legal-info.tar.xz"
           test -s "$root/images/build-manifest.json"
           test -s "$root/images/buildroot-host-rustc-version.txt"
+          test -s "$root/images/buildroot-host-cargo-version.txt"
           test -s "$root/images/SHA256SUMS"
           python3 - "$root/images/build-manifest.json" "${{ matrix.target }}" <<'PY'
           import json
@@ -98,17 +148,55 @@ jobs:
           assert manifest["project_rust_toolchain"] == "1.93.0"
           assert manifest["rusty_bacnet"] == "not-integrated"
           assert manifest["buildroot_host_rustc_version"]
+          assert manifest["buildroot_host_cargo_version"]
           PY
           mapfile -t image_files < <(
             find "$root/images" -maxdepth 1 -type f \
               ! -name SHA256SUMS \
               ! -name build-manifest.json \
               ! -name buildroot-host-rustc-version.txt \
+              ! -name buildroot-host-cargo-version.txt \
               ! -name legal-info.tar.xz -print
           )
           test "${#image_files[@]}" -gt 0
           for image in "${image_files[@]}"; do test -s "$image"; done
           (cd "$root/images" && sha256sum --check --strict SHA256SUMS)
+      - name: Collect failure diagnostics
+        if: always()
+        run: |
+          set -euo pipefail
+          root="${RUNNER_TEMP}/dbr-buildroot/output/${{ matrix.target }}"
+          diagnostics="${RUNNER_TEMP}/dbr-diagnostics-${{ matrix.target }}"
+          mkdir -p "$diagnostics"
+          for log in \
+            "${RUNNER_TEMP}/dbr-buildroot-${{ matrix.target }}.log" \
+            "${RUNNER_TEMP}/dbr-qemu-${{ matrix.target }}.log" \
+            /tmp/diy-bacnet-router-qemu.log; do
+            if [[ -s "$log" ]]; then
+              cp "$log" "$diagnostics/"
+            fi
+          done
+          if [[ -d "$root" ]]; then
+            find "$root" -maxdepth 4 -type f \( -name '*.log' -o -name '*.err' \) \
+              -exec cp --parents '{}' "$diagnostics" \; 2>/dev/null || true
+          fi
+          {
+            echo "target=${{ matrix.target }}"
+            echo "project_sha=${{ github.sha }}"
+            echo "runner_os=${{ runner.os }}"
+            date --iso-8601=seconds
+            if [[ -f "$root/.config" ]]; then
+              echo '--- Buildroot resolved configuration ---'
+              grep -E '^(BR2_ARCH|BR2_PACKAGE_DIY_BACNET_ROUTER|BR2_PACKAGE_HOST_RUSTC|BR2_TARGET_ROOTFS|BR2_LINUX_KERNEL|BR2_TARGET_GENERIC_HOSTNAME)' "$root/.config" || true
+            fi
+          } > "$diagnostics/build-context.txt"
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: always()
+        with:
+          name: diy-bacnet-router-${{ matrix.target }}-diagnostics-${{ github.run_id }}
+          path: ${{ runner.temp }}/dbr-diagnostics-${{ matrix.target }}/
+          if-no-files-found: error
+          retention-days: 14
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: diy-bacnet-router-${{ matrix.target }}-${{ github.sha }}
