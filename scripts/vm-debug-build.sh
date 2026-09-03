@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Local Buildroot debug build — mirrors build-os.yml when GitHub Actions fails.
-# Run on VirtualBox ubuntu2 (preferred) or WSL Ubuntu. Logs everything for
+# Run on the Ubuntu Buildroot lab guest (VMware preferred; VirtualBox optional).
 # porting fixes back to .github/workflows/build-os.yml.
 #
 # Usage:

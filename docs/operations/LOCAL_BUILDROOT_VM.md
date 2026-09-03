@@ -53,16 +53,17 @@ Optional: install OpenSSH server on the guest (`sudo apt install openssh-server`
 copy config\vm.env.example config\vm.env
 # Edit config\vm.env — set VM_SSH_PASSWORD to the Ubuntu user password
 .\scripts\vm-authorize-key.ps1
-.\scripts\vm-ensure.ps1 -RunSetup
+# Start the Ubuntu guest in VMware first, then:
+.\scripts\vm-ensure.ps1 -Hypervisor vmware -RunSetup
 ```
 
 `vm-setup.sh` on the guest installs apt build deps, Node 24, Rust 1.93, QEMU tools,
 and clones the repo to `~/src/diy-bacnet-router`.
 
-> **Note:** `vm-ensure.ps1` can start a **VirtualBox** VM named `ubuntu2` if
-> configured. On VMware-only hosts, start the guest manually in VMware, confirm
-> SSH on port 2222, then run `vm-ensure.ps1` without relying on VBoxManage — or
-> SSH directly and run the bash scripts below.
+`vm-ensure.ps1` defaults to `-Hypervisor auto`: if SSH on port 2222 is already
+open it skips hypervisor start; otherwise it uses VirtualBox only when
+`VBoxManage` is installed. On VMware-only hosts use `-Hypervisor vmware` or
+`-SkipVmStart` (never touches VirtualBox).
 
 ## Daily agent workflow
 
@@ -76,13 +77,15 @@ and clones the repo to `~/src/diy-bacnet-router`.
    bash scripts/vm-debug-build.sh
    ```
 
-   Or from Windows: `.\scripts\vm-ensure.ps1 -DebugBuild`
+   Or from Windows: `.\scripts\vm-ensure.ps1 -Hypervisor vmware -DebugBuild`
 
 3. Fix `scripts/build-image.sh`, `build-os.yml`, or Buildroot external tree on
    the host branch; commit and push.
 4. Wait for green `build-os` on GitHub.
-5. Artifact acceptance: `.\scripts\vm-ensure.ps1 -AcceptRunId <RUN_ID>` (requires
-   `gh auth` on the guest or download artifacts from the host with `gh run download`).
+5. Artifact acceptance:
+   `.\scripts\vm-ensure.ps1 -Hypervisor vmware -AcceptRunId <RUN_ID>`
+   (requires `gh auth` on the guest; otherwise download on the Windows host with
+   `gh run download` and copy images into the guest).
 
 ### Parity with CI
 
@@ -90,10 +93,28 @@ and clones the repo to `~/src/diy-bacnet-router`.
 `build-image.sh x86_64`, SHA256SUMS verify, `qemu-smoke.sh -snapshot`, post-QEMU
 checksum verify.
 
+### Persistent QEMU UI preview (lab)
+
+After artifact acceptance (or a local image build), on the guest:
+
+```bash
+bash scripts/qemu-ui.sh start /path/to/images   # directory containing bzImage + rootfs.ext2
+bash scripts/qemu-ui.sh status
+# Windows host tunnel, then browser:
+#   ssh -N -L 18080:127.0.0.1:18080 ubuntu2-buildroot
+#   http://127.0.0.1:18080
+bash scripts/qemu-ui.sh stop
+```
+
+`qemu-ui.sh` uses `-snapshot` and `hostfwd=tcp:127.0.0.1:18080-:8080`. It never
+mutates `rootfs.ext2`. Keep `qemu-smoke.sh` for short-lived CI/acceptance smoke.
+
 ## Build / acceptance log
 
 | Date | Run ID | SHA | Where | Result | Notes |
 | --- | --- | --- | --- | --- | --- |
+| 2026-09-03 | 33671378385 | 3c03e30 | VMware ubuntu2 QEMU | PASS | host download + scp; SHA256SUMS OK; smoke `/healthz` ok, data_plane disabled, uid=100; lab needed `noapic` |
+| 2026-09-02 | 33671378385 | 3c03e30 | GitHub Actions | PASS | tip master; x86 + rpi3/4/5 |
 | 2026-09-02 | 33646331873 | acc2fa9 | GitHub Actions | PASS | x86_64 + QEMU (~1h4m) |
 | 2026-09-02 | — | 6cde350 | VMware ubuntu2 | PASS | local `vm-debug-build.sh`; `bzImage` |
 

@@ -31,7 +31,7 @@ Reproduce CI failures on an **Ubuntu guest in VMware**, SSH from Windows:
 [VMware Buildroot lab]({{ site.baseurl }}/operations/local-buildroot-vm/)
 
 ```powershell
-.\scripts\vm-ensure.ps1 -DebugBuild
+.\scripts\vm-ensure.ps1 -Hypervisor vmware -DebugBuild
 ```
 
 QEMU smoke uses `-snapshot` so checksum verification stays valid after boot.

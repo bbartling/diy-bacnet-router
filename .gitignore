@@ -14,3 +14,5 @@ config/vm.env
 frontend/web/tsconfig.*.tsbuildinfo
 frontend/web/vite.config.js
 frontend/web/vite.config.d.ts
+frontend/web/playwright-report/
+frontend/web/test-results/

@@ -35,6 +35,11 @@ buildroot_dl_dir="$source_dir/dl"
 # expected commit in config/buildroot-lock.toml makes a retagged reference fail closed.
 
 mkdir -p "$work_root" "$output_dir"
+if [[ -d "$source_dir" && ! -d "$source_dir/.git" ]]; then
+  # Actions cache may restore only dl/ under source_dir; remove the partial tree
+  # so git clone can populate a full Buildroot checkout.
+  rm -rf "$source_dir"
+fi
 if [[ ! -d "$source_dir/.git" ]]; then
   git clone --depth 1 --branch "$buildroot_version" \
     https://gitlab.com/buildroot.org/buildroot.git "$source_dir"

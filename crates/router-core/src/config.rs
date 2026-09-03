@@ -28,6 +28,8 @@ pub struct ManagementConfig {
     pub bind: String,
     pub web_root: String,
     pub metrics_interval_ms: u64,
+    /// Bounded concurrent `/api/ws/metrics` upgrades (permits released on disconnect).
+    pub max_ws_connections: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -75,6 +77,7 @@ impl Default for ManagementConfig {
             bind: "127.0.0.1:8080".to_owned(),
             web_root: "frontend/web/dist".to_owned(),
             metrics_interval_ms: 1_000,
+            max_ws_connections: 8,
         }
     }
 }
@@ -159,6 +162,11 @@ impl RouterConfig {
         if !(250..=5_000).contains(&self.management.metrics_interval_ms) {
             return Err(ConfigError::Validation(
                 "management.metrics_interval_ms must be in 250..=5000".into(),
+            ));
+        }
+        if !(1..=32).contains(&self.management.max_ws_connections) {
+            return Err(ConfigError::Validation(
+                "management.max_ws_connections must be in 1..=32".into(),
             ));
         }
 
@@ -296,5 +304,71 @@ mod tests {
         assert!(config.validate().is_err());
         config.management.metrics_interval_ms = 5_001;
         assert!(config.validate().is_err());
+    }
+
+    #[test]
+    fn max_ws_connections_bounds_are_enforced() {
+        let mut config = RouterConfig::default();
+        config.management.max_ws_connections = 0;
+        assert!(config.validate().is_err());
+        config.management.max_ws_connections = 33;
+        assert!(config.validate().is_err());
+    }
+
+    /// Top-level RouterConfig keys must stay on the public allowlist. Secret-ish
+    /// field names are rejected so `/api/config/effective` cannot silently grow
+    /// credentials without an intentional PublicEffectiveConfig update.
+    #[test]
+    fn router_config_fields_stay_public_allowlisted() {
+        const ALLOWED_TOP_LEVEL: &[&str] =
+            &["identity", "management", "router", "bacnet_ip", "mstp"];
+        const FORBIDDEN_SUBSTRINGS: &[&str] = &[
+            "password",
+            "secret",
+            "token",
+            "api_key",
+            "credential",
+            "private_key",
+        ];
+
+        let value = serde_json::to_value(RouterConfig::default()).expect("json");
+        let obj = value.as_object().expect("object");
+        for key in obj.keys() {
+            assert!(
+                ALLOWED_TOP_LEVEL.contains(&key.as_str()),
+                "unexpected RouterConfig top-level field `{key}` — update PublicEffectiveConfig"
+            );
+            let lower = key.to_ascii_lowercase();
+            for needle in FORBIDDEN_SUBSTRINGS {
+                assert!(
+                    !lower.contains(needle),
+                    "RouterConfig field `{key}` looks secret; keep it out of the public API"
+                );
+            }
+        }
+        walk_forbid_secret_keys(&value, FORBIDDEN_SUBSTRINGS);
+    }
+
+    fn walk_forbid_secret_keys(value: &serde_json::Value, needles: &[&str]) {
+        match value {
+            serde_json::Value::Object(map) => {
+                for (key, child) in map {
+                    let lower = key.to_ascii_lowercase();
+                    for needle in needles {
+                        assert!(
+                            !lower.contains(needle),
+                            "config key `{key}` looks secret; redact before exposing"
+                        );
+                    }
+                    walk_forbid_secret_keys(child, needles);
+                }
+            }
+            serde_json::Value::Array(items) => {
+                for child in items {
+                    walk_forbid_secret_keys(child, needles);
+                }
+            }
+            _ => {}
+        }
     }
 }

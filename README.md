@@ -40,7 +40,7 @@ gates rather than hard-coded to one vendor.
 
 Progress toward a working routing prototype (details in [docs/agent/SPEC.md](docs/agent/SPEC.md)):
 
-- [x] **M0 — Scaffold and OS images** — Rust workspace, React UI, read-only REST/OpenAPI/WebSocket, config validation, CI, Buildroot images (x86 + Pi), QEMU smoke, checksums and manifests
+- [x] **M0 — Scaffold and OS images** — Rust workspace, React UI, read-only REST/OpenAPI/WebSocket, config validation, CI, Buildroot images (x86 + Pi), QEMU smoke, checksums and manifests (evidence: Actions `33671378385` @ `3c03e30`)
 - [ ] **M1 — rusty-bacnet adapter** — audit upstream, pin SHA, compile fixture using public B/IP and MS/TP APIs (no forked stack internals)
 - [ ] **M2 — Port qualification** — B/IP on Linux networking; MS/TP passive decode and token behavior on USB RS-485 (no forwarding yet)
 - [ ] **M3 — Isolated routing** — NPDU forwarding between distinct BACnet networks on a bench; routed Who-Is / ReadProperty both directions
@@ -131,7 +131,7 @@ Local rebuilds on a lab VM: [docs/operations/LOCAL_BUILDROOT_VM.md](docs/operati
 | Claim | Status |
 | --- | --- |
 | Open-source IP↔MS/TP router **intent** and appliance architecture | Yes |
-| Reproducible Buildroot images and management UI scaffold | M0 (in progress on `master`) |
+| Reproducible Buildroot images and management UI scaffold | **M0 complete** (tip `build-os` `33671378385` @ `3c03e30`; BACnet forwarding still disabled) |
 | Field-ready routing, BTL certification, or Clause 9 conformance | **No** — gated milestones |
 | QEMU / unit tests prove RS-485 on a live trunk | **No** — hardware jobs are manual and isolated |
 
@@ -145,11 +145,21 @@ UI): [docs/product/BASRT_EDUCATIONAL_REFERENCE.md](docs/product/BASRT_EDUCATIONA
 - [docs/agent/FULL_STACK_AUDIT.md](docs/agent/FULL_STACK_AUDIT.md) — full-stack audit/refactor checklist (Rust, React, Buildroot, QEMU, SSH)
 - [docs/agent/SPEC.md](docs/agent/SPEC.md) — milestones M0–M6
 
-**Current M0 work:** if GitHub Actions may already be green, start with artifact
-acceptance on the VirtualBox lab VM — do not assume Buildroot is broken:
+**Lab VM (VMware):** Ubuntu guest over SSH (`ubuntu2-buildroot` / `ben@127.0.0.1:2222`).
+Artifact acceptance and persistent UI preview:
 
-- [docs/agent/M0_ARTIFACT_ACCEPTANCE_PROMPT.md](docs/agent/M0_ARTIFACT_ACCEPTANCE_PROMPT.md)
-- [docs/operations/LOCAL_BUILDROOT_VM.md](docs/operations/LOCAL_BUILDROOT_VM.md)
+```powershell
+.\scripts\vm-ensure.ps1 -Hypervisor vmware -AcceptRunId <RUN_ID>
+# on guest after images are present:
+#   bash scripts/qemu-ui.sh start <images-dir>
+# Windows tunnel: ssh -N -L 18080:127.0.0.1:18080 ubuntu2-buildroot
+# Browser: http://127.0.0.1:18080
+```
+
+See [docs/operations/LOCAL_BUILDROOT_VM.md](docs/operations/LOCAL_BUILDROOT_VM.md) and
+[docs/agent/M0_ARTIFACT_ACCEPTANCE_PROMPT.md](docs/agent/M0_ARTIFACT_ACCEPTANCE_PROMPT.md).
+
+**Next (M1):** rusty-bacnet adapter pin and compile fixture — not started in M0.
 
 **UI reference (education only):** [docs/product/BASRT_EDUCATIONAL_REFERENCE.md](docs/product/BASRT_EDUCATIONAL_REFERENCE.md)
 

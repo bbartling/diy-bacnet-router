@@ -43,6 +43,59 @@ jobs:
       - run: npm run check
       - run: npm run build
 
+  e2e:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        with:
+          toolchain: 1.93.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/web/package-lock.json
+      - name: Build frontend
+        working-directory: frontend/web
+        run: |
+          npm ci
+          npm run build
+      - name: Build management daemon
+        run: cargo build -p routerd --locked
+      - name: Install Playwright Chromium
+        working-directory: frontend/web
+        run: npx playwright install --with-deps chromium
+      - name: Start appliance and run Playwright
+        working-directory: frontend/web
+        env:
+          BASE_URL: http://127.0.0.1:18080
+        run: |
+          set -euo pipefail
+          cp ../../config/router.example.toml /tmp/dbr-e2e-router.toml
+          ../../target/debug/diy-bacnet-router --check-config --config /tmp/dbr-e2e-router.toml
+          DBR_BIND=127.0.0.1:18080 DBR_WEB_ROOT="$PWD/dist" \
+            ../../target/debug/diy-bacnet-router --config /tmp/dbr-e2e-router.toml &
+          echo $! > /tmp/dbr-e2e.pid
+          for _ in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:18080/healthz >/dev/null; then
+              break
+            fi
+            sleep 0.5
+          done
+          curl -fsS http://127.0.0.1:18080/healthz
+          npm run test:e2e
+          kill "$(cat /tmp/dbr-e2e.pid)" || true
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: playwright-e2e
+          path: |
+            frontend/web/playwright-report
+            frontend/web/test-results
+          if-no-files-found: ignore
+
   repository-contract:
     runs-on: ubuntu-24.04
     steps:

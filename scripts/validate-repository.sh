@@ -16,6 +16,7 @@ grep -q 'router.enabled=true is unavailable' crates/router-core/src/config.rs
 ! grep -R -n -E 'password\s*=\s*"[^\"]+"' config buildroot-external
 ! grep -R -n -E '/dev/ttyUSB[0-9]' config buildroot-external
 grep -q '\-snapshot' scripts/qemu-smoke.sh
+grep -q '\-snapshot' scripts/qemu-ui.sh
 bash scripts/test-image-evidence-contract.sh
 bash scripts/test-appliance-contract.sh
 

@@ -7,6 +7,9 @@ pub mod config;
 pub mod metrics;
 pub mod runtime;
 
-pub use config::{ConfigError, RouterConfig};
+pub use config::{
+    BacnetIpConfig, ConfigError, IdentityConfig, ManagementConfig, MstpConfig, RouterConfig,
+    RouterControlConfig,
+};
 pub use metrics::{Counters, RouterMetrics};
 pub use runtime::{Capability, CapabilityState, DataPlaneState, RuntimeSnapshot, RuntimeState};
