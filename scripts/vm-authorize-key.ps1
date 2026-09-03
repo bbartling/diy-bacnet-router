@@ -43,4 +43,4 @@ if ($LASTEXITCODE -ne 0) { throw "Key install failed - check config/vm.env" }
 ssh -o BatchMode=yes -p $Port $target 'echo SSH_KEY_OK; uname -sr; nproc'
 if ($LASTEXITCODE -ne 0) { throw "BatchMode verification failed" }
 
-Write-Host "Done. Next: .\scripts\vm-ensure.ps1 -RunSetup" -ForegroundColor Green
+Write-Host "Done. Next: .\scripts\vm-ensure.ps1 -Hypervisor vmware -RunSetup" -ForegroundColor Green

@@ -40,18 +40,20 @@ function Gate({ capability }: { capability: Capability }) {
 function Overview({ data, capabilities }: { data: MetricsEnvelope | null; capabilities: Capability[] }) {
   const m = data?.router;
   const system = data?.system;
+  const runtime = data?.runtime;
   return (
     <>
       <section className="hero-grid">
         <div className="route-map panel">
-          <div className="port"><span>BACnet/IP</span><strong>{data?.runtime.bip_link ?? "disabled"}</strong></div>
+          <div className="port"><span>BACnet/IP</span><strong>{runtime?.bip_link ?? "disabled"}</strong></div>
           <div className="flow"><i /> <span>NPDU router</span> <i /></div>
-          <div className="port"><span>MS/TP</span><strong>{data?.runtime.mstp_link ?? "disabled"}</strong></div>
+          <div className="port"><span>MS/TP</span><strong>{runtime?.mstp_link ?? "disabled"}</strong></div>
         </div>
         <div className="panel warning-panel">
           <span className="eyebrow">Commissioning state</span>
           <h2>Forwarding is locked</h2>
           <p>The management plane is running. Hardware routing remains fail-closed until the isolated forwarding gates pass.</p>
+          <p><small>Last error: {runtime?.last_error ?? "none"}</small></p>
         </div>
       </section>
       <section className="stats-grid">
@@ -59,6 +61,8 @@ function Overview({ data, capabilities }: { data: MetricsEnvelope | null; capabi
         <Stat label="MS/TP received" value={number.format(m?.mstp_rx_packets ?? 0)} />
         <Stat label="Tokens received" value={number.format(m?.rx_tokens ?? 0)} />
         <Stat label="Invalid frames" value={number.format(m?.invalid_frames ?? 0)} />
+        <Stat label="Event count" value={number.format(m?.event_count ?? 0)} />
+        <Stat label="Serial reconnects" value={number.format(m?.serial_reconnects ?? 0)} />
         <Stat label="CPU" value={`${(system?.cpu_percent ?? 0).toFixed(1)}%`} detail={`Load ${system?.load_1m.toFixed(2) ?? "—"}`} />
         <Stat label="Available memory" value={formatBytes(system?.memory_available_bytes ?? 0)} detail={`Process ${formatBytes(system?.process_rss_bytes ?? 0)}`} />
       </section>
@@ -83,8 +87,11 @@ function Mstp({ data }: { data: MetricsEnvelope | null }) {
     <Stat label="Data CRC errors" value={number.format(m?.data_crc_errors ?? 0)} />
     <Stat label="Silence timer" value={`${data?.runtime.silence_timer_ms ?? 0} ms`} />
     <Stat label="Next station" value={String(data?.runtime.next_station ?? "—")} />
+    <Stat label="Poll station" value={String(data?.runtime.poll_station ?? "—")} />
     <Stat label="RFSM" value={data?.runtime.rfsm_state ?? "not started"} />
     <Stat label="MNSM" value={data?.runtime.mnsm_state ?? "not started"} />
+    <Stat label="Serial reconnects" value={number.format(m?.serial_reconnects ?? 0)} />
+    <Stat label="Last error" value={data?.runtime.last_error ?? "none"} />
   </section>;
 }
 
@@ -110,6 +117,8 @@ function System({ data }: { data: MetricsEnvelope | null }) {
     <Stat label="Load average" value={(s?.load_1m ?? 0).toFixed(2)} detail={`${s?.load_5m.toFixed(2) ?? "—"} / ${s?.load_15m.toFixed(2) ?? "—"}`} />
     <Stat label="Temperature" value={s?.temperature_celsius == null ? "—" : `${s.temperature_celsius.toFixed(1)} °C`} />
     <Stat label="Host uptime" value={`${Math.floor((s?.uptime_seconds ?? 0) / 3600)} h`} />
+    <Stat label="Event count" value={number.format(data?.router.event_count ?? 0)} />
+    <Stat label="Last error" value={data?.runtime.last_error ?? "none"} />
   </section>;
 }
 
@@ -117,8 +126,8 @@ function Configuration() {
   return <section className="panel config-panel">
     <span className="eyebrow">Read-only milestone</span>
     <h2>Configuration is managed over SSH</h2>
-    <p>Edit <code>/etc/diy-bacnet-router/router.toml</code>, validate it, then restart the service. Browser writes stay disabled until authentication, audit logging, atomic persistence and rollback gates pass.</p>
-    <div className="command">sudo vi /etc/diy-bacnet-router/router.toml<br />sudo diy-bacnet-router --config /etc/diy-bacnet-router/router.toml<br />sudo service diy-bacnet-router restart</div>
+    <p>Edit <code>/etc/diy-bacnet-router/router.toml</code>, validate it with <code>--check-config</code> (no socket bind), then restart the service. Browser writes stay disabled until authentication, audit logging, atomic persistence and rollback gates pass.</p>
+    <div className="command">sudo vi /etc/diy-bacnet-router/router.toml<br />sudo diy-bacnet-router --check-config --config /etc/diy-bacnet-router/router.toml<br />sudo service diy-bacnet-router restart</div>
     <a className="button-link" href="/api/config/effective">View effective JSON</a>
   </section>;
 }
@@ -140,7 +149,7 @@ export function App() {
       <aside>
         <div className="device-summary"><span className="eyebrow">Data plane</span><strong>{metrics?.runtime.data_plane ?? "disabled"}</strong><small>{status?.location ?? "test bench"}</small></div>
         <nav>{pages.map((item) => <button key={item} className={page === item ? "active" : ""} onClick={() => setPage(item)}>{item === "mstp" ? "MS/TP" : item === "ip" ? "BACnet/IP" : item}</button>)}</nav>
-        <div className="build"><span>Release v{status?.version ?? "…"}</span><span>Stack {status?.rusty_bacnet_rev ?? "not integrated"}</span></div>
+        <div className="build"><span>Release v{status?.version ?? "…"}</span><span>Git {status?.git_sha ?? "development"}</span><span>Stack {status?.rusty_bacnet_rev ?? "not integrated"}</span></div>
       </aside>
       <main>
         <div className="page-heading"><div><span className="eyebrow">Router management</span><h1>{page === "mstp" ? "MS/TP statistics" : page === "ip" ? "BACnet/IP statistics" : page}</h1></div><span className="timestamp">{metrics ? new Date(metrics.timestamp_unix_ms).toLocaleTimeString() : "waiting for metrics"}</span></div>

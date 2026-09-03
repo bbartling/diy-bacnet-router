@@ -34,6 +34,14 @@ grep -q '\-snapshot' scripts/qemu-smoke.sh
 grep -q 'ready_to_route' scripts/qemu-smoke.sh
 grep -q 'uid=' scripts/qemu-smoke.sh
 
+echo "==> qemu-ui is persistent preview only (snapshot + loopback)"
+test -f scripts/qemu-ui.sh
+grep -q '\-snapshot' scripts/qemu-ui.sh
+grep -q '127.0.0.1' scripts/qemu-ui.sh
+
+echo "==> daemon supports --check-config without binding"
+grep -q -- '--check-config' crates/routerd/src/main.rs
+
 echo "==> Buildroot lock is pinned with commit"
 grep -q '^version = ' config/buildroot-lock.toml
 grep -q '^commit = ' config/buildroot-lock.toml

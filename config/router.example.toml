@@ -6,6 +6,7 @@ location = "test bench"
 bind = "127.0.0.1:8080"
 web_root = "frontend/web/dist"
 metrics_interval_ms = 1000
+max_ws_connections = 8
 
 [router]
 # Forwarding remains false until the rusty-bacnet adapter and routing gates pass.

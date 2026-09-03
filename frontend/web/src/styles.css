@@ -34,6 +34,7 @@ aside { padding: 28px 18px; border-right: 1px solid var(--line); background: #0b
 nav { display: flex; flex-direction: column; gap: 5px; }
 nav button { text-align: left; text-transform: capitalize; color: var(--muted); background: transparent; border: 0; border-radius: 8px; padding: 11px 13px; cursor: pointer; }
 nav button:hover { color: var(--ink); background: #122128; }
+nav button:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; color: var(--ink); }
 nav button.active { color: var(--ink); background: #173139; box-shadow: inset 3px 0 var(--teal); }
 .build { margin-top: auto; padding: 16px 12px 0; border-top: 1px solid var(--line); font-size: 10px; display: flex; flex-direction: column; gap: 5px; overflow-wrap: anywhere; }
 main { min-width: 0; padding: 34px clamp(22px, 4vw, 60px) 60px; }
@@ -60,6 +61,20 @@ h1, h2, p { margin-top: 0; } h1 { margin: 5px 0 0; font-size: clamp(30px, 4vw, 4
 .config-panel { max-width: 850px; }.config-panel code { color: var(--blue); }.command { margin: 22px 0; padding: 17px; border-radius: 8px; background: #071014; color: #bcd0d5; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.7; overflow-x: auto; }
 .button-link { display: inline-flex; color: #08221c; background: var(--teal); padding: 10px 14px; border-radius: 7px; font-weight: 700; text-decoration: none; }
 @media (max-width: 1050px) { .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.hero-grid { grid-template-columns: 1fr; }.gate-list { grid-template-columns: 1fr; } }
-@media (max-width: 700px) { .shell { display: block; }.brand span, aside .device-summary, aside .build { display: none; } header { height: 68px; padding: 0 16px; } aside { border-right: 0; border-bottom: 1px solid var(--line); padding: 8px; overflow-x: auto; } nav { flex-direction: row; min-width: max-content; } main { padding: 25px 15px 50px; }.stats-grid { grid-template-columns: 1fr 1fr; }.route-map { grid-template-columns: 1fr; }.flow { transform: rotate(90deg); margin: 8px auto; width: 100px; }.gate-list li { grid-template-columns: 105px 1fr; } }
+@media (max-width: 700px) {
+  .shell { display: block; }
+  header { height: auto; min-height: 68px; padding: 10px 16px; flex-wrap: wrap; gap: 8px; }
+  .brand span { font-size: 11px; }
+  aside { border-right: 0; border-bottom: 1px solid var(--line); padding: 8px; }
+  .device-summary { padding: 8px 12px 12px; }
+  .device-summary small { display: none; }
+  nav { flex-direction: row; flex-wrap: wrap; }
+  .build { margin-top: 8px; padding: 8px 12px 4px; }
+  main { padding: 25px 15px 50px; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .route-map { grid-template-columns: 1fr; }
+  .flow { transform: rotate(90deg); margin: 8px auto; width: 100px; }
+  .gate-list li { grid-template-columns: 105px 1fr; }
+}
 @media (max-width: 450px) { .stats-grid { grid-template-columns: 1fr; }.timestamp { display: none; } }
 

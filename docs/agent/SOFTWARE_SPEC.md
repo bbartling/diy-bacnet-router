@@ -174,7 +174,7 @@ Full runbook: [docs/operations/LOCAL_BUILDROOT_VM.md](../operations/LOCAL_BUILDR
 Agent loop when `build-os` fails:
 
 1. Inspect the failed GitHub Actions log on the host (`gh run view … --log-failed`).
-2. SSH to the guest and run `scripts/vm-debug-build.sh` (or `.\scripts\vm-ensure.ps1 -DebugBuild` from Windows).
+2. SSH to the guest and run `scripts/vm-debug-build.sh` (or `.\scripts\vm-ensure.ps1 -Hypervisor vmware -DebugBuild` from Windows).
 3. Fix scripts or Buildroot external config on a branch; push.
 4. Confirm green `build-os`, then optional `vm-accept-artifact.sh` on the guest.
 
@@ -243,6 +243,6 @@ milestone at a time (M1 rusty-bacnet adapter → M2 ports → M3 routing).
 | [SPEC.md](SPEC.md) | Milestones M0–M6 and gate ledger |
 | [M0_ARTIFACT_ACCEPTANCE_PROMPT.md](M0_ARTIFACT_ACCEPTANCE_PROMPT.md) | Current M0 agent assignment |
 | [TESTING.md](../TESTING.md) | Gate labels G0–G11 |
-| [.cursor/skills/local-buildroot-vm/SKILL.md](../../.cursor/skills/local-buildroot-vm/SKILL.md) | VirtualBox lab workflow |
+| [.cursor/skills/local-buildroot-vm/SKILL.md](../../.cursor/skills/local-buildroot-vm/SKILL.md) | VMware Ubuntu lab workflow |
 | [.cursor/skills/basrt-educational-router/SKILL.md](../../.cursor/skills/basrt-educational-router/SKILL.md) | Product/UI context for agents |
 | [FULL_STACK_AUDIT.md](FULL_STACK_AUDIT.md) | Production-grade audit/refactor checklist |

@@ -7,6 +7,16 @@ cd "$repo_root"
 
 echo "==> qemu-smoke must not mutate rootfs.ext2 (uses -snapshot)"
 grep -q '\-snapshot' scripts/qemu-smoke.sh
+grep -q 'hostfwd=tcp:127.0.0.1:18080-:8080' scripts/qemu-smoke.sh
+grep -q 'noapic' scripts/qemu-smoke.sh
+
+echo "==> qemu-ui persistent preview contract"
+test -f scripts/qemu-ui.sh
+grep -q '\-snapshot' scripts/qemu-ui.sh
+grep -q 'hostfwd=tcp:127.0.0.1:' scripts/qemu-ui.sh
+grep -q 'start' scripts/qemu-ui.sh
+grep -q 'status' scripts/qemu-ui.sh
+grep -q 'stop' scripts/qemu-ui.sh
 
 echo "==> build-os must verify SHA256SUMS after image build"
 grep -q 'sha256sum --check --strict SHA256SUMS' .github/workflows/build-os.yml

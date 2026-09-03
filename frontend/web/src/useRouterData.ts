@@ -41,6 +41,7 @@ export function useRouterData() {
       if (stopped) return;
       const scheme = window.location.protocol === "https:" ? "wss" : "ws";
       socket = new WebSocket(`${scheme}://${window.location.host}/api/ws/metrics`);
+      (window as unknown as { __dbrMetricsSocket?: WebSocket }).__dbrMetricsSocket = socket;
       socket.onopen = () => setConnection("live");
       socket.onmessage = (event) => {
         try {

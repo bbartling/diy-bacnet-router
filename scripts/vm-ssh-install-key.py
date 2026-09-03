@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install Windows SSH public key on VirtualBox ubuntu2 using password from config/vm.env."""
+"""Install Windows SSH public key on the Ubuntu lab guest using password from config/vm.env."""
 from __future__ import annotations
 
 import sys

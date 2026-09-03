@@ -21,7 +21,7 @@ exists:
    skipped.
 3. Download the x86 artifact and checksum from that run.
 4. Check out the exact `headSha` in detached mode.
-5. Boot the downloaded artifact locally under QEMU (VirtualBox lab VM).
+5. Boot the downloaded artifact locally under QEMU (VMware Ubuntu lab guest).
 6. Verify service startup and `GET /healthz` (expects `status: ok`,
    `data_plane: disabled`, `ready_to_route: false`). Optionally
    `GET /api/status` and WebSocket metrics snapshot (`/api/ws/metrics`).
@@ -113,17 +113,23 @@ git status --short --branch
 bash scripts/qemu-smoke.sh "$HOME/dbr-artifacts/$RUN_ID/<artifact-folder>/images"
 ```
 
-From Windows browser (if QEMU runs on lab VM with port forward): try VM host IP
-and mapped port `18080` after smoke script's `hostfwd=tcp::18080-:8080`.
+From Windows browser, tunnel the QEMU UI preview (loopback-only on the guest):
+
+```bash
+ssh -N -L 18080:127.0.0.1:18080 ubuntu2-buildroot
+# then http://127.0.0.1:18080
+```
+
+Smoke and UI preview both use `hostfwd=tcp:127.0.0.1:18080-:8080`.
 
 ## Acceptance order (checklist)
 
-1. Finish VirtualBox `ubuntu2` SSH key auth (`scripts/vm-authorize-key.ps1`).
-2. Clone repo; `gh auth login` on VM if needed.
+1. Finish VMware `ubuntu2` SSH key auth (`scripts/vm-authorize-key.ps1`).
+2. Clone repo; `gh auth login` on VM if needed (or download artifacts on the Windows host).
 3. Download Actions artifact for successful run.
 4. Verify SHA256SUMS and `build-manifest.json`.
 5. Detached checkout at `headSha`.
-6. QEMU boot + `/healthz`.
+6. QEMU boot + `/healthz` (`scripts/qemu-smoke.sh` or `scripts/qemu-ui.sh`).
 7. Optional: clean `scripts/vm-build-x86.sh` at same SHA; compare manifests.
 8. Update [docs/operations/LOCAL_BUILDROOT_VM.md](../operations/LOCAL_BUILDROOT_VM.md)
    session log.
@@ -131,9 +137,9 @@ and mapped port `18080` after smoke script's `hostfwd=tcp::18080-:8080`.
 ## Windows helpers
 
 ```powershell
-.\scripts\vm-ensure.ps1
+.\scripts\vm-ensure.ps1 -Hypervisor vmware
 .\scripts\vm-authorize-key.ps1          # once
-.\scripts\vm-ensure.ps1 -AcceptRunId <RUN_ID>
+.\scripts\vm-ensure.ps1 -Hypervisor vmware -AcceptRunId <RUN_ID>
 ```
 
 ## After M0 PASS

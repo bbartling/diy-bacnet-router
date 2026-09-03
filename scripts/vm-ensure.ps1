@@ -1,21 +1,25 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-  Start the ubuntu2 Buildroot VM and verify SSH for the agent.
+  Ensure the Ubuntu Buildroot lab guest is reachable over SSH, then run optional tasks.
 
 .DESCRIPTION
-  - Starts VirtualBox VM "ubuntu2" headless if not running
-  - Waits for localhost:2222
-  - Tests key-based SSH (BatchMode)
-  - If keys are missing, prints the one-time authorize command
+  Supported lab is a VMware Ubuntu guest (SSH ben@127.0.0.1:2222). VirtualBox
+  remains an optional start path when VBoxManage and VM "ubuntu2" are present.
+
+  -Hypervisor auto|vmware|virtualbox|none
+  -SkipVmStart  — never start a hypervisor VM; only probe SSH and run scripts
 
 .EXAMPLE
-  .\scripts\vm-ensure.ps1
-  .\scripts\vm-ensure.ps1 -RunSetup
-  .\scripts\vm-ensure.ps1 -AcceptRunId 33642454599
+  .\scripts\vm-ensure.ps1 -Hypervisor vmware
+  .\scripts\vm-ensure.ps1 -SkipVmStart -AcceptRunId 33671378385
+  .\scripts\vm-ensure.ps1 -Hypervisor virtualbox -RunSetup
 #>
 [CmdletBinding()]
 param(
+    [ValidateSet('auto', 'vmware', 'virtualbox', 'none')]
+    [string]$Hypervisor = 'auto',
+    [switch]$SkipVmStart,
     [switch]$RunSetup,
     [switch]$RunBuild,
     [switch]$DebugBuild,
@@ -37,6 +41,11 @@ function Write-Step([string]$Message) {
     Write-Host "==> $Message" -ForegroundColor Cyan
 }
 
+function Test-SshPortOpen {
+    $tcp = Test-NetConnection -ComputerName $SshHost -Port $SshPort -WarningAction SilentlyContinue
+    return [bool]$tcp.TcpTestSucceeded
+}
+
 function Invoke-VmBashScript {
     param(
         [Parameter(Mandatory)][string]$ScriptPath,
@@ -52,24 +61,64 @@ function Invoke-VmBashScript {
     $content | & ssh -p $SshPort $SshTarget $wrapper
 }
 
-if (-not (Test-Path $VBox)) {
-    throw "VirtualBox not found at $VBox"
+function Start-VirtualBoxGuest {
+    if (-not (Test-Path $VBox)) {
+        throw "VirtualBox not found at $VBox. Use -Hypervisor vmware|none or start the VMware guest manually."
+    }
+    $running = & $VBox list runningvms 2>$null | Select-String -SimpleMatch "`"$VmName`""
+    if (-not $running) {
+        Write-Step "Starting VirtualBox VM '$VmName' headless"
+        & $VBox startvm $VmName --type headless | Out-Null
+        Write-Step "Waiting ${BootWaitSeconds}s for boot"
+        Start-Sleep -Seconds $BootWaitSeconds
+    } else {
+        Write-Step "VirtualBox VM '$VmName' already running"
+    }
 }
 
-$running = & $VBox list runningvms 2>$null | Select-String -SimpleMatch "`"$VmName`""
-if (-not $running) {
-    Write-Step "Starting VM '$VmName' headless"
-    & $VBox startvm $VmName --type headless | Out-Null
-    Write-Step "Waiting ${BootWaitSeconds}s for boot"
-    Start-Sleep -Seconds $BootWaitSeconds
-} else {
-    Write-Step "VM '$VmName' already running"
+# Resolve how (or whether) to start a guest.
+$mode = $Hypervisor
+if ($SkipVmStart) {
+    $mode = 'none'
+    Write-Step "SkipVmStart set; not starting any hypervisor VM"
+} elseif ($mode -eq 'auto') {
+    if (Test-SshPortOpen) {
+        $mode = 'none'
+        Write-Step "SSH already reachable on ${SshHost}:${SshPort}; skipping hypervisor start"
+    } elseif (Test-Path $VBox) {
+        $mode = 'virtualbox'
+        Write-Step "auto: VirtualBox present and SSH closed; will try VirtualBox start"
+    } else {
+        $mode = 'vmware'
+        Write-Step "auto: no VirtualBox; expecting a manually started VMware guest"
+    }
+}
+
+switch ($mode) {
+    'virtualbox' {
+        Start-VirtualBoxGuest
+    }
+    'vmware' {
+        Write-Step "VMware mode: start the Ubuntu guest in VMware if needed (no GUI automation)"
+        Write-Host "    Expected SSH: ${SshUser}@${SshHost}:${SshPort} (alias ubuntu2-buildroot)" -ForegroundColor DarkGray
+    }
+    'none' {
+        Write-Step "none mode: hypervisor start skipped"
+    }
+    default {
+        throw "Unknown hypervisor mode: $mode"
+    }
 }
 
 Write-Step "Checking TCP ${SshHost}:${SshPort}"
-$tcp = Test-NetConnection -ComputerName $SshHost -Port $SshPort -WarningAction SilentlyContinue
-if (-not $tcp.TcpTestSucceeded) {
-    throw "SSH port ${SshHost}:${SshPort} is not open. Wait longer or inspect VM network/NAT forwarding."
+if (-not (Test-SshPortOpen)) {
+    throw @"
+SSH port ${SshHost}:${SshPort} is not open.
+Start the Ubuntu guest in VMware (NAT port forward host 2222 -> guest 22), then re-run:
+  .\scripts\vm-ensure.ps1 -Hypervisor vmware
+Or with an already-running guest:
+  .\scripts\vm-ensure.ps1 -SkipVmStart
+"@
 }
 
 Write-Step "Testing key-based SSH"
@@ -90,7 +139,7 @@ if ($sshExit -ne 0) {
     Write-Host "1. Copy config/vm.env.example to config/vm.env and set VM_SSH_PASSWORD" -ForegroundColor Yellow
     Write-Host "2. Run: .\scripts\vm-authorize-key.ps1" -ForegroundColor White
     Write-Host ""
-    Write-Host "Then re-run: .\scripts\vm-ensure.ps1$(if ($RunSetup) { ' -RunSetup' })$(if ($RunBuild) { ' -RunBuild' })" -ForegroundColor Yellow
+    Write-Host "Then re-run: .\scripts\vm-ensure.ps1 -Hypervisor $Hypervisor$(if ($SkipVmStart) { ' -SkipVmStart' })$(if ($RunSetup) { ' -RunSetup' })$(if ($RunBuild) { ' -RunBuild' })" -ForegroundColor Yellow
     exit 2
 }
 

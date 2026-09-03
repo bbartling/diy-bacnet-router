@@ -39,20 +39,21 @@ copy config\vm.env.example config\vm.env
 
 1. `gh run view <RUN_ID> --log-failed`
 2. Start Ubuntu guest in VMware; confirm SSH: `ssh -p 2222 ben@127.0.0.1`
-3. `.\scripts\vm-ensure.ps1 -DebugBuild` or on guest: `bash scripts/vm-debug-build.sh`
+3. `.\scripts\vm-ensure.ps1 -Hypervisor vmware -DebugBuild` or on guest: `bash scripts/vm-debug-build.sh`
 4. Fix scripts/workflow on Windows branch; push
 5. Confirm `build-os` green
-6. `.\scripts\vm-ensure.ps1 -AcceptRunId <RUN_ID>`
+6. `.\scripts\vm-ensure.ps1 -Hypervisor vmware -AcceptRunId <RUN_ID>`
 
 ## Scripts
 
 | Script | Purpose |
 |--------|---------|
-| `vm-ensure.ps1` | Probe SSH; run setup/debug/accept on guest |
+| `vm-ensure.ps1` | Probe SSH (`-Hypervisor vmware|auto|virtualbox|none`, `-SkipVmStart`); run setup/debug/accept on guest |
 | `vm-authorize-key.ps1` | One-time key via `config/vm.env` |
 | `vm-setup.sh` | apt, node, rust, clone repo (on guest) |
 | `vm-debug-build.sh` | Full x86 build + CI verify + QEMU + post-QEMU checksum |
 | `vm-accept-artifact.sh` | Download GH artifact + QEMU (needs `gh` on guest or host) |
+| `qemu-ui.sh` | Persistent QEMU UI preview (`start`/`status`/`stop`, `-snapshot`, loopback :18080) |
 
 ## Known fix (rootfs checksum)
 

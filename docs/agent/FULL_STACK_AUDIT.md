@@ -26,7 +26,7 @@ This is **not** a generic web app. Agents must respect these boundaries:
 | ARM64 images | Build in CI | Raspberry Pi 64-bit targets build and publish checksums/manifests; QEMU smoke is the x86_64 gate unless a Pi-specific smoke job exists with evidence. |
 | Host networking | **Linux + SSH** | IP addresses, routes, DNS, firewall, and hostname are configured over **SSH** with normal Linux tools (`ip`, `systemd-networkd`, etc.). Not browser-writable until M6 auth gates pass. |
 | Serial / MS/TP | **Waveshare USB TO RS485 (C)** | Persist `/dev/serial/by-id/...` only. 8N1, allowed baud set, no RTS/GPIO direction control on this adapter. |
-| Lab debug | **VirtualBox VM** (`ubuntu2` @ `127.0.0.1:2222`) | Artifact-first workflow per [M0_ARTIFACT_ACCEPTANCE_PROMPT.md](M0_ARTIFACT_ACCEPTANCE_PROMPT.md). **Do not use WSL** for Buildroot lab work when the host WSL environment is unavailable or corrupt. |
+| Lab debug | **VMware Ubuntu guest** (`ubuntu2` @ `127.0.0.1:2222`) | Artifact-first workflow per [M0_ARTIFACT_ACCEPTANCE_PROMPT.md](M0_ARTIFACT_ACCEPTANCE_PROMPT.md). **Do not use WSL** for Buildroot lab work when the host WSL environment is unavailable or corrupt. VirtualBox remains an optional `vm-ensure.ps1 -Hypervisor virtualbox` path. |
 | Dependency lock | `Cargo.lock`, `package-lock.json`, `config/upstream-lock.toml` | CI and Buildroot use `--locked`. Never commit moving `dev` branches. |
 
 **Hard product boundaries** (also in AGENTS.md):
@@ -438,4 +438,4 @@ When finishing an audit or refactor, provide:
 | [SPEC.md](SPEC.md) | Milestones M0–M6 |
 | [TESTING.md](../TESTING.md) | Gate labels G0–G11 |
 | [UPSTREAM_LOCK.md](../UPSTREAM_LOCK.md) | rusty-bacnet pin policy |
-| [LOCAL_BUILDROOT_VM.md](../operations/LOCAL_BUILDROOT_VM.md) | VirtualBox lab workflow |
+| [LOCAL_BUILDROOT_VM.md](../operations/LOCAL_BUILDROOT_VM.md) | VMware Ubuntu lab workflow |

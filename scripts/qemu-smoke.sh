@@ -15,8 +15,8 @@ qemu-system-x86_64 \
   -snapshot \
   -kernel "$images/bzImage" \
   -drive "file=$images/rootfs.ext2,if=virtio,format=raw" \
-  -append "root=/dev/vda console=ttyS0 dbr.bind=0.0.0.0:8080" \
-  -nic "user,model=virtio-net-pci,hostfwd=tcp::18080-:8080" \
+  -append "root=/dev/vda console=ttyS0 noapic dbr.bind=0.0.0.0:8080" \
+  -nic "user,model=virtio-net-pci,hostfwd=tcp:127.0.0.1:18080-:8080" \
   -nographic -no-reboot >"$log" 2>&1 &
 qemu_pid=$!
 
