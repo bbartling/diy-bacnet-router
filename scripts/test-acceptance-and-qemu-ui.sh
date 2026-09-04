@@ -51,15 +51,7 @@ grep -q 'ExitOnForwardFailure' scripts/qemu-ui.sh
 echo "PASS: qemu-ui safety contracts present"
 pass=$((pass + 1))
 
-py() {
-  if command -v python3 >/dev/null 2>&1; then
-    python3 "$@"
-  else
-    python "$@"
-  fi
-}
-
-# Local unit simulation: SHA256SUMS coverage helper via python excerpt
+# Local unit simulation: SHA256SUMS coverage helper
 images="$tmp/images"
 mkdir -p "$images"
 echo hello >"$images/bzImage"
