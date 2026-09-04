@@ -191,14 +191,14 @@ jobs:
               grep -E '^(BR2_ARCH|BR2_PACKAGE_DIY_BACNET_ROUTER|BR2_PACKAGE_HOST_RUSTC|BR2_TARGET_ROOTFS|BR2_LINUX_KERNEL|BR2_TARGET_GENERIC_HOSTNAME)' "$root/.config" || true
             fi
           } > "$diagnostics/build-context.txt"
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always()
         with:
           name: diy-bacnet-router-${{ matrix.target }}-diagnostics-${{ github.run_id }}
           path: ${{ runner.temp }}/dbr-diagnostics-${{ matrix.target }}/
           if-no-files-found: error
           retention-days: 14
-      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: diy-bacnet-router-${{ matrix.target }}-${{ github.sha }}
           path: ${{ runner.temp }}/dbr-buildroot/output/${{ matrix.target }}/images/
