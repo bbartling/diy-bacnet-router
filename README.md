@@ -165,6 +165,19 @@ See [docs/operations/LOCAL_BUILDROOT_VM.md](docs/operations/LOCAL_BUILDROOT_VM.m
 
 Post-M0 routing integration: [docs/agent/CURSOR_CONTINUATION_PROMPT.md](docs/agent/CURSOR_CONTINUATION_PROMPT.md).
 
+## Support DIY BACnet Router
+
+If this project saves you time or helps with BAS / BACnet lab work, you can support continued open-source development through PayPal.
+
+<p align="center">
+  <a href="https://paypal.me/benbartling20/25"><img src="https://img.shields.io/badge/Donate-$25-0070BA?style=for-the-badge&logo=paypal&logoColor=white" alt="Donate $25 via PayPal"></a>
+  <a href="https://paypal.me/benbartling20/50"><img src="https://img.shields.io/badge/Donate-$50-0070BA?style=for-the-badge&logo=paypal&logoColor=white" alt="Donate $50 via PayPal"></a>
+  <a href="https://paypal.me/benbartling20/250"><img src="https://img.shields.io/badge/Donate-$250-0070BA?style=for-the-badge&logo=paypal&logoColor=white" alt="Donate $250 via PayPal"></a>
+  <a href="https://paypal.me/benbartling20"><img src="https://img.shields.io/badge/Donate-Custom%20Amount-0070BA?style=for-the-badge&logo=paypal&logoColor=white" alt="Choose a custom PayPal donation amount"></a>
+</p>
+
+The repository Sponsor button uses [paypal.me/benbartling20](https://paypal.me/benbartling20) so donors see your PayPal profile photo/banner with a single clean link.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
