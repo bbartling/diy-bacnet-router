@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "source": { "kind": "fixture", "identity": "observer-example" },
+  "project_git_sha": "0000000000000000000000000000000000000000",
+  "upstream_sha": "not-integrated",
+  "host": "lab-fixture",
+  "session": "fixture-session-1",
+  "sequence": 1,
+  "timestamp_unix_ms": 0,
+  "monotonic_elapsed_ms": 0,
+  "sample_age_ms": 0,
+  "management_reachable": true,
+  "transport_running": false,
+  "peer_communication_fresh": false,
+  "serial": {
+    "path": "/dev/serial/by-id/EXAMPLE",
+    "present": false,
+    "reconnect_attempts": 0,
+    "reconnect_successes": 0,
+    "last_error": "fixture: adapter not opened"
+  },
+  "observations": {
+    "mstp_rx_frames": { "value": null, "available": false },
+    "mstp_tx_frames": { "value": null, "available": false },
+    "rx_tokens": { "value": null, "available": false },
+    "tx_tokens": { "value": null, "available": false },
+    "header_crc_errors": { "value": null, "available": false },
+    "data_crc_errors": { "value": null, "available": false }
+  },
+  "fsm": {
+    "rfsm_state": "not started",
+    "mnsm_state": "not started",
+    "event_count": { "value": 0, "resettable": true, "unit": "events" }
+  },
+  "probe": {
+    "read_property_ok": 0,
+    "read_property_fail": 0,
+    "latency_ms_p50": null
+  },
+  "host_metrics": {
+    "cpu_percent": { "value": null, "available": false },
+    "process_rss_bytes": { "value": null, "available": false },
+    "load_1m": { "value": null, "available": false },
+    "temperature_celsius": { "value": null, "available": false }
+  },
+  "unsupported": ["extended_frames", "segmentation"],
+  "stale": true
+}

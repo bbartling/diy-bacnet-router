@@ -25,7 +25,9 @@ header { grid-column: 1 / -1; display: flex; align-items: center; padding: 0 28p
 .brand span { margin-top: 2px; color: var(--muted); font-size: 12px; }
 .connection { margin-left: auto; display: flex; align-items: center; gap: 8px; color: var(--muted); text-transform: uppercase; font-size: 11px; letter-spacing: .12em; }
 .connection i { width: 8px; height: 8px; border-radius: 50%; background: var(--amber); box-shadow: 0 0 12px currentColor; }
-.connection-live i { background: var(--teal); }.connection-offline i { background: var(--danger); }
+.connection-live i { background: var(--teal); }
+.connection-stale i { background: var(--amber); }
+.connection-offline i { background: var(--danger); }
 aside { padding: 28px 18px; border-right: 1px solid var(--line); background: #0b151a; display: flex; flex-direction: column; }
 .device-summary { padding: 7px 12px 23px; display: flex; flex-direction: column; }
 .device-summary strong { margin: 7px 0 3px; color: var(--amber); font-size: 21px; text-transform: capitalize; }

@@ -1,15 +1,16 @@
 version: 2
+# open-pull-requests-limit: 0 pauses new Dependabot PRs during active M0/M1 work.
+# Re-enable (limit 5) after an audited dependency batch lands on master.
 updates:
   - package-ecosystem: cargo
     directory: "/"
     schedule: { interval: weekly }
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
   - package-ecosystem: npm
     directory: "/frontend/web"
     schedule: { interval: weekly }
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
   - package-ecosystem: github-actions
     directory: "/"
     schedule: { interval: weekly }
-    open-pull-requests-limit: 5
-
+    open-pull-requests-limit: 0

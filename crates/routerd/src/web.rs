@@ -81,7 +81,13 @@ impl From<&RouterConfig> for PublicEffectiveConfig {
 #[derive(Debug, Clone, Serialize)]
 pub struct MetricsEnvelope {
     schema_version: u8,
+    /// Monotonic publisher sequence (starts at 1 once the background sampler runs).
+    sequence: u64,
     timestamp_unix_ms: u128,
+    /// Age of this sample relative to publisher cadence (ms since previous tick).
+    sample_interval_ms: u64,
+    /// Whether BACnet data-plane counters are observed (false while adapter absent).
+    bacnet_telemetry_available: bool,
     router: RouterMetrics,
     runtime: RuntimeSnapshot,
     system: SystemMetrics,
@@ -95,10 +101,14 @@ impl AppState {
         let ws_limit = Arc::new(Semaphore::new(
             config.management.max_ws_connections as usize,
         ));
+        let interval_ms = config.management.metrics_interval_ms;
 
         let initial = MetricsEnvelope {
             schema_version: 1,
+            sequence: 0,
             timestamp_unix_ms: now_ms(),
+            sample_interval_ms: interval_ms,
+            bacnet_telemetry_available: false,
             router: counters.snapshot(),
             runtime: runtime.snapshot(),
             system: SystemMetrics::default(),
@@ -108,7 +118,6 @@ impl AppState {
         let publisher_counters = Arc::clone(&counters);
         let publisher_runtime = Arc::clone(&runtime);
         let publisher_ticks = Arc::clone(&sample_ticks);
-        let interval_ms = config.management.metrics_interval_ms;
         let sampler = Arc::new(Mutex::new(SystemSampler::default()));
 
         tokio::spawn(async move {
@@ -119,10 +128,14 @@ impl AppState {
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner)
                     .sample();
-                publisher_ticks.fetch_add(1, Ordering::Relaxed);
+                let seq = publisher_ticks.fetch_add(1, Ordering::Relaxed) + 1;
                 let envelope = MetricsEnvelope {
                     schema_version: 1,
+                    sequence: seq,
                     timestamp_unix_ms: now_ms(),
+                    sample_interval_ms: interval_ms,
+                    // Adapter not integrated: counters are scaffold zeros, not observed wire data.
+                    bacnet_telemetry_available: false,
                     router: publisher_counters.snapshot(),
                     runtime: publisher_runtime.snapshot(),
                     system,
@@ -284,31 +297,61 @@ async fn metrics_ws(ws: WebSocketUpgrade, State(state): State<AppState>) -> impl
 }
 
 async fn metrics_socket(mut socket: WebSocket, state: AppState, _permit: OwnedSemaphorePermit) {
+    const MAX_INCOMING_BYTES: usize = 4_096;
+    const WRITE_TIMEOUT: Duration = Duration::from_secs(2);
+
     let mut rx = state.metrics_rx.clone();
-    // Push current snapshot immediately, then wait for publisher updates
-    // or a client close so the semaphore permit is released promptly.
-    loop {
-        let payload = {
-            let snapshot = rx.borrow_and_update().clone();
-            match serde_json::to_string(&snapshot) {
-                Ok(payload) => payload,
-                Err(_) => break,
-            }
+    // Initial snapshot once, then only when the shared publisher advances.
+    // Ping/Pong/Close must not trigger extra snapshots.
+    {
+        let snapshot = rx.borrow_and_update().clone();
+        let Ok(payload) = serde_json::to_string(&snapshot) else {
+            return;
         };
-        if socket.send(Message::Text(payload.into())).await.is_err() {
-            break;
+        if tokio::time::timeout(WRITE_TIMEOUT, socket.send(Message::Text(payload.into())))
+            .await
+            .is_err()
+        {
+            return;
         }
+    }
+
+    loop {
         tokio::select! {
             changed = rx.changed() => {
                 if changed.is_err() {
                     break;
+                }
+                let snapshot = rx.borrow_and_update().clone();
+                let Ok(payload) = serde_json::to_string(&snapshot) else {
+                    break;
+                };
+                match tokio::time::timeout(WRITE_TIMEOUT, socket.send(Message::Text(payload.into()))).await {
+                    Ok(Ok(())) => {}
+                    Ok(Err(_)) | Err(_) => break, // disconnect or slow reader
                 }
             }
             incoming = socket.recv() => {
                 match incoming {
                     None | Some(Err(_)) | Some(Ok(Message::Close(_))) => break,
                     Some(Ok(Message::Ping(payload))) => {
-                        if socket.send(Message::Pong(payload)).await.is_err() {
+                        if payload.len() > MAX_INCOMING_BYTES {
+                            break;
+                        }
+                        if tokio::time::timeout(WRITE_TIMEOUT, socket.send(Message::Pong(payload)))
+                            .await
+                            .is_err()
+                        {
+                            break;
+                        }
+                    }
+                    Some(Ok(Message::Text(text))) => {
+                        if text.len() > MAX_INCOMING_BYTES {
+                            break;
+                        }
+                    }
+                    Some(Ok(Message::Binary(bin))) => {
+                        if bin.len() > MAX_INCOMING_BYTES {
                             break;
                         }
                     }
@@ -356,7 +399,6 @@ async fn prometheus(State(state): State<AppState>) -> Response {
             "dbr_mstp_rx_poll_for_master_total",
             snapshot.router.rx_poll_for_master,
         ),
-        ("dbr_event_count_total", snapshot.router.event_count),
         (
             "dbr_serial_reconnects_total",
             snapshot.router.serial_reconnects,
@@ -365,6 +407,19 @@ async fn prometheus(State(state): State<AppState>) -> Response {
     for (name, value) in counters {
         body.push_str(&format!("# TYPE {name} counter\n{name} {value}\n"));
     }
+    // EventCount is a resettable FSM gauge, not a lifetime counter.
+    body.push_str(&format!(
+        "# TYPE dbr_mstp_event_count gauge\ndbr_mstp_event_count {}\n",
+        snapshot.router.event_count
+    ));
+    body.push_str(&format!(
+        "# TYPE dbr_bacnet_telemetry_available gauge\ndbr_bacnet_telemetry_available {}\n",
+        u64::from(snapshot.bacnet_telemetry_available)
+    ));
+    body.push_str(&format!(
+        "# TYPE dbr_metrics_sequence gauge\ndbr_metrics_sequence {}\n",
+        snapshot.sequence
+    ));
     body.push_str(&format!(
         "# TYPE dbr_metrics_publisher_ticks_total counter\ndbr_metrics_publisher_ticks_total {}\n",
         state.sample_ticks()

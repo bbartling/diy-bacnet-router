@@ -53,6 +53,7 @@ function Overview({ data, capabilities }: { data: MetricsEnvelope | null; capabi
           <span className="eyebrow">Commissioning state</span>
           <h2>Forwarding is locked</h2>
           <p>The management plane is running. Hardware routing remains fail-closed until the isolated forwarding gates pass.</p>
+          <p><small>BACnet telemetry: {data?.bacnet_telemetry_available ? "observed" : "unavailable (scaffold zeros)"}</small></p>
           <p><small>Last error: {runtime?.last_error ?? "none"}</small></p>
         </div>
       </section>
@@ -63,7 +64,7 @@ function Overview({ data, capabilities }: { data: MetricsEnvelope | null; capabi
         <Stat label="Invalid frames" value={number.format(m?.invalid_frames ?? 0)} />
         <Stat label="Event count" value={number.format(m?.event_count ?? 0)} />
         <Stat label="Serial reconnects" value={number.format(m?.serial_reconnects ?? 0)} />
-        <Stat label="CPU" value={`${(system?.cpu_percent ?? 0).toFixed(1)}%`} detail={`Load ${system?.load_1m.toFixed(2) ?? "—"}`} />
+        <Stat label="CPU" value={`${(system?.cpu_percent ?? 0).toFixed(1)}%`} detail={`Load ${system?.load_1m?.toFixed(2) ?? "—"}`} />
         <Stat label="Available memory" value={formatBytes(system?.memory_available_bytes ?? 0)} detail={`Process ${formatBytes(system?.process_rss_bytes ?? 0)}`} />
       </section>
       <section className="panel">
@@ -114,7 +115,7 @@ function System({ data }: { data: MetricsEnvelope | null }) {
     <Stat label="CPU utilization" value={`${(s?.cpu_percent ?? 0).toFixed(1)}%`} />
     <Stat label="Memory used" value={`${memoryUsed.toFixed(1)}%`} detail={`${formatBytes(s?.memory_total_bytes ?? 0)} total`} />
     <Stat label="Process RSS" value={formatBytes(s?.process_rss_bytes ?? 0)} />
-    <Stat label="Load average" value={(s?.load_1m ?? 0).toFixed(2)} detail={`${s?.load_5m.toFixed(2) ?? "—"} / ${s?.load_15m.toFixed(2) ?? "—"}`} />
+    <Stat label="Load average" value={(s?.load_1m ?? 0).toFixed(2)} detail={`${s?.load_5m?.toFixed(2) ?? "—"} / ${s?.load_15m?.toFixed(2) ?? "—"}`} />
     <Stat label="Temperature" value={s?.temperature_celsius == null ? "—" : `${s.temperature_celsius.toFixed(1)} °C`} />
     <Stat label="Host uptime" value={`${Math.floor((s?.uptime_seconds ?? 0) / 3600)} h`} />
     <Stat label="Event count" value={number.format(data?.router.event_count ?? 0)} />
