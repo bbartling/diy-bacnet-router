@@ -98,7 +98,7 @@ jobs:
           sudo apt-get install --yes --no-install-recommends \
             bc build-essential cpio file git libncurses-dev python3 rsync unzip wget xz-utils
       - name: Restore Buildroot download cache
-        uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ runner.temp }}/dbr-buildroot/buildroot-2026.05.2/dl
           key: buildroot-dl-2026.05.2-${{ matrix.target }}-${{ hashFiles('Cargo.lock', 'frontend/web/package-lock.json', 'config/buildroot-lock.toml') }}
