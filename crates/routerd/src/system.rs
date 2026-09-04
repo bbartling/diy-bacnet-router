@@ -122,12 +122,19 @@ fn read_cpu_ticks() -> Option<CpuTicks> {
         .map(str::parse::<u64>)
         .collect::<Result<Vec<_>, _>>()
         .ok()?;
+    // user nice system idle iowait irq softirq steal [guest guest_nice]
+    // guest/guest_nice are already included in user/nice — do not sum them twice.
     if ticks.len() < 4 {
         return None;
     }
+    let accounted = if ticks.len() >= 8 {
+        &ticks[..8]
+    } else {
+        &ticks[..]
+    };
     let idle = ticks[3] + ticks.get(4).copied().unwrap_or_default();
     Some(CpuTicks {
-        total: ticks.iter().sum(),
+        total: accounted.iter().sum(),
         idle,
     })
 }
@@ -150,5 +157,17 @@ mod tests {
         let metrics = SystemSampler::default().sample();
         assert!(metrics.uptime_seconds.is_finite());
         assert!(metrics.cpu_percent.is_finite());
+    }
+
+    #[test]
+    fn cpu_total_excludes_guest_double_count() {
+        // user nice system idle iowait irq softirq steal guest guest_nice
+        let ticks = [10u64, 20, 30, 40, 5, 1, 2, 3, 100, 50];
+        let accounted = &ticks[..8];
+        let idle = ticks[3] + ticks[4];
+        let total: u64 = accounted.iter().sum();
+        assert_eq!(total, 10 + 20 + 30 + 40 + 5 + 1 + 2 + 3);
+        assert_eq!(idle, 45);
+        assert!(total < ticks.iter().sum::<u64>());
     }
 }

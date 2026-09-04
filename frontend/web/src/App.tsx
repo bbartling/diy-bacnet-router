@@ -53,6 +53,7 @@ function Overview({ data, capabilities }: { data: MetricsEnvelope | null; capabi
           <span className="eyebrow">Commissioning state</span>
           <h2>Forwarding is locked</h2>
           <p>The management plane is running. Hardware routing remains fail-closed until the isolated forwarding gates pass.</p>
+          <p><small>BACnet telemetry: {data?.bacnet_telemetry_available ? "observed" : "unavailable (scaffold zeros)"}</small></p>
           <p><small>Last error: {runtime?.last_error ?? "none"}</small></p>
         </div>
       </section>

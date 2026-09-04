@@ -36,6 +36,8 @@ test.describe("management dashboard", () => {
     expect(metrics.ok()).toBeTruthy();
     const metricsBody = await metrics.json();
     expect(metricsBody.schema_version).toBe(1);
+    expect(metricsBody.bacnet_telemetry_available).toBe(false);
+    expect(typeof metricsBody.sequence).toBe("number");
     expect(metricsBody.router).toMatchObject({
       event_count: expect.any(Number),
       serial_reconnects: expect.any(Number),

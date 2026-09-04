@@ -19,6 +19,7 @@ grep -q '\-snapshot' scripts/qemu-smoke.sh
 grep -q '\-snapshot' scripts/qemu-ui.sh
 bash scripts/test-image-evidence-contract.sh
 bash scripts/test-appliance-contract.sh
+bash scripts/test-acceptance-and-qemu-ui.sh
 
 # Buildroot's pkg-cargo infrastructure supplies the single --locked flag for
 # its generated cargo build command. Keep package-specific options free of

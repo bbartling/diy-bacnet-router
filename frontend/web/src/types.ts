@@ -46,7 +46,10 @@ export interface SystemMetrics {
 
 export interface MetricsEnvelope {
   schema_version: number;
+  sequence?: number;
   timestamp_unix_ms: number;
+  sample_interval_ms?: number;
+  bacnet_telemetry_available?: boolean;
   router: RouterMetrics;
   runtime: RuntimeMetrics;
   system: SystemMetrics;
