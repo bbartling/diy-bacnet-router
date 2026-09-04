@@ -1,6 +1,7 @@
-# Support open-source BAS development
+# Support open-source BAS / BACnet router development
+# Sponsor button uses paypal.me so donors see the PayPal profile photo/banner.
 custom:
-  - "https://www.paypal.com/donate/?business=VBRBPMBZ6ZKM8&amount=25&no_recurring=0&item_name=Thank+you+for+supporting+open+source+building+automation+system+software+development&currency_code=USD"
-  - "https://www.paypal.com/donate/?business=VBRBPMBZ6ZKM8&amount=50&no_recurring=0&item_name=Thank+you+for+supporting+open+source+building+automation+system+software+development&currency_code=USD"
-  - "https://www.paypal.com/donate/?business=VBRBPMBZ6ZKM8&amount=250&no_recurring=0&item_name=Thank+you+for+supporting+open+source+building+automation+system+software+development&currency_code=USD"
-  - "https://www.paypal.com/donate/?business=VBRBPMBZ6ZKM8&no_recurring=0&item_name=Thank+you+for+supporting+open+source+building+automation+system+software+development&currency_code=USD"
+  - "https://paypal.me/benbartling20/25"
+  - "https://paypal.me/benbartling20/50"
+  - "https://paypal.me/benbartling20/250"
+  - "https://paypal.me/benbartling20"
