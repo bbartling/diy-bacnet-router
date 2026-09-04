@@ -1,11 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["crates/router-core", "crates/routerd"]
+members = ["crates/router-core", "crates/routerd", "crates/rusty-bacnet-adapter"]
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.82"
+rust-version = "1.93"
 license = "MIT"
 repository = "https://github.com/bbartling/diy-bacnet-router"
 publish = false
@@ -13,8 +13,13 @@ publish = false
 [workspace.dependencies]
 anyhow = "1.0"
 axum = { version = "0.8", features = ["macros", "ws"] }
+bacnet-encoding = { git = "https://github.com/jscott3201/rusty-bacnet", rev = "24e3439694b7d286e57e0a80cf7f1df4bd39d8ad" }
+bacnet-network = { git = "https://github.com/jscott3201/rusty-bacnet", rev = "24e3439694b7d286e57e0a80cf7f1df4bd39d8ad" }
+bacnet-transport = { git = "https://github.com/jscott3201/rusty-bacnet", rev = "24e3439694b7d286e57e0a80cf7f1df4bd39d8ad" }
+bacnet-types = { git = "https://github.com/jscott3201/rusty-bacnet", rev = "24e3439694b7d286e57e0a80cf7f1df4bd39d8ad" }
 http-body-util = "0.1"
 router-core = { path = "crates/router-core" }
+rusty-bacnet-adapter = { path = "crates/rusty-bacnet-adapter" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 thiserror = "2.0"

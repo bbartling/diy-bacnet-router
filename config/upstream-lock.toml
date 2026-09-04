@@ -1,14 +1,23 @@
-# This is an evidence lock, not yet a Cargo dependency. The first integration
-# ticket must replace the short historical value with the currently audited,
-# full 40-character dev SHA and then pin every rusty-bacnet crate to that SHA.
+# This is an evidence lock for the audited rusty-bacnet pin used by
+# crates/rusty-bacnet-adapter. Ordinary routerd startup stays fail-closed.
 [rusty_bacnet]
 repository = "https://github.com/jscott3201/rusty-bacnet"
 branch_audited = "dev"
-revision = "af4e886"
-status = "historical-vibe13-pin-needs-current-full-sha-audit"
+revision = "24e3439694b7d286e57e0a80cf7f1df4bd39d8ad"
+revision_short = "24e3439"
+audited_on = "2026-09-04"
+status = "m1-audited-pin"
+notes = "Candidate tip audited for M1 adapter; Vibe13 hardware evidence does not transfer. Open upstream issues #498-#502 remain MS/TP timing work, not merged PRs."
+
+[rusty_bacnet.audit]
+bacnet_network_tests = "73 passed at pin on Windows host 2026-09-04"
+public_apis = "BACnetRouter, RouterPort, AnyTransport, LoopbackTransport"
+mstp_frames = "standard frames capped at 501 data octets; extended COBS not in this pin"
+msrv = "1.93"
+toolchain_pin_upstream = "1.97.1 (rust-toolchain.toml); project CI remains 1.93.0"
 
 [vibe13]
 repository = "https://github.com/bbartling/py-bacnet-stacks-playground"
 path = "vibe_code_apps_13"
-evidence = "Phase 1 and Phase 2 Gates 1-4/4b; PR 127 merged per operator report"
-
+historical_rusty_bacnet = "af4e88680c51eb4da64dac47f0540a35bf184732"
+evidence = "Phase 1 and Phase 2 Gates 1-4/4b; PR 127 merged per operator report; not transferable to 24e3439"

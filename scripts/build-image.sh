@@ -132,6 +132,9 @@ test -s "$legal_info_archive"
 manifest="$output_dir/images/build-manifest.json"
 buildroot_sha="$(git -C "$source_dir" rev-parse HEAD)"
 project_rust_toolchain="$(awk -F'"' '/^[[:space:]]*channel[[:space:]]*=/{print $2; exit}' "$repo_root/rust-toolchain.toml")"
+rusty_bacnet_rev="$(awk -F'"' '/^revision = /{print $2; exit}' "$repo_root/config/upstream-lock.toml")"
+test -n "$rusty_bacnet_rev"
+test "${#rusty_bacnet_rev}" -eq 40
 cat > "$manifest" <<EOF
 {
   "schema_version": 1,
@@ -144,7 +147,7 @@ cat > "$manifest" <<EOF
   "buildroot_host_cargo_version_file": "buildroot-host-cargo-version.txt",
   "buildroot_version": "$buildroot_version",
   "buildroot_git_sha": "$buildroot_sha",
-  "rusty_bacnet": "not-integrated"
+  "rusty_bacnet": "$rusty_bacnet_rev"
 }
 EOF
 (cd "$output_dir/images" && \

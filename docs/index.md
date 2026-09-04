@@ -22,7 +22,7 @@ fail-closed until routing gates pass with evidence.
 ## Milestones
 
 - [x] **M0** — Scaffold, CI, Buildroot images (x86 + Pi), QEMU smoke
-- [ ] **M1** — rusty-bacnet adapter (pinned upstream)
+- [ ] **M1** — rusty-bacnet adapter pin + loopback tests (forwarding still off)
 - [ ] **M2** — B/IP and MS/TP port qualification
 - [ ] **M3** — Isolated NPDU routing on a bench
 - [ ] **M4** — Faults and MS/TP timing characterization
@@ -44,4 +44,4 @@ fail-closed until routing gates pass with evidence.
 | Buildroot | **2026.05.2** (`config/buildroot-lock.toml`) |
 | Rust (CI) | **1.93.0** |
 | Release | **VERSION** file → dashboard header |
-| rusty-bacnet | M1 — not in Cargo yet |
+| rusty-bacnet | `24e3439694b7d286e57e0a80cf7f1df4bd39d8ad` (M1 pin; forwarding still disabled) |
