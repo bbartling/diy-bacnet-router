@@ -1,0 +1,25 @@
+[package]
+name = "rusty-bacnet-adapter"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+description = "Thin fail-closed adapter over pinned rusty-bacnet public router APIs"
+
+[dependencies]
+bacnet-encoding.workspace = true
+bacnet-network.workspace = true
+bacnet-transport.workspace = true
+bacnet-types.workspace = true
+bytes = "1"
+thiserror.workspace = true
+tokio = { workspace = true, features = ["macros", "rt", "sync", "time"] }
+tracing.workspace = true
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time"] }
+
+[lints]
+workspace = true

@@ -49,6 +49,9 @@ grep -q '^commit = ' config/buildroot-lock.toml
 echo "==> upstream lock documents rusty-bacnet pin"
 grep -q 'rusty-bacnet' config/upstream-lock.toml
 grep -q 'rusty-bacnet' docs/UPSTREAM_LOCK.md
+grep -q 'revision = "24e3439694b7d286e57e0a80cf7f1df4bd39d8ad"' config/upstream-lock.toml
+grep -q '24e3439694b7d286e57e0a80cf7f1df4bd39d8ad' docs/UPSTREAM_LOCK.md
+test -f crates/rusty-bacnet-adapter/src/lib.rs
 
 echo "==> OpenAPI lists core management routes"
 for route in /healthz /api/status /api/metrics/snapshot /api/ws/metrics; do

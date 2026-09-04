@@ -259,7 +259,7 @@ async fn status(State(state): State<AppState>) -> Json<Value> {
         "location": state.config.identity.location,
         "version": env!("DBR_VERSION"),
         "git_sha": option_env!("DBR_GIT_SHA").unwrap_or("development"),
-        "rusty_bacnet_rev": option_env!("RUSTY_BACNET_REV").unwrap_or("not-integrated"),
+        "rusty_bacnet_rev": rusty_bacnet_adapter::UPSTREAM_REVISION_SHORT,
         "runtime": state.runtime.snapshot(),
     }))
 }
