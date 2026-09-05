@@ -22,7 +22,7 @@ permalink: /testing/
 | G0 | Config validation, API contract, bounded metrics | Scaffold implemented |
 | G1 | Buildroot x86 image boots in QEMU and `/healthz` responds | Workflow prepared |
 | G2 | Raspberry Pi 3/4/5 images build and publish manifests | Workflow prepared |
-| G3 | Current rusty-bacnet pin and adapter compile/tests | Open |
+| G3 | Current rusty-bacnet pin and adapter compile/tests | **M1 closeout** — concrete B/IP+MS/TP fixtures (no OS open) |
 | G4 | Passive Waveshare C decode: valid frames/tokens, no TX | Open in new repo |
 | G5 | MS/TP master joins isolated ring without disrupting peer | Open |
 | G6 | B/IP port local unicast/broadcast behavior | Open |

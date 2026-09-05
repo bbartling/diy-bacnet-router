@@ -21,7 +21,7 @@
 
 Boards today: **x86-64** (lab/QEMU) and **Raspberry Pi 3/4/5**. MS/TP uses USB RS-485 adapters via `/dev/serial/by-id/...` (reference: Waveshare USB TO RS485 C).
 
-> **Today:** Milestone **0** complete (images + management). rusty-bacnet is **pinned** and a fail-closed adapter crate exists (`24e3439…`). **NPDU forwarding stays disabled** until M2/M3 evidence. Concrete B/IP + MS/TP port fixtures (M1 closeout) and port qualification (M2) are next.
+> **Today:** Milestone **0** complete (images + management). Milestone **1** closeout: rusty-bacnet pinned (`24e3439…`) with concrete B/IP + MS/TP compile/config fixtures (no OS ports opened at ordinary boot). **NPDU forwarding stays disabled** until M2/M3 evidence.
 
 | Pin | Lock | Value |
 | --- | --- | --- |
@@ -42,7 +42,7 @@ Badges track **`master`**. Open PRs run the same workflows on their branch.
 Details: [docs/agent/SPEC.md](docs/agent/SPEC.md).
 
 - [x] **M0 — Scaffold and OS images** — management API/UI, CI, Buildroot x86+Pi, QEMU smoke
-- [ ] **M1 — rusty-bacnet adapter closeout** — pin present; loopback fixture present; **concrete B/IP + MS/TP compile/config fixtures** still required before marking M1 done
+- [x] **M1 — rusty-bacnet adapter closeout** — pin + concrete B/IP/MS/TP compile/config fixtures (transports not started at ordinary boot)
 - [ ] **M2 — Port qualification** — M2A B/IP on Linux netns; M2B physical MS/TP (separate)
 - [ ] **M3 — Isolated routing** — NPDU forwarding between distinct networks
 - [ ] **M4 — Faults and timing**

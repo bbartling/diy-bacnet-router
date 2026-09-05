@@ -65,8 +65,9 @@ Rust compiler is checked independently from `rust-toolchain.toml`.
 
 Audit current rusty-bacnet `dev`; pin a full SHA. Add
 `crates/rusty-bacnet-adapter` using public B/IP, MS/TP and network-layer APIs.
-Create deterministic in-memory tests before opening OS ports. File focused
-upstream issues/PRs for missing generic behavior rather than forking internals.
+Create deterministic in-memory / no-OS-open tests before opening sockets or tty.
+Concrete B/IP + MS/TP factories and validation are part of M1 closeout; ordinary
+`routerd` boot remains fail-closed (transports not started).
 
 ### M2 — Independent port qualification
 
