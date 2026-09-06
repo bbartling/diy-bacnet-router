@@ -9,6 +9,14 @@ pub const SUPPORTED_BAUD: [u32; 6] = [9_600, 19_200, 38_400, 57_600, 76_800, 115
 
 /// Waveshare USB TO RS485 (C) uses hardware automatic DE/RE — no Linux RS-485 ioctl/GPIO.
 pub const WAVESHARE_AUTO_DIRECTION_PROFILE: &str = "waveshare-usb-to-rs485-c";
+/// Waveshare USB TO RS485 (B) also uses hardware automatic DE/RE (peer / Vibe13 path).
+pub const WAVESHARE_B_AUTO_DIRECTION_PROFILE: &str = "waveshare-usb-to-rs485-b";
+
+fn is_hardware_auto_direction_profile(profile: &str) -> bool {
+    profile == WAVESHARE_AUTO_DIRECTION_PROFILE
+        || profile == WAVESHARE_B_AUTO_DIRECTION_PROFILE
+        || profile.contains("auto")
+}
 
 #[derive(Debug, Error)]
 pub enum AdapterError {
@@ -76,8 +84,7 @@ pub fn validate_mstp_params(input: &MstpValidationInput) -> Result<(), AdapterEr
         ));
     }
     if input.require_hardware_auto_direction
-        && input.adapter_profile != WAVESHARE_AUTO_DIRECTION_PROFILE
-        && !input.adapter_profile.contains("auto")
+        && !is_hardware_auto_direction_profile(&input.adapter_profile)
     {
         return Err(AdapterError::Validation(
             "this profile requires hardware auto-direction (no simultaneous Linux RS-485 ioctl/RTS/GPIO)"
