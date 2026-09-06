@@ -21,7 +21,7 @@
 
 Boards today: **x86-64** (lab/QEMU) and **Raspberry Pi 3/4/5**. MS/TP uses USB RS-485 adapters via `/dev/serial/by-id/...` (reference: Waveshare USB TO RS485 C).
 
-> **Today:** Milestone **0** and **1** complete. **M2A** qualifies a standalone BACnet/IP port on Linux netns (`--bip-qualify`); **M2B** MS/TP and NPDU forwarding remain disabled.
+> **Today:** Milestones **0** and **1** complete. **G6/M2A** qualifies standalone BACnet/IP (independent BVLL oracle + unicast/directed-broadcast matrix on Linux netns). **M2B** physical MS/TP and NPDU forwarding remain disabled.
 
 | Pin | Lock | Value |
 | --- | --- | --- |
@@ -43,7 +43,7 @@ Details: [docs/agent/SPEC.md](docs/agent/SPEC.md).
 
 - [x] **M0 — Scaffold and OS images** — management API/UI, CI, Buildroot x86+Pi, QEMU smoke
 - [x] **M1 — rusty-bacnet adapter closeout** — pin + concrete B/IP/MS/TP compile/config fixtures (transports not started at ordinary boot)
-- [ ] **M2 — Port qualification** — **M2A** B/IP netns (opt-in `--bip-qualify`); **M2B** physical MS/TP still open
+- [ ] **M2 — Port qualification** — **G6/M2A** B/IP netns matrix PASS; **M2B** physical MS/TP still open
 - [ ] **M3 — Isolated routing** — NPDU forwarding between distinct networks
 - [ ] **M4 — Faults and timing**
 - [ ] **M5 — Production-shaped images / Pi hardware validation**

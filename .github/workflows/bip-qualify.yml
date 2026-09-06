@@ -22,16 +22,28 @@ jobs:
         with:
           toolchain: 1.93.0
       - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Offline oracle and false-PASS regressions
+        run: |
+          bash scripts/test-bip-bvll-oracle.sh
+          bash scripts/test-bip-g6-false-pass.sh
       - name: Build routerd
         run: cargo build -p routerd --locked
-      - name: Run B/IP netns qualification
+      - name: Run G6 B/IP netns qualification
         run: |
-          sudo -E env "PATH=$PATH" "DBR_BIN=$PWD/target/debug/diy-bacnet-router" \
+          EVIDENCE_ROOT="$RUNNER_TEMP/dbr-bip-g6"
+          mkdir -p "$EVIDENCE_ROOT"
+          sudo -E env "PATH=$PATH" \
+            "DBR_BIN=$PWD/target/debug/diy-bacnet-router" \
+            "DBR_BIP_EVIDENCE_DIR=$EVIDENCE_ROOT/run" \
             bash scripts/bip-qualify-netns.sh
-      - name: Upload diagnostics on failure
-        if: failure()
+          test -f "$EVIDENCE_ROOT/run/result.json"
+          test -f "$EVIDENCE_ROOT/run/SHA256SUMS"
+          python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); assert r["status"]=="PASS"' \
+            "$EVIDENCE_ROOT/run/result.json"
+      - name: Upload G6 evidence
+        if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: bip-qualify-diagnostics
-          path: /tmp/dbr-bip-qualify-*
-          if-no-files-found: ignore
+          name: bip-g6-evidence
+          path: ${{ runner.temp }}/dbr-bip-g6/
+          if-no-files-found: warn
