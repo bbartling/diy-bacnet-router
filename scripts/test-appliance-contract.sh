@@ -46,6 +46,8 @@ echo "==> ordinary routerd startup stays management-only (no B/IP/MS/TP session)
 ! grep -E 'build_bip_transport|build_mstp_transport|build_heterogeneous_ports|LoopbackRouterSession|BACnetRouter::' crates/routerd/src/main.rs
 ! grep -E 'build_bip_transport|build_mstp_transport|TokioSerialPort::open|BipTransport::start' crates/routerd/src/*.rs
 grep -q 'BACnet forwarding is disabled' crates/routerd/src/main.rs
+grep -q 'bip_qualify' crates/routerd/src/main.rs
+grep -q -- '--bip-qualify' crates/routerd/src/main.rs
 
 echo "==> Buildroot lock is pinned with commit"
 grep -q '^version = ' config/buildroot-lock.toml

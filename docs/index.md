@@ -23,7 +23,7 @@ fail-closed until routing gates pass with evidence.
 
 - [x] **M0** — Scaffold, CI, Buildroot images (x86 + Pi), QEMU smoke
 - [x] **M1** — rusty-bacnet pin + concrete B/IP/MS/TP compile/config fixtures (forwarding still off)
-- [ ] **M2** — B/IP and MS/TP port qualification
+- [ ] **M2** — B/IP (M2A netns) and MS/TP (M2B) port qualification — M2A harness present; M2B open
 - [ ] **M3** — Isolated NPDU routing on a bench
 - [ ] **M4** — Faults and MS/TP timing characterization
 - [ ] **M5** — Production-shaped Pi images

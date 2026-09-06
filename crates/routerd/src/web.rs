@@ -20,8 +20,8 @@ use axum::{
     Json, Router,
 };
 use router_core::{
-    BacnetIpConfig, Counters, IdentityConfig, MstpConfig, RouterConfig, RouterControlConfig,
-    RouterMetrics, RuntimeSnapshot, RuntimeState,
+    BacnetIpConfig, Counters, DataPlaneState, IdentityConfig, MstpConfig, RouterConfig,
+    RouterControlConfig, RouterMetrics, RuntimeSnapshot, RuntimeState,
 };
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -38,6 +38,9 @@ use crate::system::{SystemMetrics, SystemSampler};
 pub struct AppState {
     config: Arc<RouterConfig>,
     runtime: Arc<RuntimeState>,
+    counters: Arc<Counters>,
+    /// When true, B/IP qualify is publishing observed counters (MS/TP still unavailable).
+    bacnet_telemetry_available: Arc<std::sync::atomic::AtomicBool>,
     metrics_rx: watch::Receiver<MetricsEnvelope>,
     sample_ticks: Arc<AtomicU64>,
     ws_limit: Arc<Semaphore>,
@@ -97,6 +100,7 @@ impl AppState {
     pub fn new(config: Arc<RouterConfig>) -> Self {
         let counters = Arc::new(Counters::default());
         let runtime = Arc::new(RuntimeState::default());
+        let bacnet_telemetry_available = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let sample_ticks = Arc::new(AtomicU64::new(0));
         let ws_limit = Arc::new(Semaphore::new(
             config.management.max_ws_connections as usize,
@@ -118,6 +122,7 @@ impl AppState {
         let publisher_counters = Arc::clone(&counters);
         let publisher_runtime = Arc::clone(&runtime);
         let publisher_ticks = Arc::clone(&sample_ticks);
+        let publisher_telemetry = Arc::clone(&bacnet_telemetry_available);
         let sampler = Arc::new(Mutex::new(SystemSampler::default()));
 
         tokio::spawn(async move {
@@ -134,8 +139,7 @@ impl AppState {
                     sequence: seq,
                     timestamp_unix_ms: now_ms(),
                     sample_interval_ms: interval_ms,
-                    // Transports not started: counters are scaffold zeros, not observed wire data.
-                    bacnet_telemetry_available: false,
+                    bacnet_telemetry_available: publisher_telemetry.load(Ordering::Relaxed),
                     router: publisher_counters.snapshot(),
                     runtime: publisher_runtime.snapshot(),
                     system,
@@ -149,10 +153,41 @@ impl AppState {
         Self {
             config,
             runtime,
+            counters,
+            bacnet_telemetry_available,
             metrics_rx: rx,
             sample_ticks,
             ws_limit,
         }
+    }
+
+    #[must_use]
+    pub fn counters(&self) -> Arc<Counters> {
+        Arc::clone(&self.counters)
+    }
+
+    pub fn set_bacnet_telemetry_available(&self, available: bool) {
+        self.bacnet_telemetry_available
+            .store(available, Ordering::Relaxed);
+    }
+
+    /// Mark B/IP qualify active: B/IP operational, MS/TP not qualified, forwarding off.
+    pub fn mark_bip_qualify_active(&self) {
+        self.set_bacnet_telemetry_available(true);
+        self.runtime.replace(RuntimeSnapshot {
+            data_plane: DataPlaneState::Disabled,
+            bip_link: DataPlaneState::Operational,
+            mstp_link: DataPlaneState::Disabled,
+            rfsm_state: "not_qualified".into(),
+            mnsm_state: "not_qualified".into(),
+            next_station: None,
+            poll_station: None,
+            silence_timer_ms: 0,
+            last_error: Some(
+                "M2A B/IP qualify only: MS/TP not qualified; forwarding disabled; malformed/drop counters unavailable upstream"
+                    .into(),
+            ),
+        });
     }
 
     fn metrics(&self) -> MetricsEnvelope {

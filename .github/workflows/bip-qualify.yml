@@ -1,0 +1,37 @@
+name: bip-qualify
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bip-qualify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  netns:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # v1
+        with:
+          toolchain: 1.93.0
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - name: Build routerd
+        run: cargo build -p routerd --locked
+      - name: Run B/IP netns qualification
+        run: |
+          sudo -E env "PATH=$PATH" "DBR_BIN=$PWD/target/debug/diy-bacnet-router" \
+            bash scripts/bip-qualify-netns.sh
+      - name: Upload diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: bip-qualify-diagnostics
+          path: /tmp/dbr-bip-qualify-*
+          if-no-files-found: ignore
