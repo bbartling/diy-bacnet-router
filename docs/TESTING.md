@@ -20,7 +20,7 @@ permalink: /testing/
 | Gate | Purpose | Initial status |
 |---|---|---|
 | G0 | Config validation, API contract, bounded metrics | Scaffold implemented |
-| G1 | Buildroot x86 image boots in QEMU and `/healthz` responds | Workflow prepared |
+| G1 | Buildroot x86 image boots in QEMU and `/healthz` responds | **PASS** at `35fe618` — Actions QEMU smoke + local SHA256; see [M2A_X86_ACCEPTANCE.md](evidence/M2A_X86_ACCEPTANCE.md) (VMware guest still blocked) |
 | G2 | Raspberry Pi 3/4/5 images build and publish manifests | Workflow prepared |
 | G3 | Current rusty-bacnet pin and adapter compile/tests | **M1 closeout** — concrete B/IP+MS/TP fixtures (no OS open) |
 | G3a | Standalone B/IP netns smoke (historical) | Superseded by G6 matrix |
