@@ -25,8 +25,9 @@ jobs:
       - name: Build routerd
         run: cargo build -p routerd --locked
       - name: Run B/IP netns qualification
-        run: sudo -E env "PATH=$PATH" "DBR_BIN=$PWD/target/debug/diy-bacnet-router" \
-          bash scripts/bip-qualify-netns.sh
+        run: |
+          sudo -E env "PATH=$PATH" "DBR_BIN=$PWD/target/debug/diy-bacnet-router" \
+            bash scripts/bip-qualify-netns.sh
       - name: Upload diagnostics on failure
         if: failure()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
