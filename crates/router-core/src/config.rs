@@ -43,6 +43,8 @@ pub struct RouterControlConfig {
 pub struct BacnetIpConfig {
     pub interface: String,
     pub bind_address: String,
+    /// Directed broadcast for `BipTransport::new` (required by upstream).
+    pub broadcast_address: String,
     pub udp_port: u16,
     pub network: u16,
     pub bbmd_enabled: bool,
@@ -87,6 +89,7 @@ impl Default for BacnetIpConfig {
         Self {
             interface: "eth0".to_owned(),
             bind_address: "0.0.0.0".to_owned(),
+            broadcast_address: "255.255.255.255".to_owned(),
             udp_port: 47_808,
             network: 1,
             bbmd_enabled: false,
@@ -195,6 +198,22 @@ impl RouterConfig {
                 "bacnet_ip.interface must not be empty".into(),
             ));
         }
+        self.bacnet_ip
+            .bind_address
+            .parse::<std::net::Ipv4Addr>()
+            .map_err(|error| {
+                ConfigError::Validation(format!(
+                    "bacnet_ip.bind_address must be an IPv4 address: {error}"
+                ))
+            })?;
+        self.bacnet_ip
+            .broadcast_address
+            .parse::<std::net::Ipv4Addr>()
+            .map_err(|error| {
+                ConfigError::Validation(format!(
+                    "bacnet_ip.broadcast_address must be an IPv4 address: {error}"
+                ))
+            })?;
         if !SUPPORTED_BAUD.contains(&self.mstp.baud) {
             return Err(ConfigError::Validation(format!(
                 "mstp.baud must be one of {SUPPORTED_BAUD:?}"

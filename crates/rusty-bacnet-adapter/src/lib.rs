@@ -5,9 +5,13 @@
 //! start transports, or enable forwarding unless an explicit isolated session
 //! (tests or a later qualification harness) asks for it.
 
+mod bip_qualify;
 mod ports;
 mod validate;
 
+pub use bip_qualify::{
+    assert_bind_on_interface, encode_bip_mac, BipQualifyCounters, BipQualifySession,
+};
 pub use ports::{
     build_bip_transport, build_heterogeneous_ports, build_mstp_transport, ApplianceRouterPort,
     ApplianceSerial, ApplianceTransport, BipTransportParams, MstpTransportParams,

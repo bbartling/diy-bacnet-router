@@ -16,7 +16,8 @@ enabled = false
 [bacnet_ip]
 interface = "eth0"
 bind_address = "0.0.0.0"
-# broadcast_address is required by upstream BipTransport::new; added at M2A.
+# Required by upstream BipTransport::new; ordinary boot still does not start B/IP.
+broadcast_address = "255.255.255.255"
 udp_port = 47808
 network = 1
 bbmd_enabled = false
