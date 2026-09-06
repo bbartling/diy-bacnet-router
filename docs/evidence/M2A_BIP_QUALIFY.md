@@ -7,6 +7,7 @@
 | Upstream pin | `24e3439694b7d286e57e0a80cf7f1df4bd39d8ad` |
 | Harness | `scripts/bip-qualify-netns.sh` |
 | Opt-in | `diy-bacnet-router --bip-qualify` (ordinary boot does **not** start B/IP) |
+| Merge SHA | `6d36e593430f722563aabd87cd40d455b7698c52` |
 
 ## Claims
 
@@ -26,7 +27,12 @@
 
 Trusted GitHub-hosted Ubuntu job: `.github/workflows/bip-qualify.yml`
 
-## Post-merge fill
+## Post-merge Actions
 
-- bip-qualify run ID:
-- Merge SHA:
+- bip-qualify run ID (PR): `34003661661`
+- CI run ID (PR): `34003661593`
+- build-os run ID (PR x86): `34003661633`
+- Tip master CI: `34007152133`
+- Tip master bip-qualify: `34007152084`
+- Tip master build-os (full matrix): `34007152106`
+- Local VM Buildroot/qemu-ui: **BLOCKED** — SSH `127.0.0.1:2222` refused (Actions covered image + netns)
