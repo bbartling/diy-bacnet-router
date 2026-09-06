@@ -67,7 +67,16 @@ async fn main() -> Result<()> {
     let app = web::app(state.clone());
 
     let qualify_handle = if args.bip_qualify {
-        Some(spawn_bip_qualify(state.clone(), config.clone(), args.qualify_secs).await?)
+        Some(
+            spawn_bip_qualify(
+                state.clone(),
+                config.clone(),
+                args.qualify_secs,
+                args.send_unicast,
+                args.send_broadcast,
+            )
+            .await?,
+        )
     } else {
         None
     };
@@ -80,7 +89,11 @@ async fn main() -> Result<()> {
 
     if let Some((stop_tx, join)) = qualify_handle {
         let _ = stop_tx.send(());
-        let _ = join.await;
+        match join.await {
+            Ok(Ok(())) => {}
+            Ok(Err(error)) => return Err(error),
+            Err(error) => anyhow::bail!("B/IP qualify task join failed: {error}"),
+        }
     }
     Ok(())
 }
@@ -89,7 +102,9 @@ async fn spawn_bip_qualify(
     state: web::AppState,
     config: RouterConfig,
     qualify_secs: u64,
-) -> Result<(oneshot::Sender<()>, tokio::task::JoinHandle<()>)> {
+    send_unicast: Option<(Ipv4Addr, u16, u32)>,
+    send_broadcast: Option<u32>,
+) -> Result<(oneshot::Sender<()>, tokio::task::JoinHandle<Result<()>>)> {
     let params = bip_params_from_config(&config)?;
     let mut session = BipQualifySession::start(&params)
         .await
@@ -109,20 +124,58 @@ async fn spawn_bip_qualify(
                     let (rx, tx) = qualify_counters.snapshot();
                     counters.bip_rx_packets.store(rx, Ordering::Relaxed);
                     counters.bip_tx_packets.store(tx, Ordering::Relaxed);
-                    // Forwarding must remain exactly zero during qualify.
                     counters.forwarded_bip_to_mstp.store(0, Ordering::Relaxed);
                     counters.forwarded_mstp_to_bip.store(0, Ordering::Relaxed);
                 }
             }
         });
+
+        let tx = session.tx_handle();
+        let delay_ms: u64 = env::var("DBR_QUALIFY_TX_DELAY_MS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(1_500);
+        let tx_task = tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(delay_ms)).await;
+            if let Some((ip, port, count)) = send_unicast {
+                let mac = encode_bip_mac(ip, port);
+                tx.send_unicast_burst(&mac, count)
+                    .await
+                    .context("qualify-send-unicast")?;
+            }
+            if let Some(count) = send_broadcast {
+                tx.send_broadcast_burst(count)
+                    .await
+                    .context("qualify-send-broadcast")?;
+            }
+            Ok::<(), anyhow::Error>(())
+        });
+
         session
             .run_receive_loop(stop_rx, Duration::from_secs(qualify_secs))
             .await;
+        let tx_res = tx_task.await.context("qualify TX task join")?;
         mirror.abort();
-        if let Err(error) = session.stop().await {
-            warn!(%error, "B/IP qualify stop failed");
-        }
-        info!("B/IP qualify session stopped");
+
+        let stop_res = session.stop().await;
+        let reason = match (&tx_res, &stop_res) {
+            (Ok(()), Ok(())) => {
+                "B/IP qualify session ended; bip_link cleared; forwarding remains disabled"
+                    .to_owned()
+            }
+            (Err(error), _) => format!("B/IP qualify TX failed: {error}"),
+            (_, Err(error)) => format!("B/IP qualify stop failed: {error}"),
+        };
+        state.mark_bip_qualify_inactive(&reason);
+
+        let (rx, txc) = qualify_counters.snapshot();
+        counters.bip_rx_packets.store(rx, Ordering::Relaxed);
+        counters.bip_tx_packets.store(txc, Ordering::Relaxed);
+
+        tx_res?;
+        stop_res.context("stopping B/IP qualify session")?;
+        info!(rx, tx = txc, "B/IP qualify session stopped");
+        Ok(())
     });
     Ok((stop_tx, join))
 }
@@ -186,6 +239,8 @@ struct CliArgs {
     qualify_secs: u64,
     probe_count: u32,
     peer_target: Option<(Ipv4Addr, u16)>,
+    send_unicast: Option<(Ipv4Addr, u16, u32)>,
+    send_broadcast: Option<u32>,
 }
 
 impl CliArgs {
@@ -196,9 +251,11 @@ impl CliArgs {
         let mut check_config = false;
         let mut bip_qualify = false;
         let mut bip_qualify_peer = false;
-        let mut qualify_secs = 120;
-        let mut probe_count = 5;
+        let mut qualify_secs = 120_u64;
+        let mut probe_count = 5_u32;
         let mut peer_target = None;
+        let mut send_unicast = None;
+        let mut send_broadcast = None;
         while let Some(arg) = args.next() {
             match arg.as_str() {
                 "--config" => {
@@ -237,16 +294,35 @@ impl CliArgs {
                         port.parse().context("peer port")?,
                     ));
                 }
+                "--qualify-send-unicast" => {
+                    let value = args
+                        .next()
+                        .context("--qualify-send-unicast requires IP:PORT:N")?;
+                    let parts: Vec<&str> = value.rsplitn(3, ':').collect();
+                    if parts.len() != 3 {
+                        anyhow::bail!("--qualify-send-unicast must be IP:PORT:N");
+                    }
+                    let count: u32 = parts[0].parse().context("unicast count")?;
+                    let port: u16 = parts[1].parse().context("unicast port")?;
+                    let ip: Ipv4Addr = parts[2].parse().context("unicast IP")?;
+                    send_unicast = Some((ip, port, count));
+                }
+                "--qualify-send-broadcast" => {
+                    let value = args.next().context("--qualify-send-broadcast requires N")?;
+                    send_broadcast = Some(value.parse().context("--qualify-send-broadcast")?);
+                }
                 "--help" | "-h" => {
                     println!(
                         "diy-bacnet-router [options]\n\n\
-  --check-config              Validate configuration, then exit without binding\n\
-  --config PATH               Configuration file (default: config/router.toml or DBR_CONFIG)\n\
-  --bip-qualify               Open one B/IP socket (M2A); management stays up; no forwarding\n\
-  --bip-qualify-peer          Peer helper: start B/IP, send probes, exit (no management UI)\n\
-  --qualify-secs N            Max qualify session duration (default 120)\n\
-  --probe-count N             Peer probe count (default 5)\n\
-  --peer-target IP:PORT       Unicast probes to DUT BIP endpoint (else broadcast)"
+  --check-config                 Validate configuration, then exit without binding\n\
+  --config PATH                  Configuration file (default: config/router.toml or DBR_CONFIG)\n\
+  --bip-qualify                  Open one B/IP socket (G6); management stays up; no forwarding\n\
+  --bip-qualify-peer             Peer helper: start B/IP, send probes, exit (no management UI)\n\
+  --qualify-secs N               Max qualify session duration (1..=600, default 120)\n\
+  --probe-count N                Peer probe count (1..=64, default 5)\n\
+  --peer-target IP:PORT          Unicast probes to DUT BIP endpoint (else broadcast)\n\
+  --qualify-send-unicast IP:PORT:N  DUT scheduled unicast TX during --bip-qualify\n\
+  --qualify-send-broadcast N     DUT scheduled directed-broadcast TX during --bip-qualify"
                     );
                     process::exit(0);
                 }
@@ -256,6 +332,28 @@ impl CliArgs {
         if bip_qualify && bip_qualify_peer {
             anyhow::bail!("--bip-qualify and --bip-qualify-peer are mutually exclusive");
         }
+        if !(1..=600).contains(&qualify_secs) {
+            anyhow::bail!("--qualify-secs must be in 1..=600 (got {qualify_secs})");
+        }
+        if !(1..=64).contains(&probe_count) {
+            anyhow::bail!("--probe-count must be in 1..=64 (got {probe_count})");
+        }
+        if let Some((_, _, count)) = send_unicast {
+            if !(1..=64).contains(&count) {
+                anyhow::bail!("--qualify-send-unicast count must be in 1..=64");
+            }
+            if !bip_qualify {
+                anyhow::bail!("--qualify-send-unicast requires --bip-qualify");
+            }
+        }
+        if let Some(count) = send_broadcast {
+            if !(1..=64).contains(&count) {
+                anyhow::bail!("--qualify-send-broadcast must be in 1..=64");
+            }
+            if !bip_qualify {
+                anyhow::bail!("--qualify-send-broadcast requires --bip-qualify");
+            }
+        }
         Ok(Self {
             config_path: path,
             check_config,
@@ -264,6 +362,8 @@ impl CliArgs {
             qualify_secs,
             probe_count,
             peer_target,
+            send_unicast,
+            send_broadcast,
         })
     }
 }

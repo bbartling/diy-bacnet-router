@@ -10,7 +10,8 @@ mod ports;
 mod validate;
 
 pub use bip_qualify::{
-    assert_bind_on_interface, encode_bip_mac, BipQualifyCounters, BipQualifySession,
+    assert_bind_on_interface, encode_bip_mac, BipQualifyCounters, BipQualifySession, BipQualifyTx,
+    GOLDEN_NPDU,
 };
 pub use ports::{
     build_bip_transport, build_heterogeneous_ports, build_mstp_transport, ApplianceRouterPort,

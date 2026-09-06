@@ -21,6 +21,8 @@ bash scripts/test-image-evidence-contract.sh
 bash scripts/test-appliance-contract.sh
 bash scripts/test-upstream-pin.sh
 bash scripts/test-acceptance-and-qemu-ui.sh
+bash scripts/test-bip-bvll-oracle.sh
+bash scripts/test-bip-g6-false-pass.sh
 
 # Buildroot's pkg-cargo infrastructure supplies the single --locked flag for
 # its generated cargo build command. Keep package-specific options free of
