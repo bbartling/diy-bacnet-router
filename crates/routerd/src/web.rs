@@ -134,7 +134,7 @@ impl AppState {
                     sequence: seq,
                     timestamp_unix_ms: now_ms(),
                     sample_interval_ms: interval_ms,
-                    // Adapter not integrated: counters are scaffold zeros, not observed wire data.
+                    // Transports not started: counters are scaffold zeros, not observed wire data.
                     bacnet_telemetry_available: false,
                     router: publisher_counters.snapshot(),
                     runtime: publisher_runtime.snapshot(),

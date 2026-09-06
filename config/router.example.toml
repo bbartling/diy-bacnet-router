@@ -9,12 +9,14 @@ metrics_interval_ms = 1000
 max_ws_connections = 8
 
 [router]
-# Forwarding remains false until the rusty-bacnet adapter and routing gates pass.
+# Forwarding remains false until M2/M3 port qualification and routing gates pass.
+# Adapter compile fixtures exist; ordinary boot still does not start transports.
 enabled = false
 
 [bacnet_ip]
 interface = "eth0"
 bind_address = "0.0.0.0"
+# broadcast_address is required by upstream BipTransport::new; added at M2A.
 udp_port = 47808
 network = 1
 bbmd_enabled = false

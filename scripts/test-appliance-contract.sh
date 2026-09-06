@@ -42,6 +42,11 @@ grep -q '127.0.0.1' scripts/qemu-ui.sh
 echo "==> daemon supports --check-config without binding"
 grep -q -- '--check-config' crates/routerd/src/main.rs
 
+echo "==> ordinary routerd startup stays management-only (no B/IP/MS/TP session)"
+! grep -E 'build_bip_transport|build_mstp_transport|build_heterogeneous_ports|LoopbackRouterSession|BACnetRouter::' crates/routerd/src/main.rs
+! grep -E 'build_bip_transport|build_mstp_transport|TokioSerialPort::open|BipTransport::start' crates/routerd/src/*.rs
+grep -q 'BACnet forwarding is disabled' crates/routerd/src/main.rs
+
 echo "==> Buildroot lock is pinned with commit"
 grep -q '^version = ' config/buildroot-lock.toml
 grep -q '^commit = ' config/buildroot-lock.toml

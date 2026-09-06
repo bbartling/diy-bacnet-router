@@ -52,7 +52,9 @@ impl Default for RuntimeSnapshot {
             next_station: None,
             poll_station: None,
             silence_timer_ms: 0,
-            last_error: Some("rusty-bacnet router adapter is not integrated".into()),
+            last_error: Some(
+                "BACnet transports not started; forwarding awaits M2/M3 evidence".into(),
+            ),
         }
     }
 }
@@ -94,7 +96,9 @@ impl RuntimeState {
             Capability {
                 id: "bip_mstp_routing".into(),
                 state: CapabilityState::BlockedByEvidence,
-                detail: "adapter and isolated NPDU forwarding gates are open".into(),
+                detail:
+                    "concrete adapter fixtures exist; isolated NPDU forwarding gates remain open"
+                        .into(),
             },
             Capability {
                 id: "extended_mstp_frames".into(),

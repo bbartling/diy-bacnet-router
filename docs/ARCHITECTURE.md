@@ -41,8 +41,9 @@ RS-485      ◄──►│ MS/TP └──────────────�
   Axum, serial or BACnet dependency.
 - `routerd`: process entry point, Linux metrics, HTTP/WebSocket endpoints and
   static React serving.
-- future `rusty-bacnet-adapter`: the only crate allowed to translate upstream
-  transport/network events into the stable router-core interfaces.
+- `rusty-bacnet-adapter`: the only crate allowed to translate upstream
+  rusty-bacnet public APIs into appliance types (B/IP, MS/TP, `AnyTransport`)
+  and map transport/network events into the stable router-core interfaces.
 
 The adapter must use the actual pinned `bacnet-transport` and `bacnet-network`
 APIs. It must not reimplement CRC, MS/TP state machines, BVLC or NPDU codecs.

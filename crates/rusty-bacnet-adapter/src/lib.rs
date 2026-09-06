@@ -1,16 +1,27 @@
 //! Thin adapter over audited rusty-bacnet public APIs.
 //!
-//! This crate intentionally does **not** open BACnet UDP sockets, own a UART, or
-//! enable forwarding unless a caller explicitly constructs an isolated test
-//! session. Ordinary appliance startup must remain fail-closed.
+//! Adapter **types** are integrated at the pinned SHA. Ordinary appliance startup
+//! must remain fail-closed: this crate does **not** bind BACnet UDP, open a UART,
+//! start transports, or enable forwarding unless an explicit isolated session
+//! (tests or a later qualification harness) asks for it.
+
+mod ports;
+mod validate;
+
+pub use ports::{
+    build_bip_transport, build_heterogeneous_ports, build_mstp_transport, ApplianceRouterPort,
+    ApplianceSerial, ApplianceTransport, BipTransportParams, MstpTransportParams,
+};
+pub use validate::{
+    validate_bip_params, validate_distinct_networks, validate_mstp_params, validate_serial_path,
+    AdapterError, SUPPORTED_BAUD, WAVESHARE_AUTO_DIRECTION_PROFILE,
+};
 
 use bacnet_network::router::{BACnetRouter, RouterPort};
 use bacnet_transport::any::AnyTransport;
 use bacnet_transport::loopback::LoopbackTransport;
 use bacnet_transport::mstp::NoSerial;
 use bacnet_transport::port::TransportPort;
-use bacnet_types::error::Error as BacnetError;
-use thiserror::Error;
 use tokio::sync::mpsc;
 
 /// Full 40-character rusty-bacnet commit pinned by `config/upstream-lock.toml`.
@@ -21,22 +32,6 @@ pub const UPSTREAM_REVISION_SHORT: &str = "24e3439";
 
 /// Audited repository URL.
 pub const UPSTREAM_REPOSITORY: &str = "https://github.com/jscott3201/rusty-bacnet";
-
-#[derive(Debug, Error)]
-pub enum AdapterError {
-    #[error("BACnet networks must be distinct and in 1..=65534 (got {0} and {1})")]
-    InvalidNetworks(u16, u16),
-    #[error(transparent)]
-    Upstream(#[from] BacnetError),
-}
-
-fn validate_distinct_networks(a: u16, b: u16) -> Result<(), AdapterError> {
-    let ok = |n: u16| (1..=65534).contains(&n);
-    if a == b || !ok(a) || !ok(b) {
-        return Err(AdapterError::InvalidNetworks(a, b));
-    }
-    Ok(())
-}
 
 /// Isolated two-port loopback router session for deterministic tests.
 ///

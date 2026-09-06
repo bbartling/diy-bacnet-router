@@ -22,7 +22,7 @@ fail-closed until routing gates pass with evidence.
 ## Milestones
 
 - [x] **M0** — Scaffold, CI, Buildroot images (x86 + Pi), QEMU smoke
-- [ ] **M1** — rusty-bacnet adapter pin + loopback tests (forwarding still off)
+- [x] **M1** — rusty-bacnet pin + concrete B/IP/MS/TP compile/config fixtures (forwarding still off)
 - [ ] **M2** — B/IP and MS/TP port qualification
 - [ ] **M3** — Isolated NPDU routing on a bench
 - [ ] **M4** — Faults and MS/TP timing characterization
