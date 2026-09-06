@@ -40,4 +40,10 @@ Also: forwarding and MS/TP counters remain 0; metrics sequence advances; durable
 
 ## Post-merge Actions
 
-- Fill after merge: PR/tip run IDs and merge SHA.
+| Item | Value |
+| --- | --- |
+| Merge SHA | `35fe6182f6192aad72dccf6365d97b46e25fdf0b` (PR #55) |
+| Tip `ci` | [34063045217](https://github.com/bbartling/diy-bacnet-router/actions/runs/34063045217) |
+| Tip `bip-qualify` | [34063045185](https://github.com/bbartling/diy-bacnet-router/actions/runs/34063045185) |
+| Tip `build-os` | [34063045175](https://github.com/bbartling/diy-bacnet-router/actions/runs/34063045175) |
+| x86 accept evidence | [M2A_X86_ACCEPTANCE.md](M2A_X86_ACCEPTANCE.md) |
