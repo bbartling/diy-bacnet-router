@@ -40,6 +40,8 @@ Exit codes: all **0** on Windows host 2026-09-05. Post-merge CI/`build-os` run I
 
 ## Post-merge Actions (fill on merge)
 
-- CI run ID:
-- build-os run ID:
-- Merge SHA:
+- CI run ID (PR): `33999863663`
+- build-os run ID (PR x86): `33999863664`
+- Tip master CI (post-merge): `34003180172`
+- Tip master build-os (post-merge): `34003180186`
+- Merge SHA: `014d99cb6e81b27ba7584af026abe6d05d6d2ef3`
