@@ -6,6 +6,7 @@
 //! (tests or a later qualification harness) asks for it.
 
 mod bip_qualify;
+mod mstp_qualify;
 mod ports;
 mod validate;
 
@@ -13,6 +14,7 @@ pub use bip_qualify::{
     assert_bind_on_interface, encode_bip_mac, BipQualifyCounters, BipQualifySession, BipQualifyTx,
     GOLDEN_NPDU,
 };
+pub use mstp_qualify::{open_appliance_serial, MstpQualifyCounters, MstpQualifySession};
 pub use ports::{
     build_bip_transport, build_heterogeneous_ports, build_mstp_transport, ApplianceRouterPort,
     ApplianceSerial, ApplianceTransport, BipTransportParams, MstpTransportParams,
@@ -20,6 +22,7 @@ pub use ports::{
 pub use validate::{
     validate_bip_params, validate_distinct_networks, validate_mstp_params, validate_serial_path,
     AdapterError, SUPPORTED_BAUD, WAVESHARE_AUTO_DIRECTION_PROFILE,
+    WAVESHARE_B_AUTO_DIRECTION_PROFILE,
 };
 
 use bacnet_network::router::{BACnetRouter, RouterPort};

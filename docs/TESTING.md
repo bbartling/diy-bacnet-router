@@ -25,7 +25,7 @@ permalink: /testing/
 | G3 | Current rusty-bacnet pin and adapter compile/tests | **M1 closeout** — concrete B/IP+MS/TP fixtures (no OS open) |
 | G3a | Standalone B/IP netns smoke (historical) | Superseded by G6 matrix |
 | G4 | Passive Waveshare C decode: valid frames/tokens, no TX | Open in new repo |
-| G5 | MS/TP master joins isolated ring without disrupting peer | Open |
+| G5 | MS/TP master joins isolated ring without disrupting peer | Open — software `--mstp-qualify` prepared; physical M2B pending |
 | G6 | B/IP port local unicast/broadcast behavior | **PASS** — independent BVLL oracle + exact matrix (`bip-qualify-netns.sh`) |
 | G7 | Routed unicast ReadProperty in both directions | Open |
 | G8 | Routed Who-Is/I-Am and router network messages | Open |

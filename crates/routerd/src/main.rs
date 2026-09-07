@@ -12,7 +12,10 @@ use std::{
 
 use anyhow::{Context, Result};
 use router_core::RouterConfig;
-use rusty_bacnet_adapter::{encode_bip_mac, BipQualifySession, BipTransportParams};
+use rusty_bacnet_adapter::{
+    encode_bip_mac, open_appliance_serial, BipQualifySession, BipTransportParams,
+    MstpQualifySession, MstpTransportParams,
+};
 use tokio::sync::oneshot;
 use tracing::{info, warn};
 
@@ -74,6 +77,16 @@ async fn main() -> Result<()> {
                 args.qualify_secs,
                 args.send_unicast,
                 args.send_broadcast,
+            )
+            .await?,
+        )
+    } else if args.mstp_qualify {
+        Some(
+            spawn_mstp_qualify(
+                state.clone(),
+                config.clone(),
+                args.qualify_secs,
+                args.mstp_report.clone(),
             )
             .await?,
         )
@@ -180,6 +193,70 @@ async fn spawn_bip_qualify(
     Ok((stop_tx, join))
 }
 
+async fn spawn_mstp_qualify(
+    state: web::AppState,
+    config: RouterConfig,
+    qualify_secs: u64,
+    report_path: Option<PathBuf>,
+) -> Result<(oneshot::Sender<()>, tokio::task::JoinHandle<Result<()>>)> {
+    let params = MstpTransportParams {
+        this_station: config.mstp.mac,
+        max_master: config.mstp.max_master,
+        max_info_frames: config.mstp.max_info_frames,
+        baud_rate: config.mstp.baud,
+        network: config.mstp.network,
+        serial_path: config.mstp.serial.clone(),
+        adapter_profile: config.mstp.adapter_profile.clone(),
+    };
+    let serial = open_appliance_serial(&params).context("opening MS/TP serial for qualify")?;
+    let mut session = MstpQualifySession::start(serial, &params)
+        .await
+        .context("starting MS/TP qualify session")?;
+    state.mark_mstp_qualify_active();
+    let counters = state.counters();
+    let qualify_counters = session.counters();
+    let (stop_tx, stop_rx) = oneshot::channel();
+    let join = tokio::spawn(async move {
+        let mirror = tokio::spawn({
+            let qualify_counters = Arc::clone(&qualify_counters);
+            let counters = Arc::clone(&counters);
+            async move {
+                let mut ticker = tokio::time::interval(Duration::from_millis(200));
+                loop {
+                    ticker.tick().await;
+                    let (events, poll, next, _token_pfm, _samples) =
+                        qualify_counters.snapshot_tuple();
+                    // Map only observed MasterNode-derived fields; do not invent CRC totals.
+                    counters.event_count.store(events, Ordering::Relaxed);
+                    counters.forwarded_bip_to_mstp.store(0, Ordering::Relaxed);
+                    counters.forwarded_mstp_to_bip.store(0, Ordering::Relaxed);
+                    let _ = (poll, next);
+                }
+            }
+        });
+        session
+            .run_until(stop_rx, Duration::from_secs(qualify_secs))
+            .await;
+        mirror.abort();
+        let stop_res = session.stop().await;
+        let reason = match &stop_res {
+            Ok(()) => "MS/TP qualify session ended; mstp_link cleared; forwarding remains disabled"
+                .to_owned(),
+            Err(error) => format!("MS/TP qualify stop failed: {error}"),
+        };
+        state.mark_mstp_qualify_inactive(&reason);
+        if let Some(path) = report_path {
+            session
+                .write_report(&path, "mstp-qualify")
+                .context("writing mstp qualify report")?;
+        }
+        stop_res.context("stopping MS/TP qualify session")?;
+        info!("MS/TP qualify session stopped");
+        Ok(())
+    });
+    Ok((stop_tx, join))
+}
+
 async fn run_bip_qualify_peer(
     config: &RouterConfig,
     probe_count: u32,
@@ -236,11 +313,13 @@ struct CliArgs {
     check_config: bool,
     bip_qualify: bool,
     bip_qualify_peer: bool,
+    mstp_qualify: bool,
     qualify_secs: u64,
     probe_count: u32,
     peer_target: Option<(Ipv4Addr, u16)>,
     send_unicast: Option<(Ipv4Addr, u16, u32)>,
     send_broadcast: Option<u32>,
+    mstp_report: Option<PathBuf>,
 }
 
 impl CliArgs {
@@ -251,11 +330,13 @@ impl CliArgs {
         let mut check_config = false;
         let mut bip_qualify = false;
         let mut bip_qualify_peer = false;
+        let mut mstp_qualify = false;
         let mut qualify_secs = 120_u64;
         let mut probe_count = 5_u32;
         let mut peer_target = None;
         let mut send_unicast = None;
         let mut send_broadcast = None;
+        let mut mstp_report = None;
         while let Some(arg) = args.next() {
             match arg.as_str() {
                 "--config" => {
@@ -269,6 +350,14 @@ impl CliArgs {
                 }
                 "--bip-qualify-peer" => {
                     bip_qualify_peer = true;
+                }
+                "--mstp-qualify" => {
+                    mstp_qualify = true;
+                }
+                "--mstp-report" => {
+                    mstp_report = Some(PathBuf::from(
+                        args.next().context("--mstp-report requires a path")?,
+                    ));
                 }
                 "--qualify-secs" => {
                     qualify_secs = args
@@ -322,7 +411,9 @@ impl CliArgs {
   --probe-count N                Peer probe count (1..=64, default 5)\n\
   --peer-target IP:PORT          Unicast probes to DUT BIP endpoint (else broadcast)\n\
   --qualify-send-unicast IP:PORT:N  DUT scheduled unicast TX during --bip-qualify\n\
-  --qualify-send-broadcast N     DUT scheduled directed-broadcast TX during --bip-qualify"
+  --qualify-send-broadcast N     DUT scheduled directed-broadcast TX during --bip-qualify\n\
+  --mstp-qualify                 Open one MS/TP port (M2B software); no B/IP; no forwarding\n\
+  --mstp-report PATH             Write atomic MS/TP qualify JSON report"
                     );
                     process::exit(0);
                 }
@@ -331,6 +422,12 @@ impl CliArgs {
         }
         if bip_qualify && bip_qualify_peer {
             anyhow::bail!("--bip-qualify and --bip-qualify-peer are mutually exclusive");
+        }
+        if mstp_qualify && (bip_qualify || bip_qualify_peer) {
+            anyhow::bail!("--mstp-qualify cannot combine with B/IP qualify flags");
+        }
+        if mstp_report.is_some() && !mstp_qualify {
+            anyhow::bail!("--mstp-report requires --mstp-qualify");
         }
         if !(1..=600).contains(&qualify_secs) {
             anyhow::bail!("--qualify-secs must be in 1..=600 (got {qualify_secs})");
@@ -359,11 +456,13 @@ impl CliArgs {
             check_config,
             bip_qualify,
             bip_qualify_peer,
+            mstp_qualify,
             qualify_secs,
             probe_count,
             peer_target,
             send_unicast,
             send_broadcast,
+            mstp_report,
         })
     }
 }

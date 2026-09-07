@@ -206,6 +206,41 @@ impl AppState {
         });
     }
 
+    /// Mark MS/TP qualify active: MS/TP experimental observation, B/IP not opened, forwarding off.
+    pub fn mark_mstp_qualify_active(&self) {
+        self.set_bacnet_telemetry_available(true);
+        self.runtime.replace(RuntimeSnapshot {
+            data_plane: DataPlaneState::Disabled,
+            bip_link: DataPlaneState::Disabled,
+            mstp_link: DataPlaneState::Operational,
+            rfsm_state: "qualifying".into(),
+            mnsm_state: "qualifying".into(),
+            next_station: None,
+            poll_station: None,
+            silence_timer_ms: 0,
+            last_error: Some(
+                "M2B MS/TP qualify only: B/IP not opened; forwarding disabled; CRC aggregates unavailable upstream"
+                    .into(),
+            ),
+        });
+    }
+
+    /// Clear MS/TP qualify operational state after session end or fault.
+    pub fn mark_mstp_qualify_inactive(&self, reason: &str) {
+        self.set_bacnet_telemetry_available(false);
+        self.runtime.replace(RuntimeSnapshot {
+            data_plane: DataPlaneState::Disabled,
+            bip_link: DataPlaneState::Disabled,
+            mstp_link: DataPlaneState::Disabled,
+            rfsm_state: "not_qualified".into(),
+            mnsm_state: "not_qualified".into(),
+            next_station: None,
+            poll_station: None,
+            silence_timer_ms: 0,
+            last_error: Some(reason.to_owned()),
+        });
+    }
+
     fn metrics(&self) -> MetricsEnvelope {
         self.metrics_rx.borrow().clone()
     }
