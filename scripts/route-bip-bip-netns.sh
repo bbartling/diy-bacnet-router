@@ -243,6 +243,23 @@ ip netns exec "$NS_A" python3 "$ORACLE" send \
   --out "$EVIDENCE_DIR/send_a_to_b_retry.json"
 
 sleep 1
+
+# M4 software fault: DUT A NIC down while management plane must stay honest.
+ip -n "$NS_DUT" link set "$VA_D" down
+sleep 0.3
+ip netns exec "$NS_DUT" curl -fsS "http://127.0.0.1:${MGMT_PORT}/healthz" \
+  >"$EVIDENCE_DIR/health_link_down.json"
+python3 - "$EVIDENCE_DIR/health_link_down.json" <<'PY'
+import json,sys
+h=json.load(open(sys.argv[1]))
+assert h["ready_to_route"] is False
+assert h["status"]=="ok"
+PY
+ip -n "$NS_DUT" link set "$VA_D" up
+sleep 0.2
+
+# SIGTERM DUT so graceful shutdown writes --route-report.
+# (Management plane keeps running after the router session timeout; do not wait forever.)
 kill -TERM "$DUT_PID" 2>/dev/null || true
 wait "$DUT_PID" 2>/dev/null || true
 DUT_PID=""
@@ -280,6 +297,10 @@ subgates = {
     "mstp_absent": {
         "pass": (not rp.exists()) or report.get("mstp") is False,
         "note": "dual-B/IP path must not claim MS/TP; report optional if DUT aborted",
+    },
+    "link_down_mgmt": {
+        "pass": (ev / "health_link_down.json").exists(),
+        "note": "M4: management /healthz survived controlled ip link down; G9 hardware still OPEN",
     },
 }
 status = "PASS" if all(s.get("pass") for s in subgates.values()) else "FAIL"

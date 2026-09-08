@@ -356,7 +356,7 @@ async fn spawn_dual_bip_session(
     let session = DualBipRouterSession::start(&a, &b)
         .await
         .context("starting dual B/IP router session")?;
-    state.mark_routing_active();
+    state.mark_dual_bip_routing_active();
     let (stop_tx, stop_rx) = oneshot::channel();
     let join = tokio::spawn(async move {
         let _ = tokio::time::timeout(Duration::from_secs(qualify_secs), stop_rx).await;
