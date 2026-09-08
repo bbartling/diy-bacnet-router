@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouterData } from "./useRouterData";
 import type { Capability, MetricsEnvelope } from "./types";
 
@@ -124,12 +124,49 @@ function System({ data }: { data: MetricsEnvelope | null }) {
 }
 
 function Configuration() {
+  const [writesEnabled, setWritesEnabled] = useState<boolean | null>(null);
+  const [secretPresent, setSecretPresent] = useState<boolean | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void (async () => {
+      try {
+        const audit = await fetch("/api/audit", {
+          headers: { Accept: "application/json" },
+          signal: controller.signal,
+        }).then(async (response) => {
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return response.json() as Promise<{ writes_enabled?: boolean; write_secret_present?: boolean }>;
+        });
+        setWritesEnabled(Boolean(audit.writes_enabled));
+        setSecretPresent(Boolean(audit.write_secret_present));
+        setLoadError(null);
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          setLoadError(error instanceof Error ? error.message : "audit fetch failed");
+        }
+      }
+    })();
+    return () => controller.abort();
+  }, []);
+
+  const blocked = writesEnabled !== true;
+
   return <section className="panel config-panel">
     <span className="eyebrow">Read-only milestone</span>
     <h2>Configuration is managed over SSH</h2>
     <p>Edit <code>/etc/diy-bacnet-router/router.toml</code>, validate it with <code>--check-config</code> (no socket bind), then restart the service. Browser writes stay disabled until authentication, audit logging, atomic persistence and rollback gates pass.</p>
+    <p className={blocked ? "writes-status writes-blocked" : "writes-status"}>
+      {loadError
+        ? `Write status unavailable (${loadError}).`
+        : blocked
+          ? `Browser writes blocked (writes_enabled=${String(writesEnabled)} · secret_present=${String(secretPresent)}). No save action is offered.`
+          : "Lab unlock flags observed — write handler still unwired; no browser save."}
+    </p>
     <div className="command">sudo vi /etc/diy-bacnet-router/router.toml<br />sudo diy-bacnet-router --check-config --config /etc/diy-bacnet-router/router.toml<br />sudo service diy-bacnet-router restart</div>
     <a className="button-link" href="/api/config/effective">View effective JSON</a>
+    <a className="button-link" href="/api/audit">View audit JSON</a>
   </section>;
 }
 

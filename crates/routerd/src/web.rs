@@ -424,19 +424,25 @@ async fn effective_config(State(state): State<AppState>) -> Json<PublicEffective
 
 /// M6 scaffold: mutating config stays closed until auth/audit gates pass.
 async fn config_write_blocked(State(state): State<AppState>) -> impl IntoResponse {
-    state
-        .audit_log()
-        .record("anonymous", "config.write", "denied", WRITES_BLOCKED_DETAIL);
-    if management_writes_enabled() {
-        // Unreachable until M6 flips the policy bit with evidence.
+    let unlocked = management_writes_enabled();
+    if unlocked {
+        state.audit_log().record(
+            "lab",
+            "config.write",
+            "denied",
+            "DBR_ALLOW_WRITES unlock present but write handler not wired (no fake save)",
+        );
         (
-            StatusCode::NOT_IMPLEMENTED,
+            StatusCode::FORBIDDEN,
             Json(json!({
-                "error": "not_implemented",
-                "detail": "management write handler is not wired",
+                "error": "writes_unlocked_but_unwired",
+                "detail": "lab unlock observed; persistence handler not implemented; no config change applied",
             })),
         )
     } else {
+        state
+            .audit_log()
+            .record("anonymous", "config.write", "denied", WRITES_BLOCKED_DETAIL);
         (
             StatusCode::FORBIDDEN,
             Json(json!({
@@ -450,6 +456,8 @@ async fn config_write_blocked(State(state): State<AppState>) -> impl IntoRespons
 async fn audit_snapshot(State(state): State<AppState>) -> Json<Value> {
     Json(json!({
         "writes_enabled": management_writes_enabled(),
+        "write_secret_present": router_core::write_secret_present(),
+        "password_scheme": "experimental_sha256_salt_lab_only",
         "events": state.audit_log().snapshot(),
     }))
 }

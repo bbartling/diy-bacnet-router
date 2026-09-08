@@ -61,6 +61,8 @@ h1, h2, p { margin-top: 0; } h1 { margin: 5px 0 0; font-size: clamp(30px, 4vw, 4
 .gate { padding: 5px 7px; border-radius: 5px; text-align: center; font-size: 9px; text-transform: uppercase; letter-spacing: .07em; background: #26343a; color: var(--muted); }
 .gate-available { background: #173d35; color: var(--teal); }.gate-experimental { background: #26384e; color: var(--blue); }.gate-blocked_by_evidence { background: #4a3b20; color: var(--amber); }
 .config-panel { max-width: 850px; }.config-panel code { color: var(--blue); }.command { margin: 22px 0; padding: 17px; border-radius: 8px; background: #071014; color: #bcd0d5; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.7; overflow-x: auto; }
+.writes-status { margin: 14px 0 0; font-weight: 600; color: var(--text); }
+.writes-blocked { color: #d7b36a; }
 .button-link { display: inline-flex; color: #08221c; background: var(--teal); padding: 10px 14px; border-radius: 7px; font-weight: 700; text-decoration: none; }
 @media (max-width: 1050px) { .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }.hero-grid { grid-template-columns: 1fr; }.gate-list { grid-template-columns: 1fr; } }
 @media (max-width: 700px) {

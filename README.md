@@ -47,7 +47,7 @@ Details: [docs/agent/SPEC.md](docs/agent/SPEC.md).
 - [ ] **M3 — Isolated routing** — dual-B/IP CI netns + `--route-enable` software; **G7/G8 BIP↔MS/TP bench OPEN**
 - [ ] **M4 — Faults and timing** — CI software faults + dual-B/IP link-down survival; **G9 hardware OPEN**
 - [ ] **M5 — Production-shaped images / Pi hardware validation**
-- [ ] **M6 — Management writes** — auth/audit scaffold + `POST /api/config` 403; writes remain blocked
+- [ ] **M6 — Management writes** — auth/session skeleton + env unlock only; `POST /api/config` stays 403; capability blocked
 
 </details>
 
