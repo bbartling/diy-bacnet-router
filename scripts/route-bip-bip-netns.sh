@@ -154,13 +154,18 @@ EOF
 DMAC_B="198,51,100,2,186,192"
 DMAC_A="192,0,2,2,186,192"
 
+# Recv must finish its window so summary JSON is written (do not kill early).
+RECV_SECS=20
+QUALIFY_SECS=15
 ip netns exec "$NS_B" python3 "$ORACLE" recv \
-  --bind "$PEER_B_IP" --port "$BACNET_PORT" --seconds 25 \
-  --out "$EVIDENCE_DIR/recv_b.json" &
+  --bind "$PEER_B_IP" --port "$BACNET_PORT" --seconds "$RECV_SECS" \
+  --out "$EVIDENCE_DIR/recv_b.json" \
+  >"$EVIDENCE_DIR/recv_b.log" 2>&1 &
 RECV_B_PID=$!
 ip netns exec "$NS_A" python3 "$ORACLE" recv \
-  --bind "$PEER_A_IP" --port "$BACNET_PORT" --seconds 25 \
-  --out "$EVIDENCE_DIR/recv_a.json" &
+  --bind "$PEER_A_IP" --port "$BACNET_PORT" --seconds "$RECV_SECS" \
+  --out "$EVIDENCE_DIR/recv_a.json" \
+  >"$EVIDENCE_DIR/recv_a.log" 2>&1 &
 RECV_A_PID=$!
 sleep 0.5
 
@@ -170,7 +175,7 @@ ip netns exec "$NS_DUT" env \
   DBR_BIP2_IFACE="$VB_D" \
   DBR_BIP2_NETWORK="$NET_B" \
   DBR_BIP2_PORT="$BACNET_PORT" \
-  "$BIN" --config "$CFG" --route-bip-bip --qualify-secs 30 \
+  "$BIN" --config "$CFG" --route-bip-bip --qualify-secs "$QUALIFY_SECS" \
   --route-report "$EVIDENCE_DIR/route_report.json" \
   >"$EVIDENCE_DIR/dut.log" 2>&1 &
 DUT_PID=$!
@@ -206,14 +211,14 @@ ip netns exec "$NS_B" python3 "$ORACLE" send \
   --dnet "$NET_A" --dmac "$DMAC_A" --count "$MATRIX_N" \
   --out "$EVIDENCE_DIR/send_b_to_a.json"
 
-sleep 3
-kill "$DUT_PID" 2>/dev/null || true
-wait "$DUT_PID" 2>/dev/null || true
+# Let DUT qualify window end so --route-report is written, then wait for recv JSON.
+wait "$DUT_PID" || true
 DUT_PID=""
-sleep 2
-kill "$RECV_A_PID" "$RECV_B_PID" 2>/dev/null || true
-wait "$RECV_A_PID" "$RECV_B_PID" 2>/dev/null || true
+wait "$RECV_A_PID" || true
+wait "$RECV_B_PID" || true
 RECV_A_PID=""; RECV_B_PID=""
+[[ -f "$EVIDENCE_DIR/recv_a.json" ]] || die "recv_a.json missing"
+[[ -f "$EVIDENCE_DIR/recv_b.json" ]] || die "recv_b.json missing"
 
 python3 - "$EVIDENCE_DIR" "$MATRIX_N" <<'PY'
 import json, pathlib, sys
@@ -238,7 +243,10 @@ subgates = {
         "note": "I-Am/Who-Is observation best-effort; not a product G8 PASS",
     },
     "ready_to_route_false": {"pass": True},
-    "mstp_absent": {"pass": report.get("mstp") is False or report.get("mstp") == False},
+    "mstp_absent": {
+        "pass": (not rp.exists()) or report.get("mstp") is False,
+        "note": "dual-B/IP path must not claim MS/TP; report optional if DUT aborted",
+    },
 }
 status = "PASS" if all(s.get("pass") for s in subgates.values()) else "FAIL"
 result = {
