@@ -9,7 +9,10 @@ pub mod metrics;
 pub mod runtime;
 
 pub use auth::{
-    management_writes_enabled, AuditEvent, AuditLog, AUDIT_CAPACITY, WRITES_BLOCKED_DETAIL,
+    hash_password_experimental, management_writes_enabled, management_writes_enabled_with,
+    verify_password_experimental, write_secret_path, write_secret_present, AuditEvent, AuditLog,
+    SessionStore, SessionToken, AUDIT_CAPACITY, DEFAULT_WRITE_SECRET_PATH, SESSION_CAPACITY,
+    WRITES_BLOCKED_DETAIL,
 };
 pub use config::{
     BacnetIpConfig, ConfigError, IdentityConfig, ManagementConfig, MstpConfig, RouterConfig,
