@@ -40,10 +40,29 @@ jobs:
           test -f "$EVIDENCE_ROOT/run/SHA256SUMS"
           python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); assert r["status"]=="PASS"' \
             "$EVIDENCE_ROOT/run/result.json"
+      - name: Run dual-B/IP netns route harness
+        run: |
+          EVIDENCE_ROOT="$RUNNER_TEMP/dbr-bip-bip"
+          mkdir -p "$EVIDENCE_ROOT"
+          sudo -E env "PATH=$PATH" \
+            "DBR_BIN=$PWD/target/debug/diy-bacnet-router" \
+            "DBR_ROUTE_EVIDENCE_DIR=$EVIDENCE_ROOT/run" \
+            bash scripts/route-bip-bip-netns.sh
+          test -f "$EVIDENCE_ROOT/run/result.json"
+          test -f "$EVIDENCE_ROOT/run/SHA256SUMS"
+          python3 -c 'import json,sys; r=json.load(open(sys.argv[1])); assert r["status"]=="PASS"; assert r["product_g7_g8_bip_mstp"]=="OPEN"' \
+            "$EVIDENCE_ROOT/run/result.json"
       - name: Upload G6 evidence
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: bip-g6-evidence
           path: ${{ runner.temp }}/dbr-bip-g6/
+          if-no-files-found: warn
+      - name: Upload dual-B/IP evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: bip-bip-route-evidence
+          path: ${{ runner.temp }}/dbr-bip-bip/
           if-no-files-found: warn

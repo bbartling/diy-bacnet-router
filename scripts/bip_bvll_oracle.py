@@ -21,14 +21,38 @@ from typing import Any
 BVLC_TYPE = 0x81
 FN_ORIGINAL_UNICAST = 0x0A
 FN_ORIGINAL_BROADCAST = 0x0B
-# Minimal NPDU used by DIY BACnet Router M2A/G6 qualify probes.
-GOLDEN_NPDU = bytes([0x01, 0x00, 0x10])
+# Minimal local NPDU used by DIY BACnet Router M2A/G6 qualify probes.
+GOLDEN_APDU = bytes([0x10])
+GOLDEN_NPDU = bytes([0x01, 0x00]) + GOLDEN_APDU
 MAX_RECORDS = 256
 MAX_DATAGRAM = 2048
+# Who-Is-Router-To-Network (network message type 0x00), no DNET filter.
+WHO_IS_ROUTER_NPDU = bytes([0x01, 0x80, 0x00])
 
 
 def npdu_digest(npdu: bytes) -> str:
     return hashlib.sha256(npdu).hexdigest()
+
+
+def encode_routed_unicast_npdu(dnet: int, dmac: bytes, apdu: bytes = GOLDEN_APDU) -> bytes:
+    """Minimal Clause-6 NPDU with DNET/DADR for cross-network unicast.
+
+    ``apdu`` is application payload only (not a nested NPDU).
+    """
+    if not (1 <= dnet <= 65534):
+        raise ValueError("dnet out of range")
+    if not (1 <= len(dmac) <= 255):
+        raise ValueError("dmac length invalid")
+    if not apdu:
+        raise ValueError("apdu required")
+    return (
+        bytes([0x01, 0x20])
+        + struct.pack("!H", dnet)
+        + bytes([len(dmac)])
+        + dmac
+        + bytes([0xFF])
+        + apdu
+    )
 
 
 def encode_bvll(function: int, npdu: bytes) -> bytes:
@@ -78,6 +102,13 @@ def self_test() -> None:
         assert decoded["bvlc_function"] == fn
         assert decoded["npdu_matches_golden"] is True
         assert decoded["npdu_sha256"] == npdu_digest(GOLDEN_NPDU)
+        routed = encode_routed_unicast_npdu(2000, bytes([192, 0, 2, 2, 0xBA, 0xC0]))
+        assert routed.startswith(b"\x01\x20")
+        assert routed.endswith(GOLDEN_APDU)
+        assert GOLDEN_NPDU not in routed  # must not nest a local NPDU as APDU
+        assert routed == bytes([0x01, 0x20, 0x07, 0xD0, 0x06, 192, 0, 2, 2, 0xBA, 0xC0, 0xFF, 0x10])
+        frame = encode_bvll(FN_ORIGINAL_UNICAST, routed)
+        assert decode_bvll(frame)["npdu_hex"] == routed.hex()
     # Truncated header must fail
     try:
         decode_bvll(b"\x81\x0a")
@@ -94,12 +125,21 @@ def self_test() -> None:
 
 
 def cmd_send(args: argparse.Namespace) -> int:
-    fn = FN_ORIGINAL_UNICAST if args.mode == "unicast" else FN_ORIGINAL_BROADCAST
-    frame = encode_bvll(fn, GOLDEN_NPDU)
+    if args.mode == "routed-unicast":
+        dmac = bytes(int(x, 0) for x in args.dmac.split(","))
+        npdu = encode_routed_unicast_npdu(args.dnet, dmac)
+        fn = FN_ORIGINAL_UNICAST
+    elif args.mode == "who-is-router":
+        npdu = WHO_IS_ROUTER_NPDU
+        fn = FN_ORIGINAL_BROADCAST
+    else:
+        fn = FN_ORIGINAL_UNICAST if args.mode == "unicast" else FN_ORIGINAL_BROADCAST
+        npdu = GOLDEN_NPDU
+    frame = encode_bvll(fn, npdu)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        if args.mode == "broadcast":
+        if fn == FN_ORIGINAL_BROADCAST or args.mode in ("broadcast", "who-is-router"):
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
         sock.bind((args.bind, args.bind_port))
         dest = (args.dest, args.port)
@@ -108,11 +148,12 @@ def cmd_send(args: argparse.Namespace) -> int:
             time.sleep(args.interval_ms / 1000.0)
         summary = {
             "mode": "send",
+            "send_mode": args.mode,
             "bvlc_function": fn,
             "count": args.count,
             "dest": list(dest),
             "bind": [args.bind, args.bind_port],
-            "npdu_sha256": npdu_digest(GOLDEN_NPDU),
+            "npdu_sha256": npdu_digest(npdu),
             "frame_len": len(frame),
         }
         path = args.out or "-"
@@ -146,6 +187,7 @@ def cmd_recv(args: argparse.Namespace) -> int:
                 break
             try:
                 decoded = decode_bvll(data)
+                npdu = bytes.fromhex(decoded["npdu_hex"])
                 decoded.update(
                     {
                         "src_ip": addr[0],
@@ -153,6 +195,9 @@ def cmd_recv(args: argparse.Namespace) -> int:
                         "dst_bind": args.bind,
                         "dst_port": args.port,
                         "wire_len": len(data),
+                        "npdu_endswith_golden_apdu": npdu.endswith(GOLDEN_APDU),
+                        "npdu_contains_golden_apdu": GOLDEN_APDU in npdu,
+                        "is_network_message": bool(npdu[1] & 0x80) if len(npdu) > 1 else False,
                     }
                 )
                 records.append(decoded)
@@ -168,12 +213,19 @@ def cmd_recv(args: argparse.Namespace) -> int:
                 )
         by_fn: dict[str, int] = {}
         golden_ok = 0
+        routed_payload_ok = 0
+        net_msg = 0
         for rec in records:
             if "bvlc_function" in rec:
                 key = f"0x{rec['bvlc_function']:02x}"
                 by_fn[key] = by_fn.get(key, 0) + 1
                 if rec.get("npdu_matches_golden"):
                     golden_ok += 1
+                # Final-hop forwards often add SNET/SADR; match APDU presence, not exact local NPDU.
+                if rec.get("npdu_contains_golden_apdu") and not rec.get("is_network_message"):
+                    routed_payload_ok += 1
+                if rec.get("is_network_message"):
+                    net_msg += 1
         summary = {
             "mode": "recv",
             "bind": [args.bind, args.port],
@@ -181,6 +233,8 @@ def cmd_recv(args: argparse.Namespace) -> int:
             "received": len(records),
             "by_bvlc_function": by_fn,
             "golden_npdu_ok": golden_ok,
+            "routed_payload_ok": routed_payload_ok,
+            "network_message_ok": net_msg,
             "npdu_sha256_expected": npdu_digest(GOLDEN_NPDU),
             "records": records[:MAX_RECORDS],
         }
@@ -213,13 +267,23 @@ def main() -> int:
     )
 
     p_send = sub.add_parser("send")
-    p_send.add_argument("--mode", choices=("unicast", "broadcast"), required=True)
+    p_send.add_argument(
+        "--mode",
+        choices=("unicast", "broadcast", "routed-unicast", "who-is-router"),
+        required=True,
+    )
     p_send.add_argument("--bind", default="0.0.0.0")
     p_send.add_argument("--bind-port", type=int, default=0)
     p_send.add_argument("--dest", required=True)
     p_send.add_argument("--port", type=int, default=47808)
     p_send.add_argument("--count", type=int, default=4)
     p_send.add_argument("--interval-ms", type=float, default=50.0)
+    p_send.add_argument("--dnet", type=int, default=2000)
+    p_send.add_argument(
+        "--dmac",
+        default="198,51,100,2,186,192",
+        help="comma-separated BIP MAC bytes for routed-unicast",
+    )
     p_send.add_argument("--out", default="-")
     p_send.set_defaults(func=cmd_send)
 

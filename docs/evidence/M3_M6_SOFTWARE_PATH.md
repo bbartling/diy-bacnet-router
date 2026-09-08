@@ -11,7 +11,7 @@
 | Area | Surface | Ordinary boot |
 | --- | --- | --- |
 | M3 | `--route-enable` → `ApplianceRouterSession` (B/IP + MS/TP under `BACnetRouter`) | Still management-only; `router.enabled=true` rejected |
-| M3 CI | Loopback A↔B unicast forward tests in `rusty-bacnet-adapter` | N/A |
+| M3 CI | Dual-B/IP netns (`--route-bip-bip`) + loopback A↔B tests | Product BIP↔MS/TP G7/G8 still open |
 | M4 CI | Loopback stop + rebind same networks | Hardware USB/NIC faults still open |
 | M6 | `POST /api/config` → **403**; `GET /api/audit`; bounded `AuditLog` | Writes remain disabled |
 | Caps | `bip_mstp_routing` / `management_writes` stay `BlockedByEvidence` | Honest |
