@@ -200,4 +200,65 @@ mod tests {
         let _ = timeout(Duration::from_millis(10), s2.local_rx().recv()).await;
         s2.stop().await.unwrap();
     }
+
+    /// M4: session stays up and stops cleanly after garbage UDP (no panic / hang).
+    #[tokio::test]
+    async fn dual_bip_survives_malformed_udp() {
+        let port_a = 47_886_u16;
+        let port_b = 47_887_u16;
+        let a = BipTransportParams {
+            interface_addr: Ipv4Addr::LOCALHOST,
+            udp_port: port_a,
+            broadcast_address: Ipv4Addr::LOCALHOST,
+            network: 4_100,
+            interface_name: "lo".into(),
+        };
+        let b = BipTransportParams {
+            interface_addr: Ipv4Addr::LOCALHOST,
+            udp_port: port_b,
+            broadcast_address: Ipv4Addr::LOCALHOST,
+            network: 4_200,
+            interface_name: "lo".into(),
+        };
+        let session = DualBipRouterSession::start(&a, &b).await.unwrap();
+        let sock = tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let _ = sock
+            .send_to(b"not-a-bvll-frame", (Ipv4Addr::LOCALHOST, port_a))
+            .await;
+        let _ = sock
+            .send_to(
+                &[0x81, 0x0a, 0x00, 0x05, 0xff],
+                (Ipv4Addr::LOCALHOST, port_b),
+            )
+            .await;
+        let _ = sock
+            .send_to(&[0x81, 0x0a, 0xff, 0xff], (Ipv4Addr::LOCALHOST, port_a))
+            .await;
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        assert_eq!(session.route_table_len().await, 2);
+        session.stop().await.unwrap();
+    }
+
+    /// M4: missing Linux iface fails closed before open (non-Linux skips).
+    #[tokio::test]
+    async fn dual_bip_missing_iface_rejected_on_linux() {
+        if !cfg!(target_os = "linux") {
+            return;
+        }
+        let a = BipTransportParams {
+            interface_addr: Ipv4Addr::LOCALHOST,
+            udp_port: 47_890,
+            broadcast_address: Ipv4Addr::LOCALHOST,
+            network: 6_100,
+            interface_name: "lo".into(),
+        };
+        let b = BipTransportParams {
+            interface_addr: Ipv4Addr::new(192, 0, 2, 99),
+            udp_port: 47_891,
+            broadcast_address: Ipv4Addr::new(192, 0, 2, 255),
+            network: 6_200,
+            interface_name: "dbr-m4-missing-iface".into(),
+        };
+        assert!(DualBipRouterSession::start(&a, &b).await.is_err());
+    }
 }

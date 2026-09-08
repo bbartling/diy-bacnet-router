@@ -29,7 +29,7 @@ permalink: /testing/
 | G6 | B/IP port local unicast/broadcast behavior | **PASS** — independent BVLL oracle + exact matrix (`bip-qualify-netns.sh`) |
 | G7 | Routed unicast ReadProperty in both directions | Open — dual-B/IP netns + loopback software PASS (`route-bip-bip-netns.sh`); **BIP↔MS/TP bench still required for product claim** |
 | G8 | Routed Who-Is/I-Am and router network messages | Open — dual-B/IP Who-Is-Router observe in CI; **BIP↔MS/TP bench still required** |
-| G9 | Fault/restart: USB unplug, NIC loss, duplicate MAC/network | Open — loopback stop/rebind software covered; hardware faults pending |
+| G9 | Fault/restart: USB unplug, NIC loss, duplicate MAC/network | Open — CI software faults (malformed UDP, missing iface, dual-B/IP link-down management survival, routing-mark clear); **USB/NIC hardware faults pending** |
 | G10 | One-hour then 24-hour forwarding soak | Open |
 | G11 | Claimed baud/board matrix under load | Open |
 

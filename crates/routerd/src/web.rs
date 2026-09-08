@@ -263,6 +263,25 @@ impl AppState {
         });
     }
 
+    /// Mark opt-in `--route-bip-bip` session (no MS/TP).
+    pub fn mark_dual_bip_routing_active(&self) {
+        self.set_bacnet_telemetry_available(true);
+        self.runtime.replace(RuntimeSnapshot {
+            data_plane: DataPlaneState::Operational,
+            bip_link: DataPlaneState::Operational,
+            mstp_link: DataPlaneState::Disabled,
+            rfsm_state: "experimental".into(),
+            mnsm_state: "not_started".into(),
+            next_station: None,
+            poll_station: None,
+            silence_timer_ms: 0,
+            last_error: Some(
+                "M3 opt-in --route-bip-bip: dual B/IP session live; BIP↔MS/TP G7/G8 evidence open; ready_to_route product claim remains false"
+                    .into(),
+            ),
+        });
+    }
+
     /// Clear opt-in routing session state.
     pub fn mark_routing_inactive(&self, reason: &str) {
         self.set_bacnet_telemetry_available(false);
@@ -649,6 +668,28 @@ mod tests {
             .to_bytes();
         let body: Value = serde_json::from_slice(&bytes).expect("JSON");
         assert_eq!(body["ready_to_route"], false);
+    }
+
+    #[tokio::test]
+    async fn routing_marks_clear_data_plane_on_inactive() {
+        let state = AppState::new(Arc::new(RouterConfig::default()));
+        state.mark_dual_bip_routing_active();
+        {
+            let snap = state.runtime.snapshot();
+            assert_eq!(snap.data_plane, DataPlaneState::Operational);
+            assert_eq!(snap.bip_link, DataPlaneState::Operational);
+            assert_eq!(snap.mstp_link, DataPlaneState::Disabled);
+        }
+        state.mark_routing_inactive("m4 session timeout cleared routing marks");
+        let snap = state.runtime.snapshot();
+        assert_eq!(snap.data_plane, DataPlaneState::Disabled);
+        assert_eq!(snap.bip_link, DataPlaneState::Disabled);
+        assert_eq!(snap.mstp_link, DataPlaneState::Disabled);
+        assert_eq!(
+            snap.last_error.as_deref(),
+            Some("m4 session timeout cleared routing marks")
+        );
+        assert!(!state.bacnet_telemetry_available.load(Ordering::Relaxed));
     }
 
     #[tokio::test]

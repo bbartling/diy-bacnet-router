@@ -45,7 +45,7 @@ Details: [docs/agent/SPEC.md](docs/agent/SPEC.md).
 - [x] **M1 — rusty-bacnet adapter closeout** — pin + concrete B/IP/MS/TP compile/config fixtures (transports not started at ordinary boot)
 - [ ] **M2 — Port qualification** — **G6/M2A** B/IP netns matrix PASS; **M2B** physical MS/TP still open
 - [ ] **M3 — Isolated routing** — dual-B/IP CI netns + `--route-enable` software; **G7/G8 BIP↔MS/TP bench OPEN**
-- [ ] **M4 — Faults and timing** — loopback stop/rebind software only; hardware faults OPEN
+- [ ] **M4 — Faults and timing** — CI software faults + dual-B/IP link-down survival; **G9 hardware OPEN**
 - [ ] **M5 — Production-shaped images / Pi hardware validation**
 - [ ] **M6 — Management writes** — auth/audit scaffold + `POST /api/config` 403; writes remain blocked
 
