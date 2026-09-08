@@ -11,6 +11,8 @@
     "/api/status": { "get": { "summary": "Build and runtime status", "responses": { "200": { "description": "Status" } } } },
     "/api/capabilities": { "get": { "summary": "Truthful implementation capability matrix", "responses": { "200": { "description": "Capabilities" } } } },
     "/api/config/effective": { "get": { "summary": "Effective public (non-secret) configuration", "responses": { "200": { "description": "PublicEffectiveConfig" } } } },
+    "/api/config": { "post": { "summary": "Configuration write (M6 gated — currently always 403)", "responses": { "403": { "description": "Writes blocked until auth/audit gates pass" } } } },
+    "/api/audit": { "get": { "summary": "Bounded in-memory audit event snapshot", "responses": { "200": { "description": "Audit events" } } } },
     "/api/metrics/snapshot": { "get": { "summary": "Current aggregate router and Linux metrics", "responses": { "200": { "description": "Metrics snapshot" } } } },
     "/api/openapi.json": { "get": { "summary": "OpenAPI document", "responses": { "200": { "description": "OpenAPI 3.1 JSON" } } } },
     "/api/ws/metrics": { "get": { "summary": "WebSocket aggregate metrics stream (MS/TP trunk health, B/IP counters)", "responses": { "101": { "description": "WebSocket upgrade" }, "503": { "description": "WebSocket connection limit reached" } } } },

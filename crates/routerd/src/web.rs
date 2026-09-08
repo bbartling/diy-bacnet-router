@@ -16,12 +16,13 @@ use axum::{
     http::{header, StatusCode},
     middleware::{self, Next},
     response::{IntoResponse, Response},
-    routing::{any, get},
+    routing::{any, get, post},
     Json, Router,
 };
 use router_core::{
-    BacnetIpConfig, Counters, DataPlaneState, IdentityConfig, MstpConfig, RouterConfig,
-    RouterControlConfig, RouterMetrics, RuntimeSnapshot, RuntimeState,
+    management_writes_enabled, AuditLog, BacnetIpConfig, Counters, DataPlaneState, IdentityConfig,
+    MstpConfig, RouterConfig, RouterControlConfig, RouterMetrics, RuntimeSnapshot, RuntimeState,
+    WRITES_BLOCKED_DETAIL,
 };
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -39,6 +40,7 @@ pub struct AppState {
     config: Arc<RouterConfig>,
     runtime: Arc<RuntimeState>,
     counters: Arc<Counters>,
+    audit: Arc<AuditLog>,
     /// When true, B/IP qualify is publishing observed counters (MS/TP still unavailable).
     bacnet_telemetry_available: Arc<std::sync::atomic::AtomicBool>,
     metrics_rx: watch::Receiver<MetricsEnvelope>,
@@ -154,6 +156,7 @@ impl AppState {
             config,
             runtime,
             counters,
+            audit: Arc::new(AuditLog::default()),
             bacnet_telemetry_available,
             metrics_rx: rx,
             sample_ticks,
@@ -241,6 +244,46 @@ impl AppState {
         });
     }
 
+    /// Mark opt-in `--route-enable` session: ports up, product G7/G8 claim still open.
+    pub fn mark_routing_active(&self) {
+        self.set_bacnet_telemetry_available(true);
+        self.runtime.replace(RuntimeSnapshot {
+            data_plane: DataPlaneState::Operational,
+            bip_link: DataPlaneState::Operational,
+            mstp_link: DataPlaneState::Operational,
+            rfsm_state: "experimental".into(),
+            mnsm_state: "experimental".into(),
+            next_station: None,
+            poll_station: None,
+            silence_timer_ms: 0,
+            last_error: Some(
+                "M3 opt-in --route-enable: BACnetRouter session live; G7/G8 evidence open; ready_to_route product claim remains false"
+                    .into(),
+            ),
+        });
+    }
+
+    /// Clear opt-in routing session state.
+    pub fn mark_routing_inactive(&self, reason: &str) {
+        self.set_bacnet_telemetry_available(false);
+        self.runtime.replace(RuntimeSnapshot {
+            data_plane: DataPlaneState::Disabled,
+            bip_link: DataPlaneState::Disabled,
+            mstp_link: DataPlaneState::Disabled,
+            rfsm_state: "not_started".into(),
+            mnsm_state: "not_started".into(),
+            next_station: None,
+            poll_station: None,
+            silence_timer_ms: 0,
+            last_error: Some(reason.to_owned()),
+        });
+    }
+
+    #[must_use]
+    pub fn audit_log(&self) -> Arc<AuditLog> {
+        Arc::clone(&self.audit)
+    }
+
     fn metrics(&self) -> MetricsEnvelope {
         self.metrics_rx.borrow().clone()
     }
@@ -273,6 +316,8 @@ pub fn app(state: AppState) -> Router {
         .route("/api/status", get(status))
         .route("/api/capabilities", get(capabilities))
         .route("/api/config/effective", get(effective_config))
+        .route("/api/config", post(config_write_blocked))
+        .route("/api/audit", get(audit_snapshot))
         .route("/api/metrics/snapshot", get(metrics_snapshot))
         .route("/api/openapi.json", get(openapi))
         .route("/api/ws/metrics", get(metrics_ws))
@@ -356,6 +401,38 @@ async fn capabilities() -> Json<Value> {
 
 async fn effective_config(State(state): State<AppState>) -> Json<PublicEffectiveConfig> {
     Json(PublicEffectiveConfig::from(state.config.as_ref()))
+}
+
+/// M6 scaffold: mutating config stays closed until auth/audit gates pass.
+async fn config_write_blocked(State(state): State<AppState>) -> impl IntoResponse {
+    state
+        .audit_log()
+        .record("anonymous", "config.write", "denied", WRITES_BLOCKED_DETAIL);
+    if management_writes_enabled() {
+        // Unreachable until M6 flips the policy bit with evidence.
+        (
+            StatusCode::NOT_IMPLEMENTED,
+            Json(json!({
+                "error": "not_implemented",
+                "detail": "management write handler is not wired",
+            })),
+        )
+    } else {
+        (
+            StatusCode::FORBIDDEN,
+            Json(json!({
+                "error": "writes_blocked",
+                "detail": WRITES_BLOCKED_DETAIL,
+            })),
+        )
+    }
+}
+
+async fn audit_snapshot(State(state): State<AppState>) -> Json<Value> {
+    Json(json!({
+        "writes_enabled": management_writes_enabled(),
+        "events": state.audit_log().snapshot(),
+    }))
 }
 
 async fn metrics_snapshot(State(state): State<AppState>) -> Json<MetricsEnvelope> {
@@ -598,6 +675,8 @@ mod tests {
             "/api/status",
             "/api/capabilities",
             "/api/config/effective",
+            "/api/config",
+            "/api/audit",
             "/api/metrics/snapshot",
             "/api/ws/metrics",
             "/api/openapi.json",
@@ -608,6 +687,24 @@ mod tests {
                 "OpenAPI missing path {path}"
             );
         }
+    }
+
+    #[tokio::test]
+    async fn config_write_is_forbidden_until_m6() {
+        let state = AppState::new(Arc::new(RouterConfig::default()));
+        let response = app(state.clone())
+            .oneshot(
+                axum::http::Request::builder()
+                    .method("POST")
+                    .uri("/api/config")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .body(Body::from("{}"))
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::FORBIDDEN);
+        assert_eq!(state.audit_log().len(), 1);
     }
 
     #[tokio::test]
