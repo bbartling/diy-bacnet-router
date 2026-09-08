@@ -46,7 +46,7 @@ Details: [docs/agent/SPEC.md](docs/agent/SPEC.md).
 - [ ] **M2 — Port qualification** — **G6/M2A** B/IP netns matrix PASS; **M2B** physical MS/TP still open
 - [ ] **M3 — Isolated routing** — dual-B/IP CI netns + `--route-enable` software; **G7/G8 BIP↔MS/TP bench OPEN**
 - [ ] **M4 — Faults and timing** — CI software faults + dual-B/IP link-down survival; **G9 hardware OPEN**
-- [ ] **M5 — Production-shaped images / Pi hardware validation**
+- [ ] **M5 — Production-shaped images / Pi hardware validation** — Pi **build** evidence in Actions documented; **flash/boot OPEN**
 - [ ] **M6 — Management writes** — auth/session skeleton + env unlock only; `POST /api/config` stays 403; capability blocked
 
 </details>
@@ -158,6 +158,7 @@ Local lab (VMware Ubuntu guest, not WSL): [docs/operations/LOCAL_BUILDROOT_VM.md
 | QEMU/unit tests = live RS-485 trunk | **No** |
 
 Educational UI patterns only: [docs/product/BASRT_EDUCATIONAL_REFERENCE.md](docs/product/BASRT_EDUCATIONAL_REFERENCE.md).
+BFR architecture notes (no C++/ASHRAE copy): [docs/product/BFR_DESIGN_REFERENCE.md](docs/product/BFR_DESIGN_REFERENCE.md).
 
 **Agents:** [AGENTS.md](AGENTS.md) · [SOFTWARE_SPEC](docs/agent/SOFTWARE_SPEC.md) · [FULL_STACK_AUDIT](docs/agent/FULL_STACK_AUDIT.md) · [SPEC](docs/agent/SPEC.md)
 
