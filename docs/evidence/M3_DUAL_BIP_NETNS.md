@@ -14,6 +14,9 @@
 - Exact-count matrix: A→B and B→A routed unicast; Who-Is-Router observe.
 - Durable `result.json` + `SHA256SUMS` under `DBR_ROUTE_EVIDENCE_DIR`.
 - `product_g7_g8_bip_mstp` field in result is always **OPEN**.
+- Harness uses **distinct UDP ports** (47808 / 47809): upstream `BipTransport` binds
+  `INADDR_ANY` with `SO_REUSEADDR`, so two same-port BIP sockets in one netns steal
+  ingress (asymmetric false negatives).
 
 ## Explicit non-claims
 

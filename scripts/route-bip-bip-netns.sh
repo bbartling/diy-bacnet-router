@@ -23,7 +23,10 @@ DUT_A_IP="192.0.2.1"
 PEER_A_IP="192.0.2.2"
 DUT_B_IP="198.51.100.1"
 PEER_B_IP="198.51.100.2"
-BACNET_PORT=47808
+# Distinct UDP ports required: upstream BipTransport binds INADDR_ANY with
+# SO_REUSEADDR, so two ports on the same port steal each other's ingress.
+PORT_A=47808
+PORT_B=47809
 MGMT_PORT=18082
 MATRIX_N="${DBR_ROUTE_MATRIX_N:-4}"
 BIN="${DBR_BIN:-$repo_root/target/debug/diy-bacnet-router}"
@@ -77,8 +80,11 @@ cat >"$EVIDENCE_DIR/manifest.json" <<EOF
   "mode": "dual_bip_netns",
   "net_a": $NET_A,
   "net_b": $NET_B,
+  "port_a": $PORT_A,
+  "port_b": $PORT_B,
   "matrix_n": $MATRIX_N,
-  "kernel": "$(uname -r)"
+  "kernel": "$(uname -r)",
+  "note": "distinct UDP ports avoid dual INADDR_ANY SO_REUSEADDR demux steal"
 }
 EOF
 
@@ -139,7 +145,7 @@ enabled = false
 interface = "${VA_D}"
 bind_address = "${DUT_A_IP}"
 broadcast_address = "192.0.2.255"
-udp_port = ${BACNET_PORT}
+udp_port = ${PORT_A}
 network = ${NET_A}
 bbmd_enabled = false
 foreign_device_enabled = false
@@ -155,22 +161,20 @@ network = 3000
 termination = "unknown"
 EOF
 
-# BIP MAC for peer B: IP + port BE
-# 198.51.100.2:47808 -> 198,51,100,2,186,192
-DMAC_B="198,51,100,2,186,192"
-DMAC_A="192,0,2,2,186,192"
+# BIP MAC = IPv4 octets + UDP port big-endian.
+DMAC_B="$(python3 -c "import struct; print(','.join(str(b) for b in bytes([198,51,100,2])+struct.pack('!H',${PORT_B})))")"
+DMAC_A="$(python3 -c "import struct; print(','.join(str(b) for b in bytes([192,0,2,2])+struct.pack('!H',${PORT_A})))")"
 
-# Recv must finish its window so summary JSON is written (do not kill early).
 RECV_SECS=20
 QUALIFY_SECS=15
 # Bind INADDR_ANY so we observe final-hop unicast regardless of destination address selection.
 ip netns exec "$NS_B" python3 "$ORACLE" recv \
-  --bind "0.0.0.0" --port "$BACNET_PORT" --seconds "$RECV_SECS" \
+  --bind "0.0.0.0" --port "$PORT_B" --seconds "$RECV_SECS" \
   --out "$EVIDENCE_DIR/recv_b.json" \
   >"$EVIDENCE_DIR/recv_b.log" 2>&1 &
 RECV_B_PID=$!
 ip netns exec "$NS_A" python3 "$ORACLE" recv \
-  --bind "0.0.0.0" --port "$BACNET_PORT" --seconds "$RECV_SECS" \
+  --bind "0.0.0.0" --port "$PORT_A" --seconds "$RECV_SECS" \
   --out "$EVIDENCE_DIR/recv_a.json" \
   >"$EVIDENCE_DIR/recv_a.log" 2>&1 &
 RECV_A_PID=$!
@@ -181,7 +185,7 @@ ip netns exec "$NS_DUT" env \
   DBR_BIP2_BROADCAST="198.51.100.255" \
   DBR_BIP2_IFACE="$VB_D" \
   DBR_BIP2_NETWORK="$NET_B" \
-  DBR_BIP2_PORT="$BACNET_PORT" \
+  DBR_BIP2_PORT="$PORT_B" \
   "$BIN" --config "$CFG" --route-bip-bip --qualify-secs "$QUALIFY_SECS" \
   --route-report "$EVIDENCE_DIR/route_report.json" \
   >"$EVIDENCE_DIR/dut.log" 2>&1 &
@@ -206,35 +210,35 @@ sleep 2
 
 # Who-Is-Router from A (best-effort network-message observation on B or A)
 ip netns exec "$NS_A" python3 "$ORACLE" send \
-  --mode who-is-router --bind "$PEER_A_IP" --dest "$DUT_A_IP" --port "$BACNET_PORT" \
+  --mode who-is-router --bind "$PEER_A_IP" --dest "$DUT_A_IP" --port "$PORT_A" \
   --count 2 --out "$EVIDENCE_DIR/send_whois.json"
 
 # Warm both directions once (discard); then measured matrix bursts.
 ip netns exec "$NS_A" python3 "$ORACLE" send \
-  --mode routed-unicast --bind "$PEER_A_IP" --dest "$DUT_A_IP" --port "$BACNET_PORT" \
+  --mode routed-unicast --bind "$PEER_A_IP" --dest "$DUT_A_IP" --port "$PORT_A" \
   --dnet "$NET_B" --dmac "$DMAC_B" --count 1 \
   --out "$EVIDENCE_DIR/send_warmup_a_to_b.json"
 ip netns exec "$NS_B" python3 "$ORACLE" send \
-  --mode routed-unicast --bind "$PEER_B_IP" --dest "$DUT_B_IP" --port "$BACNET_PORT" \
+  --mode routed-unicast --bind "$PEER_B_IP" --dest "$DUT_B_IP" --port "$PORT_B" \
   --dnet "$NET_A" --dmac "$DMAC_A" --count 1 \
   --out "$EVIDENCE_DIR/send_warmup_b_to_a.json"
 sleep 0.5
 
 # A → B routed unicast (measured)
 ip netns exec "$NS_A" python3 "$ORACLE" send \
-  --mode routed-unicast --bind "$PEER_A_IP" --dest "$DUT_A_IP" --port "$BACNET_PORT" \
+  --mode routed-unicast --bind "$PEER_A_IP" --dest "$DUT_A_IP" --port "$PORT_A" \
   --dnet "$NET_B" --dmac "$DMAC_B" --count "$MATRIX_N" \
   --out "$EVIDENCE_DIR/send_a_to_b.json"
 
 # B → A routed unicast (measured)
 ip netns exec "$NS_B" python3 "$ORACLE" send \
-  --mode routed-unicast --bind "$PEER_B_IP" --dest "$DUT_B_IP" --port "$BACNET_PORT" \
+  --mode routed-unicast --bind "$PEER_B_IP" --dest "$DUT_B_IP" --port "$PORT_B" \
   --dnet "$NET_A" --dmac "$DMAC_A" --count "$MATRIX_N" \
   --out "$EVIDENCE_DIR/send_b_to_a.json"
 
 # Repeat A→B in case the first measured burst raced port-B TX readiness.
 ip netns exec "$NS_A" python3 "$ORACLE" send \
-  --mode routed-unicast --bind "$PEER_A_IP" --dest "$DUT_A_IP" --port "$BACNET_PORT" \
+  --mode routed-unicast --bind "$PEER_A_IP" --dest "$DUT_A_IP" --port "$PORT_A" \
   --dnet "$NET_B" --dmac "$DMAC_B" --count "$MATRIX_N" \
   --out "$EVIDENCE_DIR/send_a_to_b_retry.json"
 
@@ -286,7 +290,8 @@ result = {
     "subgates": subgates,
     "product_g7_g8_bip_mstp": "OPEN",
     "upstream_gaps": [
-        "No public BACnetRouter forward counters at pin; packet observation via independent BVLL oracle only"
+        "No public BACnetRouter forward counters at pin; packet observation via independent BVLL oracle only",
+        "Upstream BipTransport binds INADDR_ANY+SO_REUSEADDR; dual same-port BIP in one netns demux-steals — harness uses distinct UDP ports"
     ],
 }
 (ev / "result.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
