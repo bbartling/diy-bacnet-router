@@ -110,6 +110,12 @@ ip -n "$NS_B" addr add "${PEER_B_IP}/24" dev "$VB_B"
 ip -n "$NS_B" link set "$VB_B" up
 ip -n "$NS_B" link set lo up
 
+# Avoid strict reverse-path drops on asymmetric dual-veth DUT.
+for ns in "$NS_A" "$NS_DUT" "$NS_B"; do
+  ip netns exec "$ns" sysctl -w net.ipv4.conf.all.rp_filter=0 >/dev/null
+  ip netns exec "$ns" sysctl -w net.ipv4.conf.default.rp_filter=0 >/dev/null
+done
+
 ip -n "$NS_A" -br addr >"$EVIDENCE_DIR/ns_a_addrs.txt"
 ip -n "$NS_DUT" -br addr >"$EVIDENCE_DIR/ns_dut_addrs.txt"
 ip -n "$NS_B" -br addr >"$EVIDENCE_DIR/ns_b_addrs.txt"
@@ -157,13 +163,14 @@ DMAC_A="192,0,2,2,186,192"
 # Recv must finish its window so summary JSON is written (do not kill early).
 RECV_SECS=20
 QUALIFY_SECS=15
+# Bind INADDR_ANY so we observe final-hop unicast regardless of destination address selection.
 ip netns exec "$NS_B" python3 "$ORACLE" recv \
-  --bind "$PEER_B_IP" --port "$BACNET_PORT" --seconds "$RECV_SECS" \
+  --bind "0.0.0.0" --port "$BACNET_PORT" --seconds "$RECV_SECS" \
   --out "$EVIDENCE_DIR/recv_b.json" \
   >"$EVIDENCE_DIR/recv_b.log" 2>&1 &
 RECV_B_PID=$!
 ip netns exec "$NS_A" python3 "$ORACLE" recv \
-  --bind "$PEER_A_IP" --port "$BACNET_PORT" --seconds "$RECV_SECS" \
+  --bind "0.0.0.0" --port "$BACNET_PORT" --seconds "$RECV_SECS" \
   --out "$EVIDENCE_DIR/recv_a.json" \
   >"$EVIDENCE_DIR/recv_a.log" 2>&1 &
 RECV_A_PID=$!
@@ -194,26 +201,44 @@ assert h["ready_to_route"] is False
 assert h["status"]=="ok"
 PY
 
+# Allow BACnetRouter ports/I-Am-Router settle before injecting routed traffic.
+sleep 2
+
 # Who-Is-Router from A (best-effort network-message observation on B or A)
 ip netns exec "$NS_A" python3 "$ORACLE" send \
   --mode who-is-router --bind "$PEER_A_IP" --dest "$DUT_A_IP" --port "$BACNET_PORT" \
   --count 2 --out "$EVIDENCE_DIR/send_whois.json"
 
-# A → B routed unicast
+# Warm both directions once (discard); then measured matrix bursts.
+ip netns exec "$NS_A" python3 "$ORACLE" send \
+  --mode routed-unicast --bind "$PEER_A_IP" --dest "$DUT_A_IP" --port "$BACNET_PORT" \
+  --dnet "$NET_B" --dmac "$DMAC_B" --count 1 \
+  --out "$EVIDENCE_DIR/send_warmup_a_to_b.json"
+ip netns exec "$NS_B" python3 "$ORACLE" send \
+  --mode routed-unicast --bind "$PEER_B_IP" --dest "$DUT_B_IP" --port "$BACNET_PORT" \
+  --dnet "$NET_A" --dmac "$DMAC_A" --count 1 \
+  --out "$EVIDENCE_DIR/send_warmup_b_to_a.json"
+sleep 0.5
+
+# A → B routed unicast (measured)
 ip netns exec "$NS_A" python3 "$ORACLE" send \
   --mode routed-unicast --bind "$PEER_A_IP" --dest "$DUT_A_IP" --port "$BACNET_PORT" \
   --dnet "$NET_B" --dmac "$DMAC_B" --count "$MATRIX_N" \
   --out "$EVIDENCE_DIR/send_a_to_b.json"
 
-# B → A routed unicast
+# B → A routed unicast (measured)
 ip netns exec "$NS_B" python3 "$ORACLE" send \
   --mode routed-unicast --bind "$PEER_B_IP" --dest "$DUT_B_IP" --port "$BACNET_PORT" \
   --dnet "$NET_A" --dmac "$DMAC_A" --count "$MATRIX_N" \
   --out "$EVIDENCE_DIR/send_b_to_a.json"
 
-# Allow forwards to land, then SIGTERM DUT so graceful shutdown writes --route-report.
-# (Management plane keeps running after the router session timeout; do not wait forever.)
-sleep 2
+# Repeat A→B in case the first measured burst raced port-B TX readiness.
+ip netns exec "$NS_A" python3 "$ORACLE" send \
+  --mode routed-unicast --bind "$PEER_A_IP" --dest "$DUT_A_IP" --port "$BACNET_PORT" \
+  --dnet "$NET_B" --dmac "$DMAC_B" --count "$MATRIX_N" \
+  --out "$EVIDENCE_DIR/send_a_to_b_retry.json"
+
+sleep 1
 kill -TERM "$DUT_PID" 2>/dev/null || true
 wait "$DUT_PID" 2>/dev/null || true
 DUT_PID=""
