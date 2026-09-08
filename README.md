@@ -21,7 +21,7 @@
 
 Boards today: **x86-64** (lab/QEMU) and **Raspberry Pi 3/4/5**. MS/TP uses USB RS-485 adapters via `/dev/serial/by-id/...` (reference: Waveshare USB TO RS485 C).
 
-> **Today:** Milestones **0** and **1** complete. **G6/M2A** qualifies standalone BACnet/IP (independent BVLL oracle + unicast/directed-broadcast matrix on Linux netns). **M2B** physical MS/TP and NPDU forwarding remain disabled.
+> **Today:** Milestones **0** and **1** complete. **G6/M2A** qualifies standalone BACnet/IP (independent BVLL oracle + unicast/directed-broadcast matrix on Linux netns). **M2B** physical MS/TP remains open. **M3–M6 software path** (opt-in `--route-enable`, loopback forward tests, M6 write 403/audit scaffold) is in tree — **gates G7–G11 stay OPEN** until lab evidence. Ordinary boot stays fail-closed.
 
 | Pin | Lock | Value |
 | --- | --- | --- |
@@ -44,10 +44,10 @@ Details: [docs/agent/SPEC.md](docs/agent/SPEC.md).
 - [x] **M0 — Scaffold and OS images** — management API/UI, CI, Buildroot x86+Pi, QEMU smoke
 - [x] **M1 — rusty-bacnet adapter closeout** — pin + concrete B/IP/MS/TP compile/config fixtures (transports not started at ordinary boot)
 - [ ] **M2 — Port qualification** — **G6/M2A** B/IP netns matrix PASS; **M2B** physical MS/TP still open
-- [ ] **M3 — Isolated routing** — NPDU forwarding between distinct networks
-- [ ] **M4 — Faults and timing**
+- [ ] **M3 — Isolated routing** — software `--route-enable` + loopback A↔B tests; **G7/G8 bench OPEN**
+- [ ] **M4 — Faults and timing** — loopback stop/rebind software only; hardware faults OPEN
 - [ ] **M5 — Production-shaped images / Pi hardware validation**
-- [ ] **M6 — Management writes** — auth, audit, optional BBMD/FDR/TLS
+- [ ] **M6 — Management writes** — auth/audit scaffold + `POST /api/config` 403; writes remain blocked
 
 </details>
 

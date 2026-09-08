@@ -13,8 +13,8 @@ use std::{
 use anyhow::{Context, Result};
 use router_core::RouterConfig;
 use rusty_bacnet_adapter::{
-    encode_bip_mac, open_appliance_serial, BipQualifySession, BipTransportParams,
-    MstpQualifySession, MstpTransportParams,
+    encode_bip_mac, open_appliance_serial, ApplianceRouterSession, BipQualifySession,
+    BipTransportParams, MstpQualifySession, MstpTransportParams,
 };
 use tokio::sync::oneshot;
 use tracing::{info, warn};
@@ -90,11 +90,20 @@ async fn main() -> Result<()> {
             )
             .await?,
         )
+    } else if args.route_enable {
+        Some(spawn_route_session(state.clone(), config.clone(), args.qualify_secs).await?)
     } else {
         None
     };
 
-    info!(bind = %bind, "management plane listening; BACnet forwarding is disabled");
+    if args.route_enable {
+        info!(
+            bind = %bind,
+            "management plane listening; opt-in --route-enable session active (G7/G8 evidence still open)"
+        );
+    } else {
+        info!(bind = %bind, "management plane listening; BACnet forwarding is disabled");
+    }
     axum::serve(listener, app)
         .with_graceful_shutdown(shutdown_signal())
         .await
@@ -287,6 +296,44 @@ async fn run_bip_qualify_peer(
     Ok(())
 }
 
+async fn spawn_route_session(
+    state: web::AppState,
+    config: RouterConfig,
+    qualify_secs: u64,
+) -> Result<(oneshot::Sender<()>, tokio::task::JoinHandle<Result<()>>)> {
+    let bip = bip_params_from_config(&config)?;
+    let mstp = MstpTransportParams {
+        this_station: config.mstp.mac,
+        max_master: config.mstp.max_master,
+        max_info_frames: config.mstp.max_info_frames,
+        baud_rate: config.mstp.baud,
+        network: config.mstp.network,
+        serial_path: config.mstp.serial.clone(),
+        adapter_profile: config.mstp.adapter_profile.clone(),
+    };
+    let session = ApplianceRouterSession::start(&bip, &mstp)
+        .await
+        .context("starting opt-in appliance router session")?;
+    state.mark_routing_active();
+    let (stop_tx, stop_rx) = oneshot::channel();
+    let join = tokio::spawn(async move {
+        let _ = tokio::time::timeout(Duration::from_secs(qualify_secs), stop_rx).await;
+        let stop_res = session.stop().await;
+        let reason = match &stop_res {
+            Ok(()) => {
+                "opt-in route session ended; ports closed; ready_to_route product claim remains false"
+                    .to_owned()
+            }
+            Err(error) => format!("opt-in route session stop failed: {error}"),
+        };
+        state.mark_routing_inactive(&reason);
+        stop_res.context("stopping opt-in appliance router session")?;
+        info!("opt-in appliance router session stopped");
+        Ok(())
+    });
+    Ok((stop_tx, join))
+}
+
 fn bip_params_from_config(config: &RouterConfig) -> Result<BipTransportParams> {
     let interface_addr: Ipv4Addr = config
         .bacnet_ip
@@ -314,6 +361,7 @@ struct CliArgs {
     bip_qualify: bool,
     bip_qualify_peer: bool,
     mstp_qualify: bool,
+    route_enable: bool,
     qualify_secs: u64,
     probe_count: u32,
     peer_target: Option<(Ipv4Addr, u16)>,
@@ -331,6 +379,7 @@ impl CliArgs {
         let mut bip_qualify = false;
         let mut bip_qualify_peer = false;
         let mut mstp_qualify = false;
+        let mut route_enable = false;
         let mut qualify_secs = 120_u64;
         let mut probe_count = 5_u32;
         let mut peer_target = None;
@@ -353,6 +402,9 @@ impl CliArgs {
                 }
                 "--mstp-qualify" => {
                     mstp_qualify = true;
+                }
+                "--route-enable" => {
+                    route_enable = true;
                 }
                 "--mstp-report" => {
                     mstp_report = Some(PathBuf::from(
@@ -413,7 +465,8 @@ impl CliArgs {
   --qualify-send-unicast IP:PORT:N  DUT scheduled unicast TX during --bip-qualify\n\
   --qualify-send-broadcast N     DUT scheduled directed-broadcast TX during --bip-qualify\n\
   --mstp-qualify                 Open one MS/TP port (M2B software); no B/IP; no forwarding\n\
-  --mstp-report PATH             Write atomic MS/TP qualify JSON report"
+  --mstp-report PATH             Write atomic MS/TP qualify JSON report\n\
+  --route-enable                 Opt-in BACnetRouter B/IP+MS/TP session (M3 software; G7/G8 open)"
                     );
                     process::exit(0);
                 }
@@ -425,6 +478,9 @@ impl CliArgs {
         }
         if mstp_qualify && (bip_qualify || bip_qualify_peer) {
             anyhow::bail!("--mstp-qualify cannot combine with B/IP qualify flags");
+        }
+        if route_enable && (bip_qualify || bip_qualify_peer || mstp_qualify) {
+            anyhow::bail!("--route-enable cannot combine with qualify flags");
         }
         if mstp_report.is_some() && !mstp_qualify {
             anyhow::bail!("--mstp-report requires --mstp-qualify");
@@ -457,6 +513,7 @@ impl CliArgs {
             bip_qualify,
             bip_qualify_peer,
             mstp_qualify,
+            route_enable,
             qualify_secs,
             probe_count,
             peer_target,

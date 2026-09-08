@@ -48,6 +48,9 @@ echo "==> ordinary routerd startup stays management-only (no B/IP/MS/TP session)
 grep -q 'BACnet forwarding is disabled' crates/routerd/src/main.rs
 grep -q 'bip_qualify' crates/routerd/src/main.rs
 grep -q -- '--bip-qualify' crates/routerd/src/main.rs
+grep -q -- '--route-enable' crates/routerd/src/main.rs
+grep -q 'ApplianceRouterSession' crates/routerd/src/main.rs
+grep -q 'writes_blocked\|WRITES_BLOCKED' crates/routerd/src/web.rs
 
 echo "==> Buildroot lock is pinned with commit"
 grep -q '^version = ' config/buildroot-lock.toml
@@ -61,7 +64,7 @@ grep -q '24e3439694b7d286e57e0a80cf7f1df4bd39d8ad' docs/UPSTREAM_LOCK.md
 test -f crates/rusty-bacnet-adapter/src/lib.rs
 
 echo "==> OpenAPI lists core management routes"
-for route in /healthz /api/status /api/metrics/snapshot /api/ws/metrics; do
+for route in /healthz /api/status /api/metrics/snapshot /api/ws/metrics /api/config /api/audit; do
   grep -q "\"$route\"" openapi/openapi.json
 done
 

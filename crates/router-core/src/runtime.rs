@@ -96,9 +96,8 @@ impl RuntimeState {
             Capability {
                 id: "bip_mstp_routing".into(),
                 state: CapabilityState::BlockedByEvidence,
-                detail:
-                    "concrete adapter fixtures exist; isolated NPDU forwarding gates remain open"
-                        .into(),
+                detail: "opt-in --route-enable software path exists; G7/G8 isolated bench evidence still open"
+                    .into(),
             },
             Capability {
                 id: "extended_mstp_frames".into(),
@@ -108,7 +107,14 @@ impl RuntimeState {
             Capability {
                 id: "bbmd_fdr".into(),
                 state: CapabilityState::NotImplemented,
-                detail: "out of initial routing milestone".into(),
+                detail: "config fields reserved; behavior not enabled; tip rusty-bacnet has Annex J APIs unpinned"
+                    .into(),
+            },
+            Capability {
+                id: "management_writes".into(),
+                state: CapabilityState::BlockedByEvidence,
+                detail: "M6 auth/audit scaffold present; mutating APIs refuse until evidence gates pass"
+                    .into(),
             },
         ]
     }
