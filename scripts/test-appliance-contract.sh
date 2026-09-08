@@ -49,8 +49,11 @@ grep -q 'BACnet forwarding is disabled' crates/routerd/src/main.rs
 grep -q 'bip_qualify' crates/routerd/src/main.rs
 grep -q -- '--bip-qualify' crates/routerd/src/main.rs
 grep -q -- '--route-enable' crates/routerd/src/main.rs
+grep -q -- '--route-bip-bip' crates/routerd/src/main.rs
 grep -q 'ApplianceRouterSession' crates/routerd/src/main.rs
+grep -q 'DualBipRouterSession' crates/routerd/src/main.rs
 grep -q 'writes_blocked\|WRITES_BLOCKED' crates/routerd/src/web.rs
+test -f scripts/route-bip-bip-netns.sh
 
 echo "==> Buildroot lock is pinned with commit"
 grep -q '^version = ' config/buildroot-lock.toml

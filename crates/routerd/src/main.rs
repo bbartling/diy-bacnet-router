@@ -13,8 +13,9 @@ use std::{
 use anyhow::{Context, Result};
 use router_core::RouterConfig;
 use rusty_bacnet_adapter::{
-    encode_bip_mac, open_appliance_serial, ApplianceRouterSession, BipQualifySession,
-    BipTransportParams, MstpQualifySession, MstpTransportParams,
+    bip2_params_from_env, encode_bip_mac, open_appliance_serial, ApplianceRouterSession,
+    BipQualifySession, BipTransportParams, DualBipRouterSession, MstpQualifySession,
+    MstpTransportParams,
 };
 use tokio::sync::oneshot;
 use tracing::{info, warn};
@@ -92,14 +93,24 @@ async fn main() -> Result<()> {
         )
     } else if args.route_enable {
         Some(spawn_route_session(state.clone(), config.clone(), args.qualify_secs).await?)
+    } else if args.route_bip_bip {
+        Some(
+            spawn_dual_bip_session(
+                state.clone(),
+                config.clone(),
+                args.qualify_secs,
+                args.route_report.clone(),
+            )
+            .await?,
+        )
     } else {
         None
     };
 
-    if args.route_enable {
+    if args.route_enable || args.route_bip_bip {
         info!(
             bind = %bind,
-            "management plane listening; opt-in --route-enable session active (G7/G8 evidence still open)"
+            "management plane listening; opt-in router session active (product G7/G8 BIP↔MS/TP still open)"
         );
     } else {
         info!(bind = %bind, "management plane listening; BACnet forwarding is disabled");
@@ -334,6 +345,43 @@ async fn spawn_route_session(
     Ok((stop_tx, join))
 }
 
+async fn spawn_dual_bip_session(
+    state: web::AppState,
+    config: RouterConfig,
+    qualify_secs: u64,
+    report_path: Option<PathBuf>,
+) -> Result<(oneshot::Sender<()>, tokio::task::JoinHandle<Result<()>>)> {
+    let a = bip_params_from_config(&config)?;
+    let b = bip2_params_from_env(config.bacnet_ip.udp_port).context("DBR_BIP2_* params")?;
+    let session = DualBipRouterSession::start(&a, &b)
+        .await
+        .context("starting dual B/IP router session")?;
+    state.mark_routing_active();
+    let (stop_tx, stop_rx) = oneshot::channel();
+    let join = tokio::spawn(async move {
+        let _ = tokio::time::timeout(Duration::from_secs(qualify_secs), stop_rx).await;
+        let table_len = session.route_table_len().await;
+        if let Some(path) = report_path {
+            session
+                .write_report(&path, &format!("route_table_len={table_len}"))
+                .context("writing dual-bip report")?;
+        }
+        let stop_res = session.stop().await;
+        let reason = match &stop_res {
+            Ok(()) => {
+                "dual B/IP route session ended; ports closed; ready_to_route product claim remains false"
+                    .to_owned()
+            }
+            Err(error) => format!("dual B/IP route session stop failed: {error}"),
+        };
+        state.mark_routing_inactive(&reason);
+        stop_res.context("stopping dual B/IP router session")?;
+        info!("dual B/IP router session stopped");
+        Ok(())
+    });
+    Ok((stop_tx, join))
+}
+
 fn bip_params_from_config(config: &RouterConfig) -> Result<BipTransportParams> {
     let interface_addr: Ipv4Addr = config
         .bacnet_ip
@@ -362,12 +410,14 @@ struct CliArgs {
     bip_qualify_peer: bool,
     mstp_qualify: bool,
     route_enable: bool,
+    route_bip_bip: bool,
     qualify_secs: u64,
     probe_count: u32,
     peer_target: Option<(Ipv4Addr, u16)>,
     send_unicast: Option<(Ipv4Addr, u16, u32)>,
     send_broadcast: Option<u32>,
     mstp_report: Option<PathBuf>,
+    route_report: Option<PathBuf>,
 }
 
 impl CliArgs {
@@ -380,12 +430,14 @@ impl CliArgs {
         let mut bip_qualify_peer = false;
         let mut mstp_qualify = false;
         let mut route_enable = false;
+        let mut route_bip_bip = false;
         let mut qualify_secs = 120_u64;
         let mut probe_count = 5_u32;
         let mut peer_target = None;
         let mut send_unicast = None;
         let mut send_broadcast = None;
         let mut mstp_report = None;
+        let mut route_report = None;
         while let Some(arg) = args.next() {
             match arg.as_str() {
                 "--config" => {
@@ -405,6 +457,14 @@ impl CliArgs {
                 }
                 "--route-enable" => {
                     route_enable = true;
+                }
+                "--route-bip-bip" => {
+                    route_bip_bip = true;
+                }
+                "--route-report" => {
+                    route_report = Some(PathBuf::from(
+                        args.next().context("--route-report requires a path")?,
+                    ));
                 }
                 "--mstp-report" => {
                     mstp_report = Some(PathBuf::from(
@@ -466,7 +526,9 @@ impl CliArgs {
   --qualify-send-broadcast N     DUT scheduled directed-broadcast TX during --bip-qualify\n\
   --mstp-qualify                 Open one MS/TP port (M2B software); no B/IP; no forwarding\n\
   --mstp-report PATH             Write atomic MS/TP qualify JSON report\n\
-  --route-enable                 Opt-in BACnetRouter B/IP+MS/TP session (M3 software; G7/G8 open)"
+  --route-enable                 Opt-in BACnetRouter B/IP+MS/TP session (M3 software; G7/G8 open)\n\
+  --route-bip-bip                Opt-in dual B/IP BACnetRouter (CI/netns; no MS/TP)\n\
+  --route-report PATH            Write atomic dual-B/IP route JSON report"
                     );
                     process::exit(0);
                 }
@@ -479,11 +541,17 @@ impl CliArgs {
         if mstp_qualify && (bip_qualify || bip_qualify_peer) {
             anyhow::bail!("--mstp-qualify cannot combine with B/IP qualify flags");
         }
-        if route_enable && (bip_qualify || bip_qualify_peer || mstp_qualify) {
-            anyhow::bail!("--route-enable cannot combine with qualify flags");
+        if route_enable && (bip_qualify || bip_qualify_peer || mstp_qualify || route_bip_bip) {
+            anyhow::bail!("--route-enable cannot combine with qualify or --route-bip-bip");
+        }
+        if route_bip_bip && (bip_qualify || bip_qualify_peer || mstp_qualify || route_enable) {
+            anyhow::bail!("--route-bip-bip cannot combine with other data-plane flags");
         }
         if mstp_report.is_some() && !mstp_qualify {
             anyhow::bail!("--mstp-report requires --mstp-qualify");
+        }
+        if route_report.is_some() && !route_bip_bip {
+            anyhow::bail!("--route-report requires --route-bip-bip");
         }
         if !(1..=600).contains(&qualify_secs) {
             anyhow::bail!("--qualify-secs must be in 1..=600 (got {qualify_secs})");
@@ -514,12 +582,14 @@ impl CliArgs {
             bip_qualify_peer,
             mstp_qualify,
             route_enable,
+            route_bip_bip,
             qualify_secs,
             probe_count,
             peer_target,
             send_unicast,
             send_broadcast,
             mstp_report,
+            route_report,
         })
     }
 }

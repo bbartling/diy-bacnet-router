@@ -27,8 +27,8 @@ permalink: /testing/
 | G4 | Passive Waveshare C decode: valid frames/tokens, no TX | Open in new repo |
 | G5 | MS/TP master joins isolated ring without disrupting peer | Open — software `--mstp-qualify` prepared; physical M2B pending |
 | G6 | B/IP port local unicast/broadcast behavior | **PASS** — independent BVLL oracle + exact matrix (`bip-qualify-netns.sh`) |
-| G7 | Routed unicast ReadProperty in both directions | Open — loopback A↔B software tests + opt-in `--route-enable` exist; **bench evidence missing** |
-| G8 | Routed Who-Is/I-Am and router network messages | Open — software path present; **bench evidence missing** |
+| G7 | Routed unicast ReadProperty in both directions | Open — dual-B/IP netns + loopback software PASS (`route-bip-bip-netns.sh`); **BIP↔MS/TP bench still required for product claim** |
+| G8 | Routed Who-Is/I-Am and router network messages | Open — dual-B/IP Who-Is-Router observe in CI; **BIP↔MS/TP bench still required** |
 | G9 | Fault/restart: USB unplug, NIC loss, duplicate MAC/network | Open — loopback stop/rebind software covered; hardware faults pending |
 | G10 | One-hour then 24-hour forwarding soak | Open |
 | G11 | Claimed baud/board matrix under load | Open |
