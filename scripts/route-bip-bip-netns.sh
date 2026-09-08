@@ -211,9 +211,14 @@ ip netns exec "$NS_B" python3 "$ORACLE" send \
   --dnet "$NET_A" --dmac "$DMAC_A" --count "$MATRIX_N" \
   --out "$EVIDENCE_DIR/send_b_to_a.json"
 
-# Let DUT qualify window end so --route-report is written, then wait for recv JSON.
-wait "$DUT_PID" || true
+# Allow forwards to land, then SIGTERM DUT so graceful shutdown writes --route-report.
+# (Management plane keeps running after the router session timeout; do not wait forever.)
+sleep 2
+kill -TERM "$DUT_PID" 2>/dev/null || true
+wait "$DUT_PID" 2>/dev/null || true
 DUT_PID=""
+
+# Recv must finish its window so summary JSON is written (do not kill early).
 wait "$RECV_A_PID" || true
 wait "$RECV_B_PID" || true
 RECV_A_PID=""; RECV_B_PID=""
