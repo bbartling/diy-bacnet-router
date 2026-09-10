@@ -70,7 +70,12 @@ async fn main() -> Result<()> {
     let state = web::AppState::new(Arc::new(config.clone()));
     let app = web::app(state.clone());
 
+    // Opt-in route sessions exit the process when the session ends (no external SIGTERM).
+    let (session_exit_tx, session_exit_rx) = oneshot::channel::<()>();
+    let finite_route = args.route_enable || args.route_bip_bip;
+
     let qualify_handle = if args.bip_qualify {
+        drop(session_exit_tx);
         Some(
             spawn_bip_qualify(
                 state.clone(),
@@ -82,6 +87,7 @@ async fn main() -> Result<()> {
             .await?,
         )
     } else if args.mstp_qualify {
+        drop(session_exit_tx);
         Some(
             spawn_mstp_qualify(
                 state.clone(),
@@ -92,7 +98,16 @@ async fn main() -> Result<()> {
             .await?,
         )
     } else if args.route_enable {
-        Some(spawn_route_session(state.clone(), config.clone(), args.qualify_secs).await?)
+        Some(
+            spawn_route_session(
+                state.clone(),
+                config.clone(),
+                args.qualify_secs,
+                args.route_report.clone(),
+                session_exit_tx,
+            )
+            .await?,
+        )
     } else if args.route_bip_bip {
         Some(
             spawn_dual_bip_session(
@@ -100,10 +115,12 @@ async fn main() -> Result<()> {
                 config.clone(),
                 args.qualify_secs,
                 args.route_report.clone(),
+                session_exit_tx,
             )
             .await?,
         )
     } else {
+        drop(session_exit_tx);
         None
     };
 
@@ -116,7 +133,17 @@ async fn main() -> Result<()> {
         info!(bind = %bind, "management plane listening; BACnet forwarding is disabled");
     }
     axum::serve(listener, app)
-        .with_graceful_shutdown(shutdown_signal())
+        .with_graceful_shutdown(async move {
+            if finite_route {
+                tokio::select! {
+                    () = shutdown_signal() => {},
+                    _ = session_exit_rx => {},
+                }
+            } else {
+                drop(session_exit_rx);
+                shutdown_signal().await;
+            }
+        })
         .await
         .context("management server exited")?;
 
@@ -125,7 +152,7 @@ async fn main() -> Result<()> {
         match join.await {
             Ok(Ok(())) => {}
             Ok(Err(error)) => return Err(error),
-            Err(error) => anyhow::bail!("B/IP qualify task join failed: {error}"),
+            Err(error) => anyhow::bail!("opt-in / qualify task join failed: {error}"),
         }
     }
     Ok(())
@@ -311,6 +338,8 @@ async fn spawn_route_session(
     state: web::AppState,
     config: RouterConfig,
     qualify_secs: u64,
+    report_path: Option<PathBuf>,
+    session_exit_tx: oneshot::Sender<()>,
 ) -> Result<(oneshot::Sender<()>, tokio::task::JoinHandle<Result<()>>)> {
     let bip = bip_params_from_config(&config)?;
     let mstp = MstpTransportParams {
@@ -327,9 +356,15 @@ async fn spawn_route_session(
         .context("starting opt-in appliance router session")?;
     state.mark_routing_active();
     let (stop_tx, stop_rx) = oneshot::channel();
+    let app_version = env!("DBR_VERSION").to_owned();
     let join = tokio::spawn(async move {
+        let started = std::time::Instant::now();
         let _ = tokio::time::timeout(Duration::from_secs(qualify_secs), stop_rx).await;
-        let stop_res = session.stop().await;
+        let duration_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+
+        let stop_res = session
+            .stop_with_optional_report(report_path.as_deref(), duration_ms, &app_version)
+            .await;
         let reason = match &stop_res {
             Ok(()) => {
                 "opt-in route session ended; ports closed; ready_to_route product claim remains false"
@@ -338,6 +373,7 @@ async fn spawn_route_session(
             Err(error) => format!("opt-in route session stop failed: {error}"),
         };
         state.mark_routing_inactive(&reason);
+        let _ = session_exit_tx.send(());
         stop_res.context("stopping opt-in appliance router session")?;
         info!("opt-in appliance router session stopped");
         Ok(())
@@ -350,6 +386,7 @@ async fn spawn_dual_bip_session(
     config: RouterConfig,
     qualify_secs: u64,
     report_path: Option<PathBuf>,
+    session_exit_tx: oneshot::Sender<()>,
 ) -> Result<(oneshot::Sender<()>, tokio::task::JoinHandle<Result<()>>)> {
     let a = bip_params_from_config(&config)?;
     let b = bip2_params_from_env(config.bacnet_ip.udp_port).context("DBR_BIP2_* params")?;
@@ -375,6 +412,7 @@ async fn spawn_dual_bip_session(
             Err(error) => format!("dual B/IP route session stop failed: {error}"),
         };
         state.mark_routing_inactive(&reason);
+        let _ = session_exit_tx.send(());
         stop_res.context("stopping dual B/IP router session")?;
         info!("dual B/IP router session stopped");
         Ok(())
@@ -528,7 +566,7 @@ impl CliArgs {
   --mstp-report PATH             Write atomic MS/TP qualify JSON report\n\
   --route-enable                 Opt-in BACnetRouter B/IP+MS/TP session (M3 software; G7/G8 open)\n\
   --route-bip-bip                Opt-in dual B/IP BACnetRouter (CI/netns; no MS/TP)\n\
-  --route-report PATH            Write atomic dual-B/IP route JSON report"
+  --route-report PATH            Atomic JSON report for --route-enable or --route-bip-bip; process exits when session ends"
                     );
                     process::exit(0);
                 }
@@ -550,8 +588,8 @@ impl CliArgs {
         if mstp_report.is_some() && !mstp_qualify {
             anyhow::bail!("--mstp-report requires --mstp-qualify");
         }
-        if route_report.is_some() && !route_bip_bip {
-            anyhow::bail!("--route-report requires --route-bip-bip");
+        if route_report.is_some() && !(route_bip_bip || route_enable) {
+            anyhow::bail!("--route-report requires --route-bip-bip or --route-enable");
         }
         if !(1..=600).contains(&qualify_secs) {
             anyhow::bail!("--qualify-secs must be in 1..=600 (got {qualify_secs})");

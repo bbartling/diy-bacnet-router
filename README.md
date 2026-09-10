@@ -21,7 +21,7 @@
 
 Boards today: **x86-64** (lab/QEMU) and **Raspberry Pi 3/4/5**. MS/TP uses USB RS-485 adapters via `/dev/serial/by-id/...` (reference: Waveshare USB TO RS485 C).
 
-> **Today:** Milestones **0** and **1** complete. **G6/M2A** qualifies standalone BACnet/IP (independent BVLL oracle + unicast/directed-broadcast matrix on Linux netns). **M2B** physical MS/TP remains open. **M3 dual-B/IP CI** (`--route-bip-bip` + netns) and earlier path-A software (`--route-enable`, M6 write 403) are in tree — **G7–G11 stay OPEN** for BIP↔MS/TP product claims. Ordinary boot stays fail-closed.
+> **Today:** Milestones **0** and **1** complete. **G6/M2A** qualifies standalone BACnet/IP (independent BVLL oracle + unicast/directed-broadcast matrix on Linux netns). **M2B** physical MS/TP remains open. **M3 dual-B/IP CI** (`--route-bip-bip` + netns), BIP↔`LoopbackSerial` adapter CI, and local-delivery drain (PR-A) are in tree — **G7–G11 stay OPEN** for BIP↔MS/TP product claims. Ordinary boot stays fail-closed.
 
 | Pin | Lock | Value |
 | --- | --- | --- |

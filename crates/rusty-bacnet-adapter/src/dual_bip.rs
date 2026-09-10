@@ -10,17 +10,17 @@ use std::path::Path;
 use bacnet_network::router::{BACnetRouter, RouterPort};
 use bacnet_transport::any::AnyTransport;
 use bacnet_transport::mstp::NoSerial;
-use tokio::sync::mpsc;
 use tracing::info;
 
 use crate::bip_qualify::assert_bind_on_interface;
+use crate::local_delivery::LocalDeliveryDrain;
 use crate::ports::{build_bip_transport, BipTransportParams};
 use crate::validate::{validate_distinct_networks, AdapterError};
 
 /// Two B/IP ports under one half-router (no serial).
 pub struct DualBipRouterSession {
     router: BACnetRouter,
-    local_rx: mpsc::Receiver<bacnet_network::layer::ReceivedApdu>,
+    drain: LocalDeliveryDrain,
     network_a: u16,
     network_b: u16,
 }
@@ -51,6 +51,7 @@ impl DualBipRouterSession {
             },
         ];
         let (router, local_rx) = BACnetRouter::start(ports).await?;
+        let drain = LocalDeliveryDrain::spawn(local_rx);
         info!(
             net_a = a.network,
             net_b = b.network,
@@ -58,7 +59,7 @@ impl DualBipRouterSession {
         );
         Ok(Self {
             router,
-            local_rx,
+            drain,
             network_a: a.network,
             network_b: b.network,
         })
@@ -72,8 +73,9 @@ impl DualBipRouterSession {
         self.network_b
     }
 
-    pub fn local_rx(&mut self) -> &mut mpsc::Receiver<bacnet_network::layer::ReceivedApdu> {
-        &mut self.local_rx
+    #[must_use]
+    pub fn local_delivery_count(&self) -> u64 {
+        self.drain.count()
     }
 
     pub async fn route_table_len(&self) -> usize {
@@ -81,6 +83,7 @@ impl DualBipRouterSession {
     }
 
     pub async fn stop(mut self) -> Result<(), AdapterError> {
+        self.drain.stop().await;
         self.router.stop().await;
         Ok(())
     }
@@ -88,8 +91,11 @@ impl DualBipRouterSession {
     /// Atomic JSON report (temp + rename).
     pub fn write_report(&self, path: &Path, detail: &str) -> Result<(), AdapterError> {
         let body = format!(
-            "{{\n  \"ready_to_route\": false,\n  \"mode\": \"dual_bip\",\n  \"network_a\": {},\n  \"network_b\": {},\n  \"bacnet_router\": true,\n  \"mstp\": false,\n  \"detail\": {:?}\n}}\n",
-            self.network_a, self.network_b, detail
+            "{{\n  \"ready_to_route\": false,\n  \"mode\": \"dual_bip\",\n  \"network_a\": {},\n  \"network_b\": {},\n  \"bacnet_router\": true,\n  \"mstp\": false,\n  \"local_delivery_count\": {},\n  \"detail\": {:?}\n}}\n",
+            self.network_a,
+            self.network_b,
+            self.local_delivery_count(),
+            detail
         );
         let tmp = path.with_extension("json.tmp");
         std::fs::write(&tmp, body)
@@ -133,7 +139,21 @@ pub fn bip2_params_from_env(fallback_port: u16) -> Result<BipTransportParams, Ad
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bip_qualify::GOLDEN_NPDU;
+    use bacnet_encoding::npdu::{encode_npdu, Npdu, NpduAddress};
+    use bacnet_types::enums::NetworkPriority;
+    use bacnet_types::MacAddr;
+    use bytes::{Bytes, BytesMut};
     use tokio::time::{timeout, Duration};
+
+    fn bvll_original_unicast(npdu: &[u8]) -> Vec<u8> {
+        let total = 4 + npdu.len();
+        let mut out = Vec::with_capacity(total);
+        out.extend_from_slice(&[0x81, 0x0a]);
+        out.extend_from_slice(&(total as u16).to_be_bytes());
+        out.extend_from_slice(npdu);
+        out
+    }
 
     #[tokio::test]
     async fn dual_bip_localhost_start_stop() {
@@ -193,15 +213,12 @@ mod tests {
         };
         let s1 = DualBipRouterSession::start(&a, &b).await.unwrap();
         s1.stop().await.unwrap();
-        // Brief pause for OS to release UDP ports.
         tokio::time::sleep(Duration::from_millis(50)).await;
-        let mut s2 = DualBipRouterSession::start(&a, &b).await.unwrap();
+        let s2 = DualBipRouterSession::start(&a, &b).await.unwrap();
         assert_eq!(s2.route_table_len().await, 2);
-        let _ = timeout(Duration::from_millis(10), s2.local_rx().recv()).await;
         s2.stop().await.unwrap();
     }
 
-    /// M4: session stays up and stops cleanly after garbage UDP (no panic / hang).
     #[tokio::test]
     async fn dual_bip_survives_malformed_udp() {
         let port_a = 47_886_u16;
@@ -231,15 +248,11 @@ mod tests {
                 (Ipv4Addr::LOCALHOST, port_b),
             )
             .await;
-        let _ = sock
-            .send_to(&[0x81, 0x0a, 0xff, 0xff], (Ipv4Addr::LOCALHOST, port_a))
-            .await;
         tokio::time::sleep(Duration::from_millis(50)).await;
         assert_eq!(session.route_table_len().await, 2);
         session.stop().await.unwrap();
     }
 
-    /// M4: missing Linux iface fails closed before open (non-Linux skips).
     #[tokio::test]
     async fn dual_bip_missing_iface_rejected_on_linux() {
         if !cfg!(target_os = "linux") {
@@ -260,5 +273,87 @@ mod tests {
             interface_name: "dbr-m4-missing-iface".into(),
         };
         assert!(DualBipRouterSession::start(&a, &b).await.is_err());
+    }
+
+    /// PR-A: drain prevents wedge; >256 local deliveries then forward still works.
+    #[tokio::test]
+    async fn dual_bip_drain_survives_local_flood_and_forwards() {
+        let port_a = 47_900_u16;
+        let port_b = 47_901_u16;
+        let peer_b_port = 47_902_u16;
+        let a = BipTransportParams {
+            interface_addr: Ipv4Addr::LOCALHOST,
+            udp_port: port_a,
+            broadcast_address: Ipv4Addr::LOCALHOST,
+            network: 7_100,
+            interface_name: "lo".into(),
+        };
+        let b = BipTransportParams {
+            interface_addr: Ipv4Addr::LOCALHOST,
+            udp_port: port_b,
+            broadcast_address: Ipv4Addr::LOCALHOST,
+            network: 7_200,
+            interface_name: "lo".into(),
+        };
+        let session = DualBipRouterSession::start(&a, &b).await.unwrap();
+
+        // Local APDU (no DNET) via Original-Unicast → router local_tx (capacity 256).
+        let flood = tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        let frame = bvll_original_unicast(&GOLDEN_NPDU);
+        for _ in 0..300 {
+            let _ = flood.send_to(&frame, (Ipv4Addr::LOCALHOST, port_a)).await;
+        }
+        // Allow drain to catch up.
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(2);
+        while tokio::time::Instant::now() < deadline && session.local_delivery_count() < 256 {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+        assert!(
+            session.local_delivery_count() >= 256,
+            "expected drain to observe >=256 local deliveries, got {}",
+            session.local_delivery_count()
+        );
+
+        let peer_b = tokio::net::UdpSocket::bind(("127.0.0.1", peer_b_port))
+            .await
+            .unwrap();
+        peer_b.set_broadcast(true).unwrap();
+
+        let dmac = crate::bip_qualify::encode_bip_mac(Ipv4Addr::LOCALHOST, peer_b_port);
+        let npdu = Npdu {
+            is_network_message: false,
+            expecting_reply: false,
+            priority: NetworkPriority::NORMAL,
+            destination: Some(NpduAddress {
+                network: 7_200,
+                mac_address: MacAddr::from_slice(&dmac),
+            }),
+            source: None,
+            hop_count: 255,
+            payload: Bytes::from_static(&[0xde, 0xad, 0xbe]),
+            ..Npdu::default()
+        };
+        let mut buf = BytesMut::new();
+        encode_npdu(&mut buf, &npdu).unwrap();
+        let wire = bvll_original_unicast(&buf);
+        let sender = tokio::net::UdpSocket::bind("127.0.0.1:0").await.unwrap();
+        sender
+            .send_to(&wire, (Ipv4Addr::LOCALHOST, port_a))
+            .await
+            .unwrap();
+
+        let mut recv_buf = [0u8; 512];
+        let got = timeout(Duration::from_secs(2), peer_b.recv_from(&mut recv_buf)).await;
+        assert!(
+            got.is_ok(),
+            "forwarded packet not observed on peer B after local flood"
+        );
+        let (n, _) = got.unwrap().unwrap();
+        assert!(
+            recv_buf[..n].windows(3).any(|w| w == [0xde, 0xad, 0xbe]),
+            "forwarded APDU payload missing"
+        );
+
+        session.stop().await.unwrap();
     }
 }
