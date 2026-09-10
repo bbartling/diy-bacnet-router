@@ -4,22 +4,29 @@
 //! Product routing gates (G7/G8) remain open until isolated bench evidence exists.
 //! Does not enable BBMD/FDR. Does not synthesize forward counters.
 
+use std::path::Path;
+
 use bacnet_network::router::BACnetRouter;
-use tokio::sync::mpsc;
 use tracing::info;
 
 use crate::bip_qualify::assert_bind_on_interface;
+use crate::local_delivery::LocalDeliveryDrain;
 use crate::mstp_qualify::open_appliance_serial;
 use crate::ports::{
     build_bip_transport, build_heterogeneous_ports, build_mstp_transport, BipTransportParams,
     MstpTransportParams,
 };
 use crate::validate::{validate_distinct_networks, AdapterError};
+use crate::UPSTREAM_REVISION;
 
 /// Live heterogeneous router session (opens one B/IP socket + one serial-by-id).
 pub struct ApplianceRouterSession {
     router: BACnetRouter,
-    local_rx: mpsc::Receiver<bacnet_network::layer::ReceivedApdu>,
+    drain: LocalDeliveryDrain,
+    bip_network: u16,
+    mstp_network: u16,
+    bip: BipTransportParams,
+    mstp: MstpTransportParams,
 }
 
 impl ApplianceRouterSession {
@@ -36,26 +43,170 @@ impl ApplianceRouterSession {
         let ports =
             build_heterogeneous_ports(bip_transport, mstp_transport, bip.network, mstp.network)?;
         let (router, local_rx) = BACnetRouter::start(ports).await?;
+        let drain = LocalDeliveryDrain::spawn(local_rx);
         info!(
             bip_net = bip.network,
             mstp_net = mstp.network,
             "appliance router session started (opt-in; G7/G8 evidence still open)"
         );
-        Ok(Self { router, local_rx })
+        Ok(Self {
+            router,
+            drain,
+            bip_network: bip.network,
+            mstp_network: mstp.network,
+            bip: bip.clone(),
+            mstp: mstp.clone(),
+        })
     }
 
-    pub fn local_rx(&mut self) -> &mut mpsc::Receiver<bacnet_network::layer::ReceivedApdu> {
-        &mut self.local_rx
+    #[must_use]
+    pub fn local_delivery_count(&self) -> u64 {
+        self.drain.count()
     }
 
     pub async fn route_table_len(&self) -> usize {
         self.router.table().lock().await.len()
     }
 
+    /// Stop the session, then write an atomic acceptance report when `path` is set.
+    pub async fn stop_with_optional_report(
+        mut self,
+        path: Option<&Path>,
+        duration_ms: u64,
+        app_version: &str,
+    ) -> Result<(), AdapterError> {
+        let snap = RouteReportSnapshot {
+            verdict: "ok",
+            failure_reason: "",
+            stop_result: "ok",
+            duration_ms,
+            app_version,
+            bip: &self.bip,
+            mstp: &self.mstp,
+            bip_network: self.bip_network,
+            mstp_network: self.mstp_network,
+            local_delivery_count: self.local_delivery_count(),
+            table_len: self.route_table_len().await,
+        };
+
+        self.drain.stop().await;
+        self.router.stop().await;
+
+        if let Some(path) = path {
+            write_route_report(path, snap)?;
+        }
+        Ok(())
+    }
+
+    /// Atomic JSON acceptance report (temp + rename). Never invents forward totals.
+    pub async fn write_report(
+        &self,
+        path: &Path,
+        verdict: &str,
+        failure_reason: &str,
+        stop_result: &str,
+        duration_ms: u64,
+        app_version: &str,
+    ) -> Result<(), AdapterError> {
+        write_route_report(
+            path,
+            RouteReportSnapshot {
+                verdict,
+                failure_reason,
+                stop_result,
+                duration_ms,
+                app_version,
+                bip: &self.bip,
+                mstp: &self.mstp,
+                bip_network: self.bip_network,
+                mstp_network: self.mstp_network,
+                local_delivery_count: self.local_delivery_count(),
+                table_len: self.route_table_len().await,
+            },
+        )
+    }
+
     pub async fn stop(mut self) -> Result<(), AdapterError> {
+        self.drain.stop().await;
         self.router.stop().await;
         Ok(())
     }
+}
+
+struct RouteReportSnapshot<'a> {
+    verdict: &'a str,
+    failure_reason: &'a str,
+    stop_result: &'a str,
+    duration_ms: u64,
+    app_version: &'a str,
+    bip: &'a BipTransportParams,
+    mstp: &'a MstpTransportParams,
+    bip_network: u16,
+    mstp_network: u16,
+    local_delivery_count: u64,
+    table_len: usize,
+}
+
+fn write_route_report(path: &Path, s: RouteReportSnapshot<'_>) -> Result<(), AdapterError> {
+    let body = format!(
+        "{{\n\
+           \"verdict\": {:?},\n\
+           \"failure_reason\": {:?},\n\
+           \"ready_to_route\": false,\n\
+           \"mode\": \"bip_mstp_route_enable\",\n\
+           \"product_g7_g8_bip_mstp\": \"OPEN\",\n\
+           \"bacnet_router\": true,\n\
+           \"mstp\": true,\n\
+           \"upstream_sha\": {UPSTREAM_REVISION:?},\n\
+           \"app_version\": {:?},\n\
+           \"duration_ms\": {},\n\
+           \"bip\": {{\n\
+             \"interface\": {:?},\n\
+             \"bind\": {:?},\n\
+             \"broadcast\": {:?},\n\
+             \"udp_port\": {},\n\
+             \"network\": {}\n\
+           }},\n\
+           \"mstp_port\": {{\n\
+             \"serial\": {:?},\n\
+             \"adapter_profile\": {:?},\n\
+             \"baud\": {},\n\
+             \"mac\": {},\n\
+             \"max_master\": {},\n\
+             \"max_info_frames\": {},\n\
+             \"network\": {}\n\
+           }},\n\
+           \"local_delivery_count\": {},\n\
+           \"route_table_len\": {},\n\
+           \"stop_result\": {:?},\n\
+           \"telemetry_limitations\": \"bacnet counters unavailable at pin; local_delivery_count only; G7/G8 OPEN\"\n\
+         }}\n",
+        s.verdict,
+        s.failure_reason,
+        s.app_version,
+        s.duration_ms,
+        s.bip.interface_name,
+        s.bip.interface_addr.to_string(),
+        s.bip.broadcast_address.to_string(),
+        s.bip.udp_port,
+        s.bip_network,
+        s.mstp.serial_path,
+        s.mstp.adapter_profile,
+        s.mstp.baud_rate,
+        s.mstp.this_station,
+        s.mstp.max_master,
+        s.mstp.max_info_frames,
+        s.mstp_network,
+        s.local_delivery_count,
+        s.table_len,
+        s.stop_result,
+    );
+    let tmp = path.with_extension("json.tmp");
+    std::fs::write(&tmp, body)
+        .map_err(|e| AdapterError::Validation(format!("report write: {e}")))?;
+    std::fs::rename(&tmp, path)
+        .map_err(|e| AdapterError::Validation(format!("report rename: {e}")))?;
+    Ok(())
 }
 
 #[cfg(test)]
@@ -67,7 +218,7 @@ mod tests {
     fn sample_bip() -> BipTransportParams {
         BipTransportParams {
             interface_addr: Ipv4Addr::new(127, 0, 0, 1),
-            udp_port: 0, // rejected by validate — used for pre-open failure path
+            udp_port: 0,
             broadcast_address: Ipv4Addr::new(127, 0, 0, 1),
             network: 1_000,
             interface_name: "lo".into(),
@@ -91,7 +242,6 @@ mod tests {
         let bip = sample_bip();
         let mut mstp = sample_mstp();
         mstp.network = bip.network;
-        // start is async and would open devices; validate path is sync via helper.
         assert!(matches!(
             validate_distinct_networks(bip.network, mstp.network),
             Err(AdapterError::InvalidNetworks(_, _))

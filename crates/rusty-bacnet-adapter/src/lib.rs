@@ -5,8 +5,10 @@
 //! start transports, or enable forwarding unless an explicit isolated session
 //! (tests or a later qualification harness) asks for it.
 
+mod bip_mstp_loopback;
 mod bip_qualify;
 mod dual_bip;
+mod local_delivery;
 mod mstp_qualify;
 mod ports;
 mod route_session;

@@ -52,8 +52,11 @@ grep -q -- '--route-enable' crates/routerd/src/main.rs
 grep -q -- '--route-bip-bip' crates/routerd/src/main.rs
 grep -q 'ApplianceRouterSession' crates/routerd/src/main.rs
 grep -q 'DualBipRouterSession' crates/routerd/src/main.rs
+grep -q 'route-bip-bip or --route-enable\|--route-enable or --route-bip-bip\|requires --route-bip-bip or --route-enable' crates/routerd/src/main.rs
+grep -q 'LocalDeliveryDrain\|local_delivery' crates/rusty-bacnet-adapter/src/route_session.rs
 grep -q 'writes_blocked\|WRITES_BLOCKED' crates/routerd/src/web.rs
 test -f scripts/route-bip-bip-netns.sh
+test -f docs/evidence/PR_A_ROUTE_SESSION_DRAIN.md
 
 echo "==> Buildroot lock is pinned with commit"
 grep -q '^version = ' config/buildroot-lock.toml

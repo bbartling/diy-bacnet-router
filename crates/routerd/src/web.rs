@@ -246,9 +246,9 @@ impl AppState {
 
     /// Mark opt-in `--route-enable` session: ports up, product G7/G8 claim still open.
     pub fn mark_routing_active(&self) {
-        self.set_bacnet_telemetry_available(true);
+        self.set_bacnet_telemetry_available(false);
         self.runtime.replace(RuntimeSnapshot {
-            data_plane: DataPlaneState::Operational,
+            data_plane: DataPlaneState::Starting,
             bip_link: DataPlaneState::Operational,
             mstp_link: DataPlaneState::Operational,
             rfsm_state: "experimental".into(),
@@ -257,7 +257,7 @@ impl AppState {
             poll_station: None,
             silence_timer_ms: 0,
             last_error: Some(
-                "M3 opt-in --route-enable: BACnetRouter session live; G7/G8 evidence open; ready_to_route product claim remains false"
+                "M3 opt-in --route-enable: BACnetRouter session live; counters unavailable; G7/G8 OPEN; ready_to_route product claim remains false"
                     .into(),
             ),
         });
@@ -265,9 +265,9 @@ impl AppState {
 
     /// Mark opt-in `--route-bip-bip` session (no MS/TP).
     pub fn mark_dual_bip_routing_active(&self) {
-        self.set_bacnet_telemetry_available(true);
+        self.set_bacnet_telemetry_available(false);
         self.runtime.replace(RuntimeSnapshot {
-            data_plane: DataPlaneState::Operational,
+            data_plane: DataPlaneState::Starting,
             bip_link: DataPlaneState::Operational,
             mstp_link: DataPlaneState::Disabled,
             rfsm_state: "experimental".into(),
@@ -276,7 +276,7 @@ impl AppState {
             poll_station: None,
             silence_timer_ms: 0,
             last_error: Some(
-                "M3 opt-in --route-bip-bip: dual B/IP session live; BIP↔MS/TP G7/G8 evidence open; ready_to_route product claim remains false"
+                "M3 opt-in --route-bip-bip: dual B/IP session live; counters unavailable; BIP↔MS/TP G7/G8 OPEN; ready_to_route product claim remains false"
                     .into(),
             ),
         });
@@ -684,9 +684,10 @@ mod tests {
         state.mark_dual_bip_routing_active();
         {
             let snap = state.runtime.snapshot();
-            assert_eq!(snap.data_plane, DataPlaneState::Operational);
+            assert_eq!(snap.data_plane, DataPlaneState::Starting);
             assert_eq!(snap.bip_link, DataPlaneState::Operational);
             assert_eq!(snap.mstp_link, DataPlaneState::Disabled);
+            assert!(!state.bacnet_telemetry_available.load(Ordering::Relaxed));
         }
         state.mark_routing_inactive("m4 session timeout cleared routing marks");
         let snap = state.runtime.snapshot();

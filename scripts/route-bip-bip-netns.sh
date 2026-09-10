@@ -167,18 +167,6 @@ DMAC_A="$(python3 -c "import struct; print(','.join(str(b) for b in bytes([192,0
 
 RECV_SECS=20
 QUALIFY_SECS=15
-# Bind INADDR_ANY so we observe final-hop unicast regardless of destination address selection.
-ip netns exec "$NS_B" python3 "$ORACLE" recv \
-  --bind "0.0.0.0" --port "$PORT_B" --seconds "$RECV_SECS" \
-  --out "$EVIDENCE_DIR/recv_b.json" \
-  >"$EVIDENCE_DIR/recv_b.log" 2>&1 &
-RECV_B_PID=$!
-ip netns exec "$NS_A" python3 "$ORACLE" recv \
-  --bind "0.0.0.0" --port "$PORT_A" --seconds "$RECV_SECS" \
-  --out "$EVIDENCE_DIR/recv_a.json" \
-  >"$EVIDENCE_DIR/recv_a.log" 2>&1 &
-RECV_A_PID=$!
-sleep 0.5
 
 ip netns exec "$NS_DUT" env \
   DBR_BIP2_BIND="$DUT_B_IP" \
@@ -213,7 +201,7 @@ ip netns exec "$NS_A" python3 "$ORACLE" send \
   --mode who-is-router --bind "$PEER_A_IP" --dest "$DUT_A_IP" --port "$PORT_A" \
   --count 2 --out "$EVIDENCE_DIR/send_whois.json"
 
-# Warm both directions once (discard); then measured matrix bursts.
+# Warm both directions once (discard from scoring); start recv *after* warmup.
 ip netns exec "$NS_A" python3 "$ORACLE" send \
   --mode routed-unicast --bind "$PEER_A_IP" --dest "$DUT_A_IP" --port "$PORT_A" \
   --dnet "$NET_B" --dmac "$DMAC_B" --count 1 \
@@ -224,23 +212,31 @@ ip netns exec "$NS_B" python3 "$ORACLE" send \
   --out "$EVIDENCE_DIR/send_warmup_b_to_a.json"
 sleep 0.5
 
-# A → B routed unicast (measured)
+# Bind INADDR_ANY so we observe final-hop unicast regardless of destination address selection.
+# Recv starts after warmup so measured counts can use exact ==.
+ip netns exec "$NS_B" python3 "$ORACLE" recv \
+  --bind "0.0.0.0" --port "$PORT_B" --seconds "$RECV_SECS" \
+  --out "$EVIDENCE_DIR/recv_b.json" \
+  >"$EVIDENCE_DIR/recv_b.log" 2>&1 &
+RECV_B_PID=$!
+ip netns exec "$NS_A" python3 "$ORACLE" recv \
+  --bind "0.0.0.0" --port "$PORT_A" --seconds "$RECV_SECS" \
+  --out "$EVIDENCE_DIR/recv_a.json" \
+  >"$EVIDENCE_DIR/recv_a.log" 2>&1 &
+RECV_A_PID=$!
+sleep 0.3
+
+# A → B routed unicast (measured, once)
 ip netns exec "$NS_A" python3 "$ORACLE" send \
   --mode routed-unicast --bind "$PEER_A_IP" --dest "$DUT_A_IP" --port "$PORT_A" \
   --dnet "$NET_B" --dmac "$DMAC_B" --count "$MATRIX_N" \
   --out "$EVIDENCE_DIR/send_a_to_b.json"
 
-# B → A routed unicast (measured)
+# B → A routed unicast (measured, once)
 ip netns exec "$NS_B" python3 "$ORACLE" send \
   --mode routed-unicast --bind "$PEER_B_IP" --dest "$DUT_B_IP" --port "$PORT_B" \
   --dnet "$NET_A" --dmac "$DMAC_A" --count "$MATRIX_N" \
   --out "$EVIDENCE_DIR/send_b_to_a.json"
-
-# Repeat A→B in case the first measured burst raced port-B TX readiness.
-ip netns exec "$NS_A" python3 "$ORACLE" send \
-  --mode routed-unicast --bind "$PEER_A_IP" --dest "$DUT_A_IP" --port "$PORT_A" \
-  --dnet "$NET_B" --dmac "$DMAC_B" --count "$MATRIX_N" \
-  --out "$EVIDENCE_DIR/send_a_to_b_retry.json"
 
 sleep 1
 
@@ -258,9 +254,17 @@ PY
 ip -n "$NS_DUT" link set "$VA_D" up
 sleep 0.2
 
-# SIGTERM DUT so graceful shutdown writes --route-report.
-# (Management plane keeps running after the router session timeout; do not wait forever.)
-kill -TERM "$DUT_PID" 2>/dev/null || true
+# Finite session: DUT exits after --qualify-secs without requiring SIGTERM.
+for _ in $(seq 1 40); do
+  if ! kill -0 "$DUT_PID" 2>/dev/null; then
+    break
+  fi
+  sleep 0.5
+done
+if kill -0 "$DUT_PID" 2>/dev/null; then
+  log "DUT still running after qualify window; sending SIGTERM fallback"
+  kill -TERM "$DUT_PID" 2>/dev/null || true
+fi
 wait "$DUT_PID" 2>/dev/null || true
 DUT_PID=""
 
@@ -285,10 +289,10 @@ rp = ev / "route_report.json"
 if rp.exists():
     report = json.loads(rp.read_text(encoding="utf-8"))
 subgates = {
-    "U_a_to_b": {"expected": n, "observed": a_to_b, "pass": a_to_b >= n},
-    "U_b_to_a": {"expected": n, "observed": b_to_a, "pass": b_to_a >= n},
+    "U_a_to_b": {"expected": n, "observed": a_to_b, "pass": a_to_b == n},
+    "U_b_to_a": {"expected": n, "observed": b_to_a, "pass": b_to_a == n},
     "WhoIs_Router_netmsg": {
-        "expected": ">=0 observed",
+        "expected": "observation_only",
         "observed": net_msgs,
         "pass": True,
         "note": "I-Am/Who-Is observation best-effort; not a product G8 PASS",
