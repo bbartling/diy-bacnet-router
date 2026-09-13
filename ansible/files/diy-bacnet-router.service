@@ -1,0 +1,25 @@
+[Unit]
+Description=DIY BACnet Router lab session (BIP↔MS/TP --route-enable)
+Documentation=https://github.com/bbartling/diy-bacnet-router
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ben
+Group=ben
+SupplementaryGroups=dialout
+WorkingDirectory=/home/ben/src/diy-bacnet-router
+Environment=RUST_LOG=info
+# qualify-secs 0 = persist until SIGTERM (management UI + routing stay up)
+ExecStart=/home/ben/src/diy-bacnet-router/target/release/diy-bacnet-router \
+  --config /home/ben/lab/dbr-two-pi.toml \
+  --route-enable \
+  --qualify-secs 0
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=30
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target

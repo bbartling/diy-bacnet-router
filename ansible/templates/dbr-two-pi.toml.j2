@@ -1,0 +1,31 @@
+[identity]
+name = "workerpi1-diy-router"
+location = "isolated two-Pi lab (persistent systemd)"
+
+[management]
+bind = "127.0.0.1:8080"
+web_root = "frontend/web/dist"
+metrics_interval_ms = 1000
+max_ws_connections = 8
+
+[router]
+enabled = false
+
+[bacnet_ip]
+interface = "eth0"
+bind_address = "{{ dbr_bind_address }}"
+broadcast_address = "{{ dbr_broadcast_address }}"
+udp_port = {{ dbr_udp_port }}
+network = {{ dbr_bip_network }}
+bbmd_enabled = false
+foreign_device_enabled = false
+
+[mstp]
+serial = "{{ dbr_serial }}"
+adapter_profile = "{{ dbr_adapter_profile }}"
+termination = "onboard-present"
+baud = {{ dbr_baud }}
+mac = {{ dbr_mstp_mac }}
+network = {{ dbr_mstp_network }}
+max_master = 2
+max_info_frames = 1

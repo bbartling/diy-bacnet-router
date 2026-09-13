@@ -1,0 +1,29 @@
+[Unit]
+Description=Vibe13 MS/TP mini-device fixture (MAC 2 / device 123102)
+Documentation=https://github.com/bbartling/py-bacnet-stacks-playground
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ben
+Group=ben
+SupplementaryGroups=dialout
+WorkingDirectory=/home/ben/src/py-bacnet-stacks-playground/vibe_code_apps_13
+Environment=RUST_LOG=info
+ExecStart=/home/ben/src/py-bacnet-stacks-playground/vibe_code_apps_13/target/release/mstp-mini-device \
+  --serial /dev/serial/by-id/usb-1a86_USB_Single_Serial_5A98075745-if00 \
+  --baud 38400 \
+  --mac 2 \
+  --max-master 2 \
+  --max-info-frames 1 \
+  --device-instance 123102 \
+  --name "Rust MS/TP Mini Device" \
+  --vendor-id 999
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target

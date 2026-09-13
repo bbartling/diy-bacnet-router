@@ -41,6 +41,10 @@ data plane at a recorded git SHA. It does **not** close the product/exact-image
 gate until the same topology and oracle succeed on the released Buildroot
 appliance image.
 
+Hold / pickup notes for the 2026-09-13 two-Pi bench:
+[CHECKPOINT_2026-09-13_SOURCE_G7_G8_HOLD.md](evidence/CHECKPOINT_2026-09-13_SOURCE_G7_G8_HOLD.md).
+Persistent lab deploy: [ansible/README.md](../ansible/README.md) (`--qualify-secs 0`).
+
 ## Milestone 0 non-hardware commands
 
 The non-hardware gate is reproducible with the same locked inputs used by CI:

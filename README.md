@@ -21,7 +21,7 @@
 
 Boards today: **x86-64** (lab/QEMU) and **Raspberry Pi 3/4/5**. MS/TP uses USB RS-485 adapters via `/dev/serial/by-id/...` (reference: Waveshare USB TO RS485 C).
 
-> **Today:** Milestones **0** and **1** complete. **G6/M2A** qualifies standalone BACnet/IP (independent BVLL oracle + unicast/directed-broadcast matrix on Linux netns). **Source G4/G5/G7/G8** PASS on an isolated two-Pi BIP↔MS/TP bench (net 2001 / device 123102) — see `docs/evidence/SOURCE_G7_G8_*`. **Exact-image / Buildroot G7–G11 remain OPEN**. Ordinary boot stays fail-closed (`--mstp-passive` / `--route-enable` are explicit lab unlocks).
+> **Today:** Milestones **0** and **1** complete. **G6/M2A** qualifies standalone BACnet/IP (independent BVLL oracle + unicast/directed-broadcast matrix on Linux netns). **Source G4/G5/G7/G8** PASS on an isolated two-Pi BIP↔MS/TP bench (net 2001 / device 123102) — see `docs/evidence/SOURCE_G7_G8_*` and the hold checkpoint `docs/evidence/CHECKPOINT_2026-09-13_SOURCE_G7_G8_HOLD.md`. **Exact-image / Buildroot G7–G11 remain OPEN**. Ordinary boot stays fail-closed; lab persistence uses `--route-enable --qualify-secs 0` via [ansible/](ansible/).
 
 | Pin | Lock | Value |
 | --- | --- | --- |

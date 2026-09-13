@@ -72,7 +72,9 @@ async fn main() -> Result<()> {
 
     // Opt-in route sessions exit the process when the session ends (no external SIGTERM).
     let (session_exit_tx, session_exit_rx) = oneshot::channel::<()>();
-    let finite_session = args.route_enable || args.route_bip_bip || args.mstp_passive;
+    // qualify_secs == 0 means run until SIGTERM (systemd lab persistence).
+    let finite_session =
+        (args.route_enable || args.route_bip_bip || args.mstp_passive) && args.qualify_secs > 0;
 
     let qualify_handle = if args.bip_qualify {
         drop(session_exit_tx);
@@ -408,6 +410,16 @@ async fn run_bip_qualify_peer(
     Ok(())
 }
 
+/// Wait until stop signal, or until `qualify_secs` elapses when non-zero.
+/// `0` means persistent lab mode (systemd): wait only for stop/SIGTERM path.
+async fn wait_for_session_end(qualify_secs: u64, stop_rx: oneshot::Receiver<()>) {
+    if qualify_secs == 0 {
+        let _ = stop_rx.await;
+    } else {
+        let _ = tokio::time::timeout(Duration::from_secs(qualify_secs), stop_rx).await;
+    }
+}
+
 async fn spawn_route_session(
     state: web::AppState,
     config: RouterConfig,
@@ -433,7 +445,7 @@ async fn spawn_route_session(
     let app_version = env!("DBR_VERSION").to_owned();
     let join = tokio::spawn(async move {
         let started = std::time::Instant::now();
-        let _ = tokio::time::timeout(Duration::from_secs(qualify_secs), stop_rx).await;
+        wait_for_session_end(qualify_secs, stop_rx).await;
         let duration_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
 
         let stop_res = session
@@ -470,7 +482,7 @@ async fn spawn_dual_bip_session(
     state.mark_dual_bip_routing_active();
     let (stop_tx, stop_rx) = oneshot::channel();
     let join = tokio::spawn(async move {
-        let _ = tokio::time::timeout(Duration::from_secs(qualify_secs), stop_rx).await;
+        wait_for_session_end(qualify_secs, stop_rx).await;
         let table_len = session.route_table_len().await;
         if let Some(path) = report_path {
             session
@@ -645,7 +657,7 @@ impl CliArgs {
   --config PATH                  Configuration file (default: config/router.toml or DBR_CONFIG)\n\
   --bip-qualify                  Open one B/IP socket (G6); management stays up; no forwarding\n\
   --bip-qualify-peer             Peer helper: start B/IP, send probes, exit (no management UI)\n\
-  --qualify-secs N               Max qualify/passive/route session duration (1..=600, default 120)\n\
+  --qualify-secs N               Session duration seconds (1..=600 finite; 0=until SIGTERM; default 120)\n\
   --probe-count N                Peer probe count (1..=64, default 5)\n\
   --peer-target IP:PORT          Unicast probes to DUT BIP endpoint (else broadcast)\n\
   --qualify-send-unicast IP:PORT:N  DUT scheduled unicast TX during --bip-qualify\n\
@@ -688,8 +700,13 @@ impl CliArgs {
         if route_report.is_some() && !(route_bip_bip || route_enable) {
             anyhow::bail!("--route-report requires --route-bip-bip or --route-enable");
         }
-        if !(1..=600).contains(&qualify_secs) {
-            anyhow::bail!("--qualify-secs must be in 1..=600 (got {qualify_secs})");
+        if qualify_secs > 600 {
+            anyhow::bail!(
+                "--qualify-secs must be in 0..=600 (got {qualify_secs}; 0=until SIGTERM)"
+            );
+        }
+        if qualify_secs == 0 && !(route_enable || route_bip_bip) {
+            anyhow::bail!("--qualify-secs 0 is only valid with --route-enable or --route-bip-bip");
         }
         if expect_source > 127 {
             anyhow::bail!("--expect-source must be in 0..=127 (got {expect_source})");

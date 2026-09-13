@@ -1,0 +1,120 @@
+---
+# Deploy persistent BIP↔MS/TP lab units to workerpi1 + workerpi2.
+# Run from Ubuntu tower:
+#   ansible-playbook -i ansible/inventory/lab.yml ansible/playbooks/two_pi_lab.yml
+#
+# Prerequisites: release binaries already built on each Pi (or copy them first).
+# Does not rebuild Rust by default — set rebuild_router=true / rebuild_mini=true to rebuild.
+
+- name: Ensure lab directories and router config on workerpi1
+  hosts: diy_router
+  become: false
+  tasks:
+    - name: Create lab config directory
+      ansible.builtin.file:
+        path: /home/ben/lab
+        state: directory
+        mode: "0755"
+
+    - name: Install router TOML for two-Pi topology
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/dbr-two-pi.toml.j2"
+        dest: "{{ dbr_config_path }}"
+        mode: "0644"
+
+    - name: Optionally rebuild routerd release
+      ansible.builtin.shell: |
+        set -euo pipefail
+        . "$HOME/.cargo/env"
+        cd "{{ dbr_src_dir }}"
+        CARGO_BUILD_JOBS=1 cargo build --release --locked -p routerd
+      args:
+        executable: /bin/bash
+      when: rebuild_router | default(false) | bool
+
+    - name: Verify router binary exists
+      ansible.builtin.stat:
+        path: "{{ dbr_src_dir }}/target/release/diy-bacnet-router"
+      register: router_bin
+      failed_when: not router_bin.stat.exists
+
+- name: Ensure mini-device binary on workerpi2
+  hosts: mstp_fixture
+  become: false
+  tasks:
+    - name: Optionally rebuild mstp-mini-device release
+      ansible.builtin.shell: |
+        set -euo pipefail
+        . "$HOME/.cargo/env"
+        cd "{{ vibe_src_dir }}"
+        git fetch origin develop
+        git checkout --detach {{ vibe_sha }}
+        cd vibe_code_apps_13
+        CARGO_BUILD_JOBS=1 cargo build --release --locked -p mstp-mini-device
+      args:
+        executable: /bin/bash
+      when: rebuild_mini | default(false) | bool
+
+    - name: Verify mini-device binary exists
+      ansible.builtin.stat:
+        path: "{{ vibe_src_dir }}/vibe_code_apps_13/target/release/mstp-mini-device"
+      register: mini_bin
+      failed_when: not mini_bin.stat.exists
+
+- name: Install and start systemd units (requires passwordless sudo)
+  hosts: all
+  become: true
+  tasks:
+    - name: Install diy-bacnet-router unit on workerpi1
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../files/diy-bacnet-router.service"
+        dest: /etc/systemd/system/diy-bacnet-router.service
+        mode: "0644"
+      when: "'diy_router' in group_names"
+      notify: Reload systemd
+
+    - name: Install mstp-mini-device unit on workerpi2
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../files/mstp-mini-device.service"
+        dest: /etc/systemd/system/mstp-mini-device.service
+        mode: "0644"
+      when: "'mstp_fixture' in group_names"
+      notify: Reload systemd
+
+    - name: Enable and start mini-device first
+      ansible.builtin.systemd:
+        name: mstp-mini-device
+        enabled: true
+        state: started
+        daemon_reload: true
+      when: "'mstp_fixture' in group_names"
+
+    - name: Enable and start diy-bacnet-router
+      ansible.builtin.systemd:
+        name: diy-bacnet-router
+        enabled: true
+        state: started
+        daemon_reload: true
+      when: "'diy_router' in group_names"
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+- name: Post-start smoke
+  hosts: diy_router
+  become: false
+  tasks:
+    - name: Wait for management API
+      ansible.builtin.uri:
+        url: http://127.0.0.1:8080/api/status
+        return_content: true
+      register: status
+      retries: 10
+      delay: 2
+      until: status.status == 200
+
+    - name: Show status snippet
+      ansible.builtin.debug:
+        msg: "{{ status.json }}"
