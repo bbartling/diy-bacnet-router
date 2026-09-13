@@ -11,6 +11,8 @@
 | MSRV | Rust 1.93 |
 | Consumed crates | `bacnet-types`, `bacnet-encoding`, `bacnet-transport`, `bacnet-network` via `crates/rusty-bacnet-adapter` |
 
+**Agents:** rusty-bacnet (especially MS/TP) changes frequently. Follow the **Daily rusty-bacnet / MS/TP watch** in [AGENTS.md](../AGENTS.md) every session — compare tip to this pin before assuming lab timing is unchanged. Never float the pin without a lock PR.
+
 ### Audit evidence at this SHA
 
 - Public APIs reused (not forked): `BACnetRouter`, `RouterPort<T>`, `AnyTransport<S>`,
