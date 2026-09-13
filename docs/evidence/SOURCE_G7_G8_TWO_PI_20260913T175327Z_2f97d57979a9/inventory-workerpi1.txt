@@ -1,0 +1,14 @@
+workerpi1
+Linux workerpi1 6.18.34+rpt-rpi-v8 #1 SMP PREEMPT Debian 1:6.18.34-1+rpt1 (2026-06-09) aarch64 GNU/Linux
+aarch64
+lo               UNKNOWN        127.0.0.1/8 
+eth0             UP             192.168.204.59/24 
+default via 192.168.204.1 dev eth0 proto dhcp src 192.168.204.59 metric 100 
+192.168.204.0/24 dev eth0 proto kernel scope link src 192.168.204.59 metric 100 
+total 0
+lrwxrwxrwx 1 root root 13 Sep 10 15:55 usb-FTDI_FT232R_USB_UART_BH002I9S-if00-port0 -> ../../ttyUSB0
+/dev/ttyUSB0
+rustc 1.98.1 (48a229cea 2026-09-01)
+cargo 1.98.1 (797e8a9bc 2026-08-05)
+2f97d57979a9cd4b255663786e3929f579ccbba7
+12e7d232b23023e1bb06da7b75972d79ca584cf9

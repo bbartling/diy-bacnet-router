@@ -21,7 +21,7 @@
 
 Boards today: **x86-64** (lab/QEMU) and **Raspberry Pi 3/4/5**. MS/TP uses USB RS-485 adapters via `/dev/serial/by-id/...` (reference: Waveshare USB TO RS485 C).
 
-> **Today:** Milestones **0** and **1** complete. **G6/M2A** qualifies standalone BACnet/IP (independent BVLL oracle + unicast/directed-broadcast matrix on Linux netns). **M2B** physical MS/TP remains open. **M3 dual-B/IP CI** (`--route-bip-bip` + netns), BIP↔`LoopbackSerial` adapter CI, and local-delivery drain (PR-A) are in tree — **G7–G11 stay OPEN** for BIP↔MS/TP product claims. Ordinary boot stays fail-closed.
+> **Today:** Milestones **0** and **1** complete. **G6/M2A** qualifies standalone BACnet/IP (independent BVLL oracle + unicast/directed-broadcast matrix on Linux netns). **Source G4/G5/G7/G8** PASS on an isolated two-Pi BIP↔MS/TP bench (net 2001 / device 123102) — see `docs/evidence/SOURCE_G7_G8_*`. **Exact-image / Buildroot G7–G11 remain OPEN**. Ordinary boot stays fail-closed (`--mstp-passive` / `--route-enable` are explicit lab unlocks).
 
 | Pin | Lock | Value |
 | --- | --- | --- |
@@ -44,7 +44,7 @@ Details: [docs/agent/SPEC.md](docs/agent/SPEC.md).
 - [x] **M0 — Scaffold and OS images** — management API/UI, CI, Buildroot x86+Pi, QEMU smoke
 - [x] **M1 — rusty-bacnet adapter closeout** — pin + concrete B/IP/MS/TP compile/config fixtures (transports not started at ordinary boot)
 - [ ] **M2 — Port qualification** — **G6/M2A** B/IP netns matrix PASS; **M2B** physical MS/TP still open
-- [ ] **M3 — Isolated routing** — dual-B/IP CI netns + `--route-enable` software; **G7/G8 BIP↔MS/TP bench OPEN**
+- [ ] **M3 — Isolated routing** — dual-B/IP CI + `--route-enable`; **source G7/G8 PASS** (two-Pi evidence); **exact-image G7/G8 OPEN**
 - [ ] **M4 — Faults and timing** — CI software faults + dual-B/IP link-down survival; **G9 hardware OPEN**
 - [ ] **M5 — Production-shaped images / Pi hardware validation** — Pi **build** evidence in Actions documented; **flash/boot OPEN**
 - [ ] **M6 — Management writes** — auth/session skeleton + env unlock only; `POST /api/config` stays 403; capability blocked

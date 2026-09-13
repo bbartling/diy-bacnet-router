@@ -9,6 +9,7 @@ mod bip_mstp_loopback;
 mod bip_qualify;
 mod dual_bip;
 mod local_delivery;
+mod mstp_passive;
 mod mstp_qualify;
 mod ports;
 mod route_session;
@@ -19,6 +20,7 @@ pub use bip_qualify::{
     GOLDEN_NPDU,
 };
 pub use dual_bip::{bip2_params_from_env, DualBipRouterSession};
+pub use mstp_passive::{run_mstp_passive, MstpPassiveCriteria, MstpPassiveReport};
 pub use mstp_qualify::{open_appliance_serial, MstpQualifyCounters, MstpQualifySession};
 pub use ports::{
     build_bip_transport, build_heterogeneous_ports, build_mstp_transport, ApplianceRouterPort,
