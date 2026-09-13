@@ -91,6 +91,45 @@ See [docs/agent/SOFTWARE_SPEC.md](docs/agent/SOFTWARE_SPEC.md) and
 - Upstream stack changes belong in focused rusty-bacnet PRs with failing tests
   first. Application policy and appliance integration stay here.
 
+### Daily rusty-bacnet / MS/TP watch (mandatory for agents)
+
+Upstream [jscott3201/rusty-bacnet](https://github.com/jscott3201/rusty-bacnet) is under
+**active daily enhancement**, especially MS/TP transport, frame decode, and router
+paths. Every session that touches this appliance (or resumes after a hold) must:
+
+1. Read the current pin in [`config/upstream-lock.toml`](config/upstream-lock.toml)
+   and [`docs/UPSTREAM_LOCK.md`](docs/UPSTREAM_LOCK.md).
+2. Fetch upstream tip (`git ls-remote` / compare `dev` or default branch HEAD) and
+   note whether MS/TP, `mstp_frame`, serial, or `bacnet-network` router commits
+   landed since the pin.
+3. Skim new upstream PRs/issues/changelog for MS/TP timing, token, CRC, stop/TTY
+   ownership, and forwarding fixes — those directly affect lab timeouts
+   ([issue #66](https://github.com/bbartling/diy-bacnet-router/issues/66)).
+4. **Do not silently float the pin.** If a bump is warranted: audit, run upstream
+   tests, update lock + `Cargo.toml` rev + `Cargo.lock`, run this repo’s full
+   `--locked` suite, and record evidence. Prefer a focused PR here after any
+   required rusty-bacnet PR merges.
+5. If the pin stays: say so explicitly in the handoff (“upstream checked
+   YYYY-MM-DD; pin still `24e3439…`; no MS/TP delta”).
+
+Lab baud for the current two-Pi bench is **38400** unless evidence says otherwise.
+
+## Spec and evidence (read before coding)
+
+Source of truth for gates and claims:
+
+| Doc | Role |
+| --- | --- |
+| [docs/agent/SPEC.md](docs/agent/SPEC.md) | Milestone / gate intent |
+| [docs/TESTING.md](docs/TESTING.md) | Gate ledger G0–G11; **source vs exact-image** |
+| [docs/agent/SOFTWARE_SPEC.md](docs/agent/SOFTWARE_SPEC.md) | Software contracts |
+| [docs/evidence/CHECKPOINT_2026-09-13_SOURCE_G7_G8_HOLD.md](docs/evidence/CHECKPOINT_2026-09-13_SOURCE_G7_G8_HOLD.md) | Hold/resume after source G7/G8 |
+| [ansible/README.md](ansible/README.md) | Persistent two-Pi lab deploy |
+
+Keep [README.md](README.md) milestone checkboxes honest: check **source** wins when
+evidence exists; leave **exact-image / Buildroot** boxes open until that gate passes.
+Update checkboxes in the same PR that lands the evidence.
+
 ## BACnet and serial safety
 
 - Use `/dev/serial/by-id/...`, never persist `ttyUSB0`.
@@ -136,15 +175,18 @@ for appliance images; **SSH-managed Linux networking** for host IP/routes.
 ## Agent workflow
 
 1. Inspect the working tree and preserve user changes.
-2. For M0 image pipeline work, start with
+2. **Daily upstream check:** rusty-bacnet tip vs pin (see Dependency policy). Record
+   result before assuming MS/TP behavior is unchanged.
+3. For M0 image pipeline work, start with
    [docs/agent/M0_ARTIFACT_ACCEPTANCE_PROMPT.md](docs/agent/M0_ARTIFACT_ACCEPTANCE_PROMPT.md)
    — verify Actions artifacts before editing Buildroot.
-3. Identify one gate from [docs/agent/SPEC.md](docs/agent/SPEC.md).
-4. Add a failing test or executable acceptance check.
-5. Make the smallest implementation that passes it.
-6. Run the required checks.
-7. Update the evidence ledger and upstream lock if relevant.
-8. Stop at hardware, signing, network mutation or release approval boundaries.
+4. Identify one gate from [docs/agent/SPEC.md](docs/agent/SPEC.md) and confirm status
+   in [docs/TESTING.md](docs/TESTING.md) / README milestone checkboxes.
+5. Add a failing test or executable acceptance check.
+6. Make the smallest implementation that passes it.
+7. Run the required checks.
+8. Update the evidence ledger, README checkboxes, and upstream lock if relevant.
+9. Stop at hardware, signing, network mutation or release approval boundaries.
 
 ## Buildroot and local lab
 
