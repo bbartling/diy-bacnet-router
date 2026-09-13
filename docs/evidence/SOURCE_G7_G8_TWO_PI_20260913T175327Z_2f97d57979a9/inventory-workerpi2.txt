@@ -1,0 +1,11 @@
+workerpi2
+Linux workerpi2 6.18.34+rpt-rpi-v8 #1 SMP PREEMPT Debian 1:6.18.34-1+rpt1 (2026-06-09) aarch64 GNU/Linux
+aarch64
+lo               UNKNOWN        127.0.0.1/8 
+eth0             UP             192.168.204.60/24 
+total 0
+lrwxrwxrwx 1 root root 13 Sep  7 13:16 usb-1a86_USB_Single_Serial_5A98075745-if00 -> ../../ttyACM0
+/dev/ttyACM0
+rustc 1.98.1 (48a229cea 2026-09-01)
+cargo 1.98.1 (797e8a9bc 2026-08-05)
+12e7d232b23023e1bb06da7b75972d79ca584cf9

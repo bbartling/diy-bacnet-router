@@ -1,0 +1,32 @@
+{
+"verdict": "ok",
+"failure_reason": "",
+"ready_to_route": false,
+"mode": "bip_mstp_route_enable",
+"product_g7_g8_bip_mstp": "OPEN",
+"bacnet_router": true,
+"mstp": true,
+"upstream_sha": "24e3439694b7d286e57e0a80cf7f1df4bd39d8ad",
+"app_version": "0.0.1",
+"duration_ms": 600001,
+"bip": {
+"interface": "eth0",
+"bind": "192.168.204.59",
+"broadcast": "192.168.204.255",
+"udp_port": 47808,
+"network": 1
+},
+"mstp_port": {
+"serial": "/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_BH002I9S-if00-port0",
+"adapter_profile": "waveshare-usb-to-rs485-c",
+"baud": 38400,
+"mac": 1,
+"max_master": 2,
+"max_info_frames": 1,
+"network": 2001
+},
+"local_delivery_count": 2,
+"route_table_len": 2,
+"stop_result": "ok",
+"telemetry_limitations": "bacnet counters unavailable at pin; local_delivery_count only; G7/G8 OPEN"
+}

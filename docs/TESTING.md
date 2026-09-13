@@ -24,17 +24,22 @@ permalink: /testing/
 | G2 | Raspberry Pi 3/4/5 images build and publish manifests | **Build evidence** — Actions matrix at `baae236` run `34071585237` (x86+rpi3/4/5); see [M5_G2_BUILD_EVIDENCE.md](evidence/M5_G2_BUILD_EVIDENCE.md). **Physical Pi boot/soak OPEN** |
 | G3 | Current rusty-bacnet pin and adapter compile/tests | **M1 closeout** — concrete B/IP+MS/TP fixtures (no OS open) |
 | G3a | Standalone B/IP netns smoke (historical) | Superseded by G6 matrix |
-| G4 | Passive Waveshare C decode: valid frames/tokens, no TX | Open in new repo |
-| G5 | MS/TP master joins isolated ring without disrupting peer | Open — software `--mstp-qualify` prepared; physical M2B pending |
+| G4 | Passive Waveshare C decode: valid frames/tokens, no TX | **Source PASS** — two-Pi RX-only sniff 2026-09-13 (source 2 / PFM); router-owned `--mstp-passive` fail-closed gate in tree. Exact-image still OPEN |
+| G5 | MS/TP master joins isolated ring without disrupting peer | **Source PASS** — `--mstp-qualify` next_station=2 on isolated MAC1↔MAC2 @ 38400 (see SOURCE_G7_G8 evidence). Exact-image OPEN |
 | G6 | B/IP port local unicast/broadcast behavior | **PASS** — independent BVLL oracle + exact matrix (`bip-qualify-netns.sh`) |
-| G7 | Routed unicast ReadProperty in both directions | Open — dual-B/IP netns + BIP↔`LoopbackSerial` MS/TP CI + local-delivery drain (`PR_A_ROUTE_SESSION_DRAIN.md`); **BIP↔physical-MS/TP bench still required for product claim** |
-| G8 | Routed Who-Is/I-Am and router network messages | Open — dual-B/IP Who-Is-Router observe in CI; **BIP↔MS/TP bench still required** |
+| G7 | Routed unicast ReadProperty in both directions | **Source PASS** — BIP↔physical MS/TP net 2001 / MAC2 device 123102 ComplexACK (Object_Name + AI:1); see [SOURCE_G7_G8 evidence](evidence/SOURCE_G7_G8_TWO_PI_20260913T175327Z_2f97d57979a9/result.md). **Exact-image / Buildroot still OPEN** |
+| G8 | Routed Who-Is/I-Am and router network messages | **Source PASS** — I-Am-Router(2001) + unbounded remote Who-Is → I-Am SNET 2001 SADR 02 (same evidence pack). **Exact-image still OPEN** |
 | G9 | Fault/restart: USB unplug, NIC loss, duplicate MAC/network | Open — CI software faults (malformed UDP, missing iface, dual-B/IP link-down management survival, routing-mark clear); **USB/NIC hardware faults pending** |
 | G10 | One-hour then 24-hour forwarding soak | Open |
 | G11 | Claimed baud/board matrix under load | Open |
 
 Vibe13 artifacts are prior evidence and test-vector inputs, not automatic passes
 for G4–G11 in a different process and OS image.
+
+**Source vs exact-image:** A **source PASS** on Raspberry Pi OS proves the
+data plane at a recorded git SHA. It does **not** close the product/exact-image
+gate until the same topology and oracle succeed on the released Buildroot
+appliance image.
 
 ## Milestone 0 non-hardware commands
 

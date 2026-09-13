@@ -13,9 +13,9 @@ use std::{
 use anyhow::{Context, Result};
 use router_core::RouterConfig;
 use rusty_bacnet_adapter::{
-    bip2_params_from_env, encode_bip_mac, open_appliance_serial, ApplianceRouterSession,
-    BipQualifySession, BipTransportParams, DualBipRouterSession, MstpQualifySession,
-    MstpTransportParams,
+    bip2_params_from_env, encode_bip_mac, open_appliance_serial, run_mstp_passive,
+    ApplianceRouterSession, BipQualifySession, BipTransportParams, DualBipRouterSession,
+    MstpPassiveCriteria, MstpQualifySession, MstpTransportParams,
 };
 use tokio::sync::oneshot;
 use tracing::{info, warn};
@@ -72,7 +72,7 @@ async fn main() -> Result<()> {
 
     // Opt-in route sessions exit the process when the session ends (no external SIGTERM).
     let (session_exit_tx, session_exit_rx) = oneshot::channel::<()>();
-    let finite_route = args.route_enable || args.route_bip_bip;
+    let finite_session = args.route_enable || args.route_bip_bip || args.mstp_passive;
 
     let qualify_handle = if args.bip_qualify {
         drop(session_exit_tx);
@@ -94,6 +94,18 @@ async fn main() -> Result<()> {
                 config.clone(),
                 args.qualify_secs,
                 args.mstp_report.clone(),
+            )
+            .await?,
+        )
+    } else if args.mstp_passive {
+        Some(
+            spawn_mstp_passive(
+                state.clone(),
+                config.clone(),
+                args.qualify_secs,
+                args.expect_source,
+                args.mstp_report.clone(),
+                session_exit_tx,
             )
             .await?,
         )
@@ -134,7 +146,7 @@ async fn main() -> Result<()> {
     }
     axum::serve(listener, app)
         .with_graceful_shutdown(async move {
-            if finite_route {
+            if finite_session {
                 tokio::select! {
                     () = shutdown_signal() => {},
                     _ = session_exit_rx => {},
@@ -304,6 +316,68 @@ async fn spawn_mstp_qualify(
     Ok((stop_tx, join))
 }
 
+async fn spawn_mstp_passive(
+    state: web::AppState,
+    config: RouterConfig,
+    qualify_secs: u64,
+    expect_source: u8,
+    report_path: Option<PathBuf>,
+    session_exit_tx: oneshot::Sender<()>,
+) -> Result<(oneshot::Sender<()>, tokio::task::JoinHandle<Result<()>>)> {
+    let params = MstpTransportParams {
+        this_station: config.mstp.mac,
+        max_master: config.mstp.max_master,
+        max_info_frames: config.mstp.max_info_frames,
+        baud_rate: config.mstp.baud,
+        network: config.mstp.network,
+        serial_path: config.mstp.serial.clone(),
+        adapter_profile: config.mstp.adapter_profile.clone(),
+    };
+    // Mark link observational only — passive mode never joins as master.
+    state.mark_mstp_qualify_active();
+    let (stop_tx, mut stop_rx) = oneshot::channel();
+    let join = tokio::spawn(async move {
+        let criteria = MstpPassiveCriteria {
+            expect_source,
+            ..MstpPassiveCriteria::default()
+        };
+        let run = async {
+            run_mstp_passive(&params, qualify_secs, criteria)
+                .await
+                .context("MS/TP passive session")
+        };
+        let report = tokio::select! {
+            _ = &mut stop_rx => {
+                state.mark_mstp_qualify_inactive(
+                    "MS/TP passive session cancelled; mstp_link cleared; forwarding remains disabled",
+                );
+                let _ = session_exit_tx.send(());
+                anyhow::bail!("MS/TP passive session cancelled");
+            }
+            result = run => result?,
+        };
+        if let Some(path) = report_path {
+            report
+                .write_json(&path)
+                .context("writing mstp passive report")?;
+        }
+        state.mark_mstp_qualify_inactive(
+            "MS/TP passive RX-only session ended; mstp_link cleared; forwarding remains disabled",
+        );
+        let _ = session_exit_tx.send(());
+        if !report.ok {
+            anyhow::bail!("MS/TP passive gate FAIL: {}", report.failure_reason);
+        }
+        info!(
+            rx_bytes = report.rx_bytes,
+            frames = report.complete_frames,
+            "MS/TP passive gate PASS"
+        );
+        Ok(())
+    });
+    Ok((stop_tx, join))
+}
+
 async fn run_bip_qualify_peer(
     config: &RouterConfig,
     probe_count: u32,
@@ -447,9 +521,11 @@ struct CliArgs {
     bip_qualify: bool,
     bip_qualify_peer: bool,
     mstp_qualify: bool,
+    mstp_passive: bool,
     route_enable: bool,
     route_bip_bip: bool,
     qualify_secs: u64,
+    expect_source: u8,
     probe_count: u32,
     peer_target: Option<(Ipv4Addr, u16)>,
     send_unicast: Option<(Ipv4Addr, u16, u32)>,
@@ -467,9 +543,11 @@ impl CliArgs {
         let mut bip_qualify = false;
         let mut bip_qualify_peer = false;
         let mut mstp_qualify = false;
+        let mut mstp_passive = false;
         let mut route_enable = false;
         let mut route_bip_bip = false;
         let mut qualify_secs = 120_u64;
+        let mut expect_source = 2_u8;
         let mut probe_count = 5_u32;
         let mut peer_target = None;
         let mut send_unicast = None;
@@ -492,6 +570,16 @@ impl CliArgs {
                 }
                 "--mstp-qualify" => {
                     mstp_qualify = true;
+                }
+                "--mstp-passive" => {
+                    mstp_passive = true;
+                }
+                "--expect-source" => {
+                    expect_source = args
+                        .next()
+                        .context("--expect-source requires a MAC (0..=127)")?
+                        .parse()
+                        .context("--expect-source")?;
                 }
                 "--route-enable" => {
                     route_enable = true;
@@ -557,13 +645,15 @@ impl CliArgs {
   --config PATH                  Configuration file (default: config/router.toml or DBR_CONFIG)\n\
   --bip-qualify                  Open one B/IP socket (G6); management stays up; no forwarding\n\
   --bip-qualify-peer             Peer helper: start B/IP, send probes, exit (no management UI)\n\
-  --qualify-secs N               Max qualify session duration (1..=600, default 120)\n\
+  --qualify-secs N               Max qualify/passive/route session duration (1..=600, default 120)\n\
   --probe-count N                Peer probe count (1..=64, default 5)\n\
   --peer-target IP:PORT          Unicast probes to DUT BIP endpoint (else broadcast)\n\
   --qualify-send-unicast IP:PORT:N  DUT scheduled unicast TX during --bip-qualify\n\
   --qualify-send-broadcast N     DUT scheduled directed-broadcast TX during --bip-qualify\n\
-  --mstp-qualify                 Open one MS/TP port (M2B software); no B/IP; no forwarding\n\
-  --mstp-report PATH             Write atomic MS/TP qualify JSON report\n\
+  --mstp-qualify                 Open one MS/TP master port (M2B software); no B/IP; no forwarding\n\
+  --mstp-passive                 RX-only MS/TP decode (zero TX); fail-closed report\n\
+  --expect-source MAC            Required source station for --mstp-passive (0..=127, default 2)\n\
+  --mstp-report PATH             Atomic JSON report for --mstp-qualify or --mstp-passive\n\
   --route-enable                 Opt-in BACnetRouter B/IP+MS/TP session (M3 software; G7/G8 open)\n\
   --route-bip-bip                Opt-in dual B/IP BACnetRouter (CI/netns; no MS/TP)\n\
   --route-report PATH            Atomic JSON report for --route-enable or --route-bip-bip; process exits when session ends"
@@ -576,23 +666,33 @@ impl CliArgs {
         if bip_qualify && bip_qualify_peer {
             anyhow::bail!("--bip-qualify and --bip-qualify-peer are mutually exclusive");
         }
-        if mstp_qualify && (bip_qualify || bip_qualify_peer) {
-            anyhow::bail!("--mstp-qualify cannot combine with B/IP qualify flags");
+        if mstp_qualify && (bip_qualify || bip_qualify_peer || mstp_passive) {
+            anyhow::bail!("--mstp-qualify cannot combine with B/IP qualify or --mstp-passive");
         }
-        if route_enable && (bip_qualify || bip_qualify_peer || mstp_qualify || route_bip_bip) {
+        if mstp_passive && (bip_qualify || bip_qualify_peer || mstp_qualify) {
+            anyhow::bail!("--mstp-passive cannot combine with other qualify flags");
+        }
+        if route_enable
+            && (bip_qualify || bip_qualify_peer || mstp_qualify || mstp_passive || route_bip_bip)
+        {
             anyhow::bail!("--route-enable cannot combine with qualify or --route-bip-bip");
         }
-        if route_bip_bip && (bip_qualify || bip_qualify_peer || mstp_qualify || route_enable) {
+        if route_bip_bip
+            && (bip_qualify || bip_qualify_peer || mstp_qualify || mstp_passive || route_enable)
+        {
             anyhow::bail!("--route-bip-bip cannot combine with other data-plane flags");
         }
-        if mstp_report.is_some() && !mstp_qualify {
-            anyhow::bail!("--mstp-report requires --mstp-qualify");
+        if mstp_report.is_some() && !(mstp_qualify || mstp_passive) {
+            anyhow::bail!("--mstp-report requires --mstp-qualify or --mstp-passive");
         }
         if route_report.is_some() && !(route_bip_bip || route_enable) {
             anyhow::bail!("--route-report requires --route-bip-bip or --route-enable");
         }
         if !(1..=600).contains(&qualify_secs) {
             anyhow::bail!("--qualify-secs must be in 1..=600 (got {qualify_secs})");
+        }
+        if expect_source > 127 {
+            anyhow::bail!("--expect-source must be in 0..=127 (got {expect_source})");
         }
         if !(1..=64).contains(&probe_count) {
             anyhow::bail!("--probe-count must be in 1..=64 (got {probe_count})");
@@ -619,9 +719,11 @@ impl CliArgs {
             bip_qualify,
             bip_qualify_peer,
             mstp_qualify,
+            mstp_passive,
             route_enable,
             route_bip_bip,
             qualify_secs,
+            expect_source,
             probe_count,
             peer_target,
             send_unicast,
