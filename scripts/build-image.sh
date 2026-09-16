@@ -85,6 +85,9 @@ buildroot_make=(
 
 "${buildroot_make[@]}" "$base_defconfig"
 cat "$external/fragments/common.config" >> "$output_dir/.config"
+if [[ "$target" == "x86_64" && -f "$external/fragments/x86_64_iso.config" ]]; then
+  cat "$external/fragments/x86_64_iso.config" >> "$output_dir/.config"
+fi
 cat >> "$output_dir/.config" <<EOF
 BR2_ROOTFS_OVERLAY="$external/board/common/rootfs-overlay"
 EOF
@@ -92,7 +95,7 @@ EOF
 "${buildroot_make[@]}" -j"${JOBS:-$(nproc)}"
 
 case "$target" in
-  x86_64) expected_images=(bzImage rootfs.ext2) ;;
+  x86_64) expected_images=(bzImage rootfs.ext2 rootfs.iso) ;;
   rpi3_64|rpi4_64|rpi5_64) expected_images=(sdcard.img) ;;
 esac
 for image in "${expected_images[@]}"; do

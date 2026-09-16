@@ -13,6 +13,7 @@ mod mstp_passive;
 mod mstp_qualify;
 mod ports;
 mod route_session;
+mod rp_span;
 mod validate;
 
 pub use bip_qualify::{
@@ -27,6 +28,7 @@ pub use ports::{
     ApplianceSerial, ApplianceTransport, BipTransportParams, MstpTransportParams,
 };
 pub use route_session::ApplianceRouterSession;
+pub use rp_span::{RpSpanSample, RpSpanSnapshot, RpSpanStore, SpanField};
 pub use validate::{
     validate_bip_params, validate_distinct_networks, validate_mstp_params, validate_serial_path,
     AdapterError, SUPPORTED_BAUD, WAVESHARE_AUTO_DIRECTION_PROFILE,

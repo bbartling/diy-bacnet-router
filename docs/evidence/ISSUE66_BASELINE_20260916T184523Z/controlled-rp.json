@@ -1,0 +1,260 @@
+{
+  "probe": [
+    {
+      "whois_2001_err": "AttributeError: 'str' object has no attribute 'is_localstation'"
+    },
+    {
+      "target": "2001:2",
+      "obj": "device:123102",
+      "prop": "object-name",
+      "ok": true,
+      "ms": 39.1,
+      "val": "Rust MS/TP Mini Device"
+    },
+    {
+      "target": "2001:2",
+      "obj": "analog-input:1",
+      "prop": "present-value",
+      "ok": true,
+      "ms": 44.3,
+      "val": "4.0"
+    },
+    {
+      "target": "192.168.204.59",
+      "obj": "device:123102",
+      "prop": "object-name",
+      "ok": false,
+      "ms": 8002.9,
+      "err": "TimeoutError: "
+    },
+    {
+      "target": "192.168.204.59",
+      "obj": "analog-input:1",
+      "prop": "present-value",
+      "ok": false,
+      "ms": 8001.9,
+      "err": "TimeoutError: "
+    }
+  ],
+  "burst5": [
+    {
+      "i": 0,
+      "ok": true,
+      "ms": 47.2,
+      "val": "3.0"
+    },
+    {
+      "i": 1,
+      "ok": true,
+      "ms": 96.0,
+      "val": "3.0"
+    },
+    {
+      "i": 2,
+      "ok": true,
+      "ms": 142.9,
+      "val": "3.0"
+    },
+    {
+      "i": 3,
+      "ok": true,
+      "ms": 192.6,
+      "val": "3.0"
+    },
+    {
+      "i": 4,
+      "ok": true,
+      "ms": 223.6,
+      "val": "3.0"
+    }
+  ],
+  "seq30": [
+    {
+      "i": 0,
+      "ok": true,
+      "ms": 3037.1,
+      "val": "4.0"
+    },
+    {
+      "i": 1,
+      "ok": true,
+      "ms": 48.7,
+      "val": "4.0"
+    },
+    {
+      "i": 2,
+      "ok": true,
+      "ms": 48.9,
+      "val": "4.0"
+    },
+    {
+      "i": 3,
+      "ok": true,
+      "ms": 45.5,
+      "val": "4.0"
+    },
+    {
+      "i": 4,
+      "ok": true,
+      "ms": 48.1,
+      "val": "4.0"
+    },
+    {
+      "i": 5,
+      "ok": true,
+      "ms": 47.7,
+      "val": "4.0"
+    },
+    {
+      "i": 6,
+      "ok": true,
+      "ms": 3037.7,
+      "val": "1.0"
+    },
+    {
+      "i": 7,
+      "ok": true,
+      "ms": 51.6,
+      "val": "1.0"
+    },
+    {
+      "i": 8,
+      "ok": true,
+      "ms": 45.4,
+      "val": "1.0"
+    },
+    {
+      "i": 9,
+      "ok": true,
+      "ms": 48.6,
+      "val": "1.0"
+    },
+    {
+      "i": 10,
+      "ok": true,
+      "ms": 46.9,
+      "val": "1.0"
+    },
+    {
+      "i": 11,
+      "ok": true,
+      "ms": 48.3,
+      "val": "1.0"
+    },
+    {
+      "i": 12,
+      "ok": true,
+      "ms": 49.5,
+      "val": "1.0"
+    },
+    {
+      "i": 13,
+      "ok": true,
+      "ms": 45.8,
+      "val": "1.0"
+    },
+    {
+      "i": 14,
+      "ok": true,
+      "ms": 47.6,
+      "val": "1.0"
+    },
+    {
+      "i": 15,
+      "ok": true,
+      "ms": 48.0,
+      "val": "1.0"
+    },
+    {
+      "i": 16,
+      "ok": true,
+      "ms": 3038.3,
+      "val": "1.0"
+    },
+    {
+      "i": 17,
+      "ok": true,
+      "ms": 3042.2,
+      "val": "2.0"
+    },
+    {
+      "i": 18,
+      "ok": true,
+      "ms": 47.4,
+      "val": "2.0"
+    },
+    {
+      "i": 19,
+      "ok": true,
+      "ms": 47.7,
+      "val": "2.0"
+    },
+    {
+      "i": 20,
+      "ok": true,
+      "ms": 48.3,
+      "val": "2.0"
+    },
+    {
+      "i": 21,
+      "ok": true,
+      "ms": 51.3,
+      "val": "2.0"
+    },
+    {
+      "i": 22,
+      "ok": true,
+      "ms": 45.8,
+      "val": "2.0"
+    },
+    {
+      "i": 23,
+      "ok": true,
+      "ms": 47.5,
+      "val": "2.0"
+    },
+    {
+      "i": 24,
+      "ok": true,
+      "ms": 48.3,
+      "val": "2.0"
+    },
+    {
+      "i": 25,
+      "ok": true,
+      "ms": 47.5,
+      "val": "2.0"
+    },
+    {
+      "i": 26,
+      "ok": true,
+      "ms": 47.7,
+      "val": "2.0"
+    },
+    {
+      "i": 27,
+      "ok": true,
+      "ms": 48.0,
+      "val": "2.0"
+    },
+    {
+      "i": 28,
+      "ok": true,
+      "ms": 48.9,
+      "val": "2.0"
+    },
+    {
+      "i": 29,
+      "ok": true,
+      "ms": 47.2,
+      "val": "2.0"
+    }
+  ],
+  "seq30_summary": {
+    "seq30_ok": 30,
+    "seq30_fail": 0,
+    "p50": 48.1,
+    "p95": 3038.3,
+    "max": 3042.2
+  }
+}

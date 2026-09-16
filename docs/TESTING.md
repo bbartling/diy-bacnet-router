@@ -45,6 +45,11 @@ Hold / pickup notes for the 2026-09-13 two-Pi bench:
 [CHECKPOINT_2026-09-13_SOURCE_G7_G8_HOLD.md](evidence/CHECKPOINT_2026-09-13_SOURCE_G7_G8_HOLD.md).
 Persistent lab deploy: [ansible/README.md](../ansible/README.md) (`--qualify-secs 0`).
 
+Issue **#66** confirmed-read timeouts on this topology: root cause was FTDI
+`latency_timer=16` (not Max_Info_Frames alone). Fix + 30 m soak evidence:
+[ISSUE66_FIX_FTDI_LATENCY_20260916T190000Z](evidence/ISSUE66_FIX_FTDI_LATENCY_20260916T190000Z/result.md).
+Lab udev: `ansible/files/99-ftdi-latency.rules`.
+
 ## Milestone 0 non-hardware commands
 
 The non-hardware gate is reproducible with the same locked inputs used by CI:
