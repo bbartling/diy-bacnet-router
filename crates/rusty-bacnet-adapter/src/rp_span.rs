@@ -214,7 +214,14 @@ mod tests {
     #[test]
     fn span_lifecycle_and_percentiles() {
         let store = RpSpanStore::new();
-        let id = store.open("192.168.204.11:47808", Some(7), Some(2001), Some(2), "AI:1", "PV");
+        let id = store.open(
+            "192.168.204.11:47808",
+            Some(7),
+            Some(2001),
+            Some(2),
+            "AI:1",
+            "PV",
+        );
         store.mark(id, SpanField::RouteDecision, 1);
         store.mark(id, SpanField::MstpEnqueue, 2);
         store.finish(id, "ok");
