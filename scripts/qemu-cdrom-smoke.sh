@@ -22,7 +22,7 @@ qemu-system-x86_64 \
   -M pc -m 512 -smp 2 \
   -cdrom "$iso" \
   -boot d \
-  -nic "user,model=virtio-net-pci,hostfwd=tcp:127.0.0.1:18081-:8080" \
+  -nic "user,model=e1000,hostfwd=tcp:127.0.0.1:18081-:8080" \
   -nographic -no-reboot >"$log" 2>&1 &
 qemu_pid=$!
 
