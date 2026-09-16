@@ -1,0 +1,9 @@
+{
+  "ok": false,
+  "target": "192.168.204.59",
+  "object": "device,123102",
+  "property": "object-name",
+  "error": "TimeoutError: ",
+  "mode": "read",
+  "address": "192.168.204.11/24"
+}

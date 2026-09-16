@@ -34,6 +34,7 @@ use tower_http::{
 };
 
 use crate::system::{SystemMetrics, SystemSampler};
+use rusty_bacnet_adapter::{RpSpanSnapshot, RpSpanStore};
 
 #[derive(Clone)]
 pub struct AppState {
@@ -46,6 +47,8 @@ pub struct AppState {
     metrics_rx: watch::Receiver<MetricsEnvelope>,
     sample_ticks: Arc<AtomicU64>,
     ws_limit: Arc<Semaphore>,
+    /// Issue #66 confirmed-RP timing ring (management plane only).
+    rp_spans: Arc<RpSpanStore>,
 }
 
 /// Deliberately public view of effective configuration (no secrets).
@@ -161,12 +164,18 @@ impl AppState {
             metrics_rx: rx,
             sample_ticks,
             ws_limit,
+            rp_spans: Arc::new(RpSpanStore::new()),
         }
     }
 
     #[must_use]
     pub fn counters(&self) -> Arc<Counters> {
         Arc::clone(&self.counters)
+    }
+
+    #[must_use]
+    pub fn rp_spans(&self) -> Arc<RpSpanStore> {
+        Arc::clone(&self.rp_spans)
     }
 
     pub fn set_bacnet_telemetry_available(&self, available: bool) {
@@ -338,6 +347,7 @@ pub fn app(state: AppState) -> Router {
         .route("/api/config", post(config_write_blocked))
         .route("/api/audit", get(audit_snapshot))
         .route("/api/metrics/snapshot", get(metrics_snapshot))
+        .route("/api/metrics/rp-spans", get(rp_spans_snapshot))
         .route("/api/openapi.json", get(openapi))
         .route("/api/ws/metrics", get(metrics_ws))
         .route("/metrics", get(prometheus))
@@ -464,6 +474,10 @@ async fn audit_snapshot(State(state): State<AppState>) -> Json<Value> {
 
 async fn metrics_snapshot(State(state): State<AppState>) -> Json<MetricsEnvelope> {
     Json(state.metrics())
+}
+
+async fn rp_spans_snapshot(State(state): State<AppState>) -> Json<RpSpanSnapshot> {
+    Json(state.rp_spans().snapshot())
 }
 
 async fn openapi() -> Response {
@@ -728,6 +742,7 @@ mod tests {
             "/api/config",
             "/api/audit",
             "/api/metrics/snapshot",
+            "/api/metrics/rp-spans",
             "/api/ws/metrics",
             "/api/openapi.json",
             "/metrics",
@@ -737,6 +752,30 @@ mod tests {
                 "OpenAPI missing path {path}"
             );
         }
+    }
+
+    #[tokio::test]
+    async fn rp_spans_endpoint_returns_empty_snapshot() {
+        let response = app(AppState::new(Arc::new(RouterConfig::default())))
+            .oneshot(
+                axum::http::Request::builder()
+                    .uri("/api/metrics/rp-spans")
+                    .body(Body::empty())
+                    .expect("request"),
+            )
+            .await
+            .expect("response");
+        assert_eq!(response.status(), StatusCode::OK);
+        let bytes = response
+            .into_body()
+            .collect()
+            .await
+            .expect("body")
+            .to_bytes();
+        let body: Value = serde_json::from_slice(&bytes).expect("JSON");
+        assert_eq!(body["opened"], 0);
+        assert_eq!(body["sample_count"], 0);
+        assert!(body["recent"].as_array().unwrap().is_empty());
     }
 
     #[tokio::test]

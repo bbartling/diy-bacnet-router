@@ -22,6 +22,13 @@ define DIY_BACNET_ROUTER_INSTALL_TARGET_CMDS
 		$(TARGET_DIR)/etc/diy-bacnet-router/router.toml
 	sed -i 's|web_root = "frontend/web/dist"|web_root = "/usr/share/diy-bacnet-router/web"|' \
 		$(TARGET_DIR)/etc/diy-bacnet-router/router.toml
+	$(INSTALL) -D -m 0644 $(@D)/config/router.lab-two-pi.example.toml \
+		$(TARGET_DIR)/etc/diy-bacnet-router/router.lab-two-pi.example.toml
+	$(INSTALL) -D -m 0644 \
+		$(BR2_EXTERNAL_DIY_BACNET_ROUTER_PATH)/../ansible/files/99-ftdi-latency.rules \
+		$(TARGET_DIR)/etc/udev/rules.d/99-ftdi-latency.rules
+	$(INSTALL) -D -m 0755 $(@D)/scripts/set-ftdi-latency.sh \
+		$(TARGET_DIR)/usr/sbin/set-ftdi-latency.sh
 	$(INSTALL) -d -m 0755 $(TARGET_DIR)/usr/share/diy-bacnet-router/web
 	if test -d $(@D)/frontend/web/dist; then \
 		cp -a $(@D)/frontend/web/dist/. $(TARGET_DIR)/usr/share/diy-bacnet-router/web/; \

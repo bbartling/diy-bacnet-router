@@ -65,6 +65,16 @@
   hosts: all
   become: true
   tasks:
+    - name: Install FTDI latency_timer udev rule (issue #66)
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../files/99-ftdi-latency.rules"
+        dest: /etc/udev/rules.d/99-ftdi-latency.rules
+        mode: "0644"
+      when: "'diy_router' in group_names"
+      notify:
+        - Reload udev
+        - Apply FTDI latency now
+
     - name: Install diy-bacnet-router unit on workerpi1
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../files/diy-bacnet-router.service"
@@ -101,6 +111,19 @@
     - name: Reload systemd
       ansible.builtin.systemd:
         daemon_reload: true
+
+    - name: Reload udev
+      ansible.builtin.command: udevadm control --reload-rules
+
+    - name: Apply FTDI latency now
+      ansible.builtin.shell: |
+        set -euo pipefail
+        for path in /sys/bus/usb-serial/devices/*/latency_timer; do
+          echo 1 >"$path"
+        done
+      args:
+        executable: /bin/bash
+      when: "'diy_router' in group_names"
 
 - name: Post-start smoke
   hosts: diy_router

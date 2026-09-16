@@ -12,8 +12,11 @@ runs `scripts/build-image.sh` for:
 
 | Target | Artifact |
 | --- | --- |
-| `x86_64` | `bzImage`, `rootfs.ext2` + **QEMU smoke** |
-| `rpi3_64`, `rpi4_64`, `rpi5_64` | `sdcard.img` |
+| `x86_64` | `bzImage`, `rootfs.ext2`, **`rootfs.iso`** + QEMU `-kernel` and **`-cdrom`** smoke |
+| `rpi3_64`, `rpi4_64`, `rpi5_64` | `sdcard.img` (lab commissioning example + FTDI latency udev) |
+
+Live ISO / disposable VMware notes: [x86 live ISO]({{ site.baseurl }}/operations/x86-live-iso/).
+
 
 ## Buildroot pin
 

@@ -1,0 +1,9 @@
+{
+  "ok": false,
+  "target": "192.168.204.59",
+  "object": "analog-input,1",
+  "property": "present-value",
+  "error": "TimeoutError: ",
+  "mode": "read",
+  "address": "192.168.204.11/24"
+}

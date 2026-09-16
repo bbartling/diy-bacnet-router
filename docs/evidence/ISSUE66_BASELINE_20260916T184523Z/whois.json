@@ -1,0 +1,24 @@
+{
+  "ok": true,
+  "mode": "whois",
+  "address": "192.168.204.11/24",
+  "device_count": 2,
+  "devices": [
+    {
+      "device_instance": 0,
+      "source": "28271:0x0050db00d6c2",
+      "ipv4": null,
+      "vendor_id": 245,
+      "max_apdu": 1476,
+      "segmentation": "no-segmentation"
+    },
+    {
+      "device_instance": 5007,
+      "source": "2000:7",
+      "ipv4": null,
+      "vendor_id": 5,
+      "max_apdu": 480,
+      "segmentation": "segmented-both"
+    }
+  ]
+}

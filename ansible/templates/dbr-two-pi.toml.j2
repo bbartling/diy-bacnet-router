@@ -28,4 +28,6 @@ baud = {{ dbr_baud }}
 mac = {{ dbr_mstp_mac }}
 network = {{ dbr_mstp_network }}
 max_master = 2
-max_info_frames = 1
+# Issue #66: Max_Info_Frames=1 serializes confirmed services → Workbench multi-point
+# timeouts. Lab default raised to 2 after baseline (MIF=1 p95≈3s). Revert to 1 to A/B.
+max_info_frames = 2
