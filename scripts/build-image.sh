@@ -87,6 +87,10 @@ buildroot_make=(
 cat "$external/fragments/common.config" >> "$output_dir/.config"
 if [[ "$target" == "x86_64" && -f "$external/fragments/x86_64_iso.config" ]]; then
   cat "$external/fragments/x86_64_iso.config" >> "$output_dir/.config"
+  # Absolute path: fragment cannot expand $(BR2_EXTERNAL_*) when appended via cat.
+  if [[ -f "$external/board/common/grub-iso.cfg" ]]; then
+    echo "BR2_TARGET_ROOTFS_ISO9660_BOOT_MENU=\"$external/board/common/grub-iso.cfg\"" >> "$output_dir/.config"
+  fi
 fi
 cat >> "$output_dir/.config" <<EOF
 BR2_ROOTFS_OVERLAY="$external/board/common/rootfs-overlay"

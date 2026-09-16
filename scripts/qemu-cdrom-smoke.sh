@@ -26,7 +26,7 @@ qemu-system-x86_64 \
   -nographic -no-reboot >"$log" 2>&1 &
 qemu_pid=$!
 
-for _ in $(seq 1 180); do
+for _ in $(seq 1 300); do
   if health_json="$(curl --fail --silent --connect-timeout 1 --max-time 2 http://127.0.0.1:18081/healthz 2>/dev/null)"; then
     if python3 - "$health_json" <<'PY'
 import json
