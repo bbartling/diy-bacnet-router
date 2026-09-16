@@ -1,0 +1,34 @@
+---
+# Isolated two-Pi BIP↔MS/TP lab (2026-09-13 topology).
+all:
+  children:
+    diy_router:
+      hosts:
+        workerpi1:
+          ansible_host: 192.168.204.59
+          ansible_user: ben
+          dbr_bind_address: 192.168.204.59
+          dbr_broadcast_address: 192.168.204.255
+          dbr_bip_network: 1
+          dbr_mstp_network: 2001
+          dbr_mstp_mac: 1
+          dbr_serial: /dev/serial/by-id/usb-FTDI_FT232R_USB_UART_BH002I9S-if00-port0
+          dbr_adapter_profile: waveshare-usb-to-rs485-c
+          dbr_src_dir: /home/ben/src/diy-bacnet-router
+          dbr_config_path: /home/ben/lab/dbr-two-pi.toml
+    mstp_fixture:
+      hosts:
+        workerpi2:
+          ansible_host: 192.168.204.60
+          ansible_user: ben
+          mstp_serial: /dev/serial/by-id/usb-1a86_USB_Single_Serial_5A98075745-if00
+          mstp_mac: 2
+          mstp_max_master: 2
+          mstp_device_instance: 123102
+          mstp_device_name: Rust MS/TP Mini Device
+          vibe_src_dir: /home/ben/src/py-bacnet-stacks-playground
+          vibe_sha: 12e7d232b23023e1bb06da7b75972d79ca584cf9
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+    dbr_baud: 38400
+    dbr_udp_port: 47808

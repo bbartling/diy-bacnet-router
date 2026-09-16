@@ -11,7 +11,7 @@ for target in x86_64 rpi3_64 rpi4_64 rpi5_64; do
 done
 
 echo "==> x86_64 expects kernel + rootfs artifacts"
-grep -q 'expected_images=(bzImage rootfs.ext2)' scripts/build-image.sh
+grep -q 'expected_images=(bzImage rootfs.ext2 rootfs.iso)' scripts/build-image.sh
 
 echo "==> Pi targets expect sdcard.img"
 grep -q 'expected_images=(sdcard.img)' scripts/build-image.sh

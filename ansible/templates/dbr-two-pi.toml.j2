@@ -1,0 +1,33 @@
+[identity]
+name = "workerpi1-diy-router"
+location = "isolated two-Pi lab (persistent systemd)"
+
+[management]
+bind = "127.0.0.1:8080"
+web_root = "frontend/web/dist"
+metrics_interval_ms = 1000
+max_ws_connections = 8
+
+[router]
+enabled = false
+
+[bacnet_ip]
+interface = "eth0"
+bind_address = "{{ dbr_bind_address }}"
+broadcast_address = "{{ dbr_broadcast_address }}"
+udp_port = {{ dbr_udp_port }}
+network = {{ dbr_bip_network }}
+bbmd_enabled = false
+foreign_device_enabled = false
+
+[mstp]
+serial = "{{ dbr_serial }}"
+adapter_profile = "{{ dbr_adapter_profile }}"
+termination = "onboard-present"
+baud = {{ dbr_baud }}
+mac = {{ dbr_mstp_mac }}
+network = {{ dbr_mstp_network }}
+max_master = 2
+# Issue #66: Max_Info_Frames=1 serializes confirmed services → Workbench multi-point
+# timeouts. Lab default raised to 2 after baseline (MIF=1 p95≈3s). Revert to 1 to A/B.
+max_info_frames = 2

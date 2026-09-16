@@ -1,0 +1,13 @@
+{
+  "ok": 3364,
+  "fail": 0,
+  "slow_ge_2500": 0,
+  "storm_events": 0,
+  "p50": 34.3,
+  "p95": 39.5,
+  "p99": 47.7,
+  "max": 120.8,
+  "duration_s": 1800,
+  "ftdi_latency": 1,
+  "mif": 2
+}

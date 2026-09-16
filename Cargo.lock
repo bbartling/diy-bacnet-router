@@ -711,6 +711,7 @@ dependencies = [
  "bacnet-transport",
  "bacnet-types",
  "bytes",
+ "serde",
  "thiserror",
  "tokio",
  "tracing",

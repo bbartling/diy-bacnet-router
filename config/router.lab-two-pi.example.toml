@@ -1,0 +1,43 @@
+# Opt-in two-Pi lab commissioning template (DNET 2001).
+# Safe defaults: router.enabled=false — no BIP↔MS/TP forwarding until an operator
+# copies this over router.toml AND starts with --route-enable (source path) or
+# sets [router] enabled after M2/M3 gates.
+#
+# Topology: workerpi1 BIP 192.168.204.59 net1 ↔ MS/TP DNET 2001 MAC1;
+# workerpi2 mini MAC2 instance 123102. Never use plant DNET 2000 / BASRT.
+#
+# Image path: installed at /etc/diy-bacnet-router/router.lab-two-pi.example.toml
+# Flash remains Ben-gated; do not enable routing on first boot with USB off trunk.
+
+[identity]
+name = "diy-bacnet-router-lab-two-pi"
+location = "isolated two-Pi BIP↔MS/TP lab"
+
+[management]
+bind = "0.0.0.0:8080"
+web_root = "/usr/share/diy-bacnet-router/web"
+metrics_interval_ms = 1000
+max_ws_connections = 8
+
+[router]
+enabled = false
+
+[bacnet_ip]
+interface = "eth0"
+bind_address = "192.168.204.59"
+broadcast_address = "192.168.204.255"
+udp_port = 47808
+network = 1
+bbmd_enabled = false
+foreign_device_enabled = false
+
+[mstp]
+serial = "/dev/serial/by-id/REPLACE_WITH_FTDI_BY_ID"
+adapter_profile = "waveshare-usb-to-rs485-c"
+termination = "onboard-present"
+baud = 38400
+mac = 1
+network = 2001
+max_master = 2
+# Lab concurrency headroom after issue #66 FTDI latency fix.
+max_info_frames = 2

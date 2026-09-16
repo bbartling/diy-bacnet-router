@@ -21,7 +21,7 @@
 
 Boards today: **x86-64** (lab/QEMU) and **Raspberry Pi 3/4/5**. MS/TP uses USB RS-485 adapters via `/dev/serial/by-id/...` (reference: Waveshare USB TO RS485 C).
 
-> **Today:** Milestones **0** and **1** complete. **G6/M2A** qualifies standalone BACnet/IP (independent BVLL oracle + unicast/directed-broadcast matrix on Linux netns). **Source G4/G5/G7/G8** PASS on an isolated two-Pi BIP↔MS/TP bench (net 2001 / device 123102) — see `docs/evidence/SOURCE_G7_G8_*`. **Exact-image / Buildroot G7–G11 remain OPEN**. Ordinary boot stays fail-closed (`--mstp-passive` / `--route-enable` are explicit lab unlocks).
+> **Today:** Milestones **0** and **1** complete. **G6/M2A** qualifies standalone BACnet/IP (independent BVLL oracle + unicast/directed-broadcast matrix on Linux netns). **Source G4/G5/G7/G8** PASS on an isolated two-Pi BIP↔MS/TP bench (net 2001 / device 123102) — see `docs/evidence/SOURCE_G7_G8_*` and the hold checkpoint `docs/evidence/CHECKPOINT_2026-09-13_SOURCE_G7_G8_HOLD.md`. **Exact-image / Buildroot G7–G11 remain OPEN**. Ordinary boot stays fail-closed; lab persistence uses `--route-enable --qualify-secs 0` via [ansible/](ansible/).
 
 | Pin | Lock | Value |
 | --- | --- | --- |
@@ -39,15 +39,21 @@ Badges track **`master`**. Open PRs run the same workflows on their branch.
 
 ## Milestones
 
-Details: [docs/agent/SPEC.md](docs/agent/SPEC.md).
+Details: [docs/agent/SPEC.md](docs/agent/SPEC.md). Gate ledger: [docs/TESTING.md](docs/TESTING.md).
+Hold / pickup: [docs/evidence/CHECKPOINT_2026-09-13_SOURCE_G7_G8_HOLD.md](docs/evidence/CHECKPOINT_2026-09-13_SOURCE_G7_G8_HOLD.md).
+FEC-parity follow-ups: [issue #66](https://github.com/bbartling/diy-bacnet-router/issues/66).
 
 - [x] **M0 — Scaffold and OS images** — management API/UI, CI, Buildroot x86+Pi, QEMU smoke
 - [x] **M1 — rusty-bacnet adapter closeout** — pin + concrete B/IP/MS/TP compile/config fixtures (transports not started at ordinary boot)
-- [ ] **M2 — Port qualification** — **G6/M2A** B/IP netns matrix PASS; **M2B** physical MS/TP still open
-- [ ] **M3 — Isolated routing** — dual-B/IP CI + `--route-enable`; **source G7/G8 PASS** (two-Pi evidence); **exact-image G7/G8 OPEN**
-- [ ] **M4 — Faults and timing** — CI software faults + dual-B/IP link-down survival; **G9 hardware OPEN**
+- [x] **M2A — B/IP port qualification (G6)** — netns BVLL oracle + unicast/directed-broadcast matrix PASS
+- [x] **M2B — Physical MS/TP port qualification (source)** — isolated two-Pi passive RX + `--mstp-qualify` join @ **38400** (net 2001); `--mstp-passive` fail-closed in tree. Exact-image M2B still OPEN
+- [x] **M3 — Isolated routing (source G7/G8)** — dual-B/IP CI + `--route-enable`; Workbench discovers `device:123102` on **net 2001 / MAC 2**; evidence under `docs/evidence/SOURCE_G7_G8_*`. Lab persist: `--qualify-secs 0` + [ansible/](ansible/)
+- [ ] **M3 — Exact-image G7/G8** — same topology/oracle on released **Buildroot** appliance image (**OPEN**)
+- [ ] **M4 — Faults and timing** — CI software faults + dual-B/IP link-down survival; **G9** USB/serial stop ownership + hardware faults **OPEN** ([#66](https://github.com/bbartling/diy-bacnet-router/issues/66) timeouts vs FEC feel)
 - [ ] **M5 — Production-shaped images / Pi hardware validation** — Pi **build** evidence in Actions documented; **flash/boot OPEN**
 - [ ] **M6 — Management writes** — auth/session skeleton + env unlock only; `POST /api/config` stays 403; capability blocked
+
+**Source vs exact-image:** checked boxes above for M2B/M3 are **source (Pi OS / from-source binaries)** unless marked exact-image. Do not claim product G7–G11 PASS without the Buildroot image gate.
 
 </details>
 
