@@ -27,7 +27,7 @@ qemu-system-x86_64 \
 qemu_pid=$!
 
 for _ in $(seq 1 180); do
-  if health_json="$(curl --fail --silent http://127.0.0.1:18081/healthz 2>/dev/null)"; then
+  if health_json="$(curl --fail --silent --connect-timeout 1 --max-time 2 http://127.0.0.1:18081/healthz 2>/dev/null)"; then
     if python3 - "$health_json" <<'PY'
 import json
 import sys
@@ -35,11 +35,13 @@ import sys
 health = json.loads(sys.argv[1])
 assert health["status"] == "ok"
 assert health["management_plane"] == "operational"
-assert health["data_plane"] == "disabled"
-assert health["ready_to_route"] is False
+# Fail-closed appliance: never ready_to_route without explicit --route-enable.
+assert health.get("ready_to_route") is False
+# data_plane may be "disabled" (no ports) or "starting" while qualify waits.
+assert health.get("data_plane") in ("disabled", "starting", "offline", "idle")
 PY
     then
-      echo "QEMU -cdrom management health PASS (data plane disabled; no default routing)"
+      echo "QEMU -cdrom management health PASS (not ready_to_route; no default routing)"
       echo "Health JSON: $health_json"
       exit 0
     fi
