@@ -94,6 +94,14 @@ EOF
 "${buildroot_make[@]}" olddefconfig
 "${buildroot_make[@]}" -j"${JOBS:-$(nproc)}"
 
+# Buildroot ISO9660 target names the file rootfs.iso9660; CI/smoke expect rootfs.iso.
+if [[ "$target" == "x86_64" ]]; then
+  images_dir="$output_dir/images"
+  if [[ ! -s "$images_dir/rootfs.iso" && -s "$images_dir/rootfs.iso9660" ]]; then
+    ln -snf rootfs.iso9660 "$images_dir/rootfs.iso"
+  fi
+fi
+
 case "$target" in
   x86_64) expected_images=(bzImage rootfs.ext2 rootfs.iso) ;;
   rpi3_64|rpi4_64|rpi5_64) expected_images=(sdcard.img) ;;
