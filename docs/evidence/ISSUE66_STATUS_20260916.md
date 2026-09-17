@@ -20,12 +20,10 @@
 
 ## Phase C — x86 live ISO
 
-- CI: ext2 `qemu-smoke` is the hard gate; `-cdrom` smoke is **continue-on-error Soft** until INITRD live reaches healthz.
-## Phase C — x86 live ISO
-
 - Buildroot produces `rootfs.iso9660` (symlinked `rootfs.iso`).
 - GRUB fix: `BR2_TARGET_GRUB2_BOOT_PARTITION=cd` + `iso9660` module (was dropping to `grub>` with `hd0,msdos1`).
-- Serial grub menu + 300s QEMU `-cdrom` smoke (healthz fail-closed: `ready_to_route=false`).
+- CI (#68 on master): ext2 `qemu-smoke` **hard** gate; `-cdrom` smoke **continue-on-error Soft** until INITRD live reaches healthz.
+- Master `build-os` green after Soft gate (`c39aa5e`).
 - Disposable VMware boot still operator-gated after CI `-cdrom` green.
 
 ## Open-FDD smoke
