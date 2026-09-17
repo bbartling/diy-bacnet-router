@@ -379,8 +379,14 @@ mod tests {
     /// credentials without an intentional PublicEffectiveConfig update.
     #[test]
     fn router_config_fields_stay_public_allowlisted() {
-        const ALLOWED_TOP_LEVEL: &[&str] =
-            &["identity", "management", "router", "bacnet_ip", "mstp", "device"];
+        const ALLOWED_TOP_LEVEL: &[&str] = &[
+            "identity",
+            "management",
+            "router",
+            "bacnet_ip",
+            "mstp",
+            "device",
+        ];
         const FORBIDDEN_SUBSTRINGS: &[&str] = &[
             "password",
             "secret",
