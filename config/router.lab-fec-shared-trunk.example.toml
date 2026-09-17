@@ -1,0 +1,48 @@
+# FEC shared-trunk config (phase 2) — DO NOT APPLY until Ben isolates BASRT
+
+Copy of lab TOML with Max_Master raised for FEC MAC 7. Apply only during
+maintenance window after BASRT is physically off this trunk.
+
+```toml
+[identity]
+name = "workerpi1-diy-router-fec-trunk"
+location = "DIY + FEC + mini shared MS/TP (phase 2)"
+
+[management]
+bind = "127.0.0.1:8080"
+web_root = "frontend/web/dist"
+metrics_interval_ms = 1000
+max_ws_connections = 8
+
+[router]
+enabled = false
+
+[bacnet_ip]
+interface = "eth0"
+bind_address = "192.168.204.59"
+broadcast_address = "192.168.204.255"
+udp_port = 47808
+network = 1
+bbmd_enabled = false
+foreign_device_enabled = false
+
+[mstp]
+serial = "/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_BH002I9S-if00-port0"
+adapter_profile = "waveshare-usb-to-rs485-c"
+termination = "onboard-present"
+baud = 38400
+mac = 1
+network = 2001
+max_master = 7
+max_info_frames = 2
+```
+
+Also raise mini Max_Master to 7 on workerpi2:
+`mstp-mini-device ... --max-master 7`
+
+Checklist before apply:
+1. BASRT physically isolated from this RS-485 segment
+2. FEC + mini + Waveshare C daisy-chained; two end terminations only
+3. Unique MACs: DIY=1, mini=2, FEC=7 (verify live)
+4. Niagara remote network 2001 bindings refreshed
+5. No FEC writes

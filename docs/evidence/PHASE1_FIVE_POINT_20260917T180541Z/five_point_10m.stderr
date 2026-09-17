@@ -1,0 +1,1 @@
+OVERALL {'rounds': 517, 'duration_secs': 600.0, 'interval': 1.0, 'ok': 2585, 'fail': 0, 'p50': 99.7, 'p95': 162.0, 'p99': 165.8, 'max': 178.7} SLO {'p95_ms_max': 250.0, 'max_ms_max': 2000.0, 'zero_fails': True, 'pass': True}
