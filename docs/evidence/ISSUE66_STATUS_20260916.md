@@ -20,6 +20,9 @@
 
 ## Phase C — x86 live ISO
 
+- CI: ext2 `qemu-smoke` is the hard gate; `-cdrom` smoke is **continue-on-error Soft** until INITRD live reaches healthz.
+## Phase C — x86 live ISO
+
 - Buildroot produces `rootfs.iso9660` (symlinked `rootfs.iso`).
 - GRUB fix: `BR2_TARGET_GRUB2_BOOT_PARTITION=cd` + `iso9660` module (was dropping to `grub>` with `hd0,msdos1`).
 - Serial grub menu + 300s QEMU `-cdrom` smoke (healthz fail-closed: `ready_to_route=false`).
