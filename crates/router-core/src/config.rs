@@ -13,6 +13,33 @@ pub struct RouterConfig {
     pub router: RouterControlConfig,
     pub bacnet_ip: BacnetIpConfig,
     pub mstp: MstpConfig,
+    /// Local BACnet Device object for Niagara discovery (phase 2b). Default off.
+    pub device: DeviceAppConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(default, deny_unknown_fields)]
+pub struct DeviceAppConfig {
+    /// When true, routerd hosts a Device object on BIP (requires implementation).
+    pub enabled: bool,
+    pub instance: u32,
+    pub object_name: String,
+    pub vendor_identifier: u16,
+    pub model_name: String,
+    pub firmware_revision: String,
+}
+
+impl Default for DeviceAppConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            instance: 599_900,
+            object_name: "DIY BACnet Router".to_owned(),
+            vendor_identifier: 999,
+            model_name: "diy-bacnet-router".to_owned(),
+            firmware_revision: "0.0.1".to_owned(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -239,6 +266,19 @@ impl RouterConfig {
                 "mstp.serial must use a stable /dev/serial/by-id path".into(),
             ));
         }
+        if self.device.enabled {
+            if self.device.instance > 4_194_302 {
+                return Err(ConfigError::Validation(
+                    "device.instance must be in 0..=4194302".into(),
+                ));
+            }
+            if self.device.object_name.trim().is_empty() {
+                return Err(ConfigError::Validation(
+                    "device.object_name must not be empty when device.enabled".into(),
+                ));
+            }
+            // Runtime still rejects enabled until phase 2b demux lands.
+        }
         if ![
             "onboard-present",
             "external",
@@ -340,7 +380,7 @@ mod tests {
     #[test]
     fn router_config_fields_stay_public_allowlisted() {
         const ALLOWED_TOP_LEVEL: &[&str] =
-            &["identity", "management", "router", "bacnet_ip", "mstp"];
+            &["identity", "management", "router", "bacnet_ip", "mstp", "device"];
         const FORBIDDEN_SUBSTRINGS: &[&str] = &[
             "password",
             "secret",
