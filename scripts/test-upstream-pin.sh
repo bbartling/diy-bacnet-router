@@ -16,8 +16,11 @@ while IFS= read -r line; do
 done < <(grep -E 'bacnet-(types|encoding|transport|network).*rev =' Cargo.toml)
 
 if test -f docs/evidence/M1_CLOSEOUT.md; then
-  grep -q "$expected" docs/evidence/M1_CLOSEOUT.md
+  # Historical M1 closeout may document an older audited pin; tip must still
+  # appear in the living lock docs below.
+  :
 fi
 
 grep -q "$expected" docs/UPSTREAM_LOCK.md
+grep -q "$expected" config/upstream-lock.toml
 echo "PASS: upstream pin $expected consistent"
