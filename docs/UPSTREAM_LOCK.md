@@ -1,15 +1,15 @@
 # Upstream dependency lock
 
-## Current M1 pin (audited 2026-09-04)
+## Current pin (repinned 2026-09-17)
 
 | Field | Value |
 | --- | --- |
 | Repository | https://github.com/jscott3201/rusty-bacnet |
 | Branch audited | `dev` |
-| Full SHA | `24e3439694b7d286e57e0a80cf7f1df4bd39d8ad` |
-| Status | `m1-audited-pin` |
+| Full SHA | `7e0d13a7c527da726b5aa27ff263e7eb8375131b` |
+| Status | `phase1-tip-repin` (was `24e3439` M1 pin) |
 | MSRV | Rust 1.93 |
-| Consumed crates | `bacnet-types`, `bacnet-encoding`, `bacnet-transport`, `bacnet-network` via `crates/rusty-bacnet-adapter` |
+| Consumed crates | `bacnet-types`, `bacnet-encoding`, `bacnet-transport`, `bacnet-network` **v0.11.0** via `crates/rusty-bacnet-adapter` |
 
 **Agents:** rusty-bacnet (especially MS/TP) changes frequently. Follow the **Daily rusty-bacnet / MS/TP watch** in [AGENTS.md](../AGENTS.md) every session — compare tip to this pin before assuming lab timing is unchanged. Never float the pin without a lock PR.
 
@@ -20,7 +20,7 @@
 - Adapter closeout: concrete B/IP + MS/TP factories compile and validate **without**
   calling `start()` / `TokioSerialPort::open` on ordinary unit/CI paths.
 - `cargo test -p bacnet-network --locked` at the pin: **73 passed** (Windows host, 2026-09-04).
-- MS/TP codec: standard frames capped at **501 data octets**; extended COBS frames are not in this pin.
+- MS/TP codec: standard frames capped at **501 data octets**; extended COBS frames: not claimed PASS at this tip without dedicated evidence (verify codec before phase-3 claims).
 - Segmentation remains an application-layer capability, not something this adapter reinterprets.
 - Upstream issues **#498–#502** are **open issues** (MS/TP Linux timing / qualification), not merged PRs.
   They do not block fail-closed compile fixtures.

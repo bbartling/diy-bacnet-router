@@ -14,7 +14,7 @@
   <a href="https://bbartling.github.io/diy-bacnet-router/"><img src="https://img.shields.io/badge/Docs-online-2563EB?style=for-the-badge" alt="Online docs"></a>
   <a href="docs/hardware/WAVESHARE_USB_RS485_C.md"><img src="https://img.shields.io/badge/Reference%20RS--485-Waveshare%20C-059669?style=for-the-badge" alt="Waveshare C"></a>
   <a href="VERSION"><img src="https://img.shields.io/badge/Release-VERSION%20file-6D28D9?style=for-the-badge" alt="VERSION"></a>
-  <a href="config/upstream-lock.toml"><img src="https://img.shields.io/badge/rusty--bacnet-24e3439-0B7285?style=for-the-badge" alt="Upstream pin"></a>
+  <a href="config/upstream-lock.toml"><img src="https://img.shields.io/badge/rusty--bacnet-7e0d13a-0B7285?style=for-the-badge" alt="Upstream pin"></a>
 </p>
 
 **DIY BACnet Router** is an open-source Linux appliance that routes BACnet **IP to MS/TP** — Buildroot OS images, a Rust data plane (`routerd`), and an embedded React management UI for lab and education use (BASRT-class intent, original implementation).
@@ -27,7 +27,7 @@ Boards today: **x86-64** (lab/QEMU) and **Raspberry Pi 3/4/5**. MS/TP uses USB R
 | --- | --- | --- |
 | Rust (CI) | [`rust-toolchain.toml`](rust-toolchain.toml) | **1.93.0** |
 | Buildroot | [`config/buildroot-lock.toml`](config/buildroot-lock.toml) | **2026.05.2** |
-| rusty-bacnet | [`config/upstream-lock.toml`](config/upstream-lock.toml) | **`24e3439694b7d286e57e0a80cf7f1df4bd39d8ad`** |
+| rusty-bacnet | [`config/upstream-lock.toml`](config/upstream-lock.toml) | **`7e0d13a7c527da726b5aa27ff263e7eb8375131b`** |
 | Cargo.lock | committed | `--locked` in CI and Buildroot |
 
 Badges track **`master`**. Open PRs run the same workflows on their branch.

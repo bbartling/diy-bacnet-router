@@ -44,4 +44,4 @@ fail-closed until routing gates pass with evidence.
 | Buildroot | **2026.05.2** (`config/buildroot-lock.toml`) |
 | Rust (CI) | **1.93.0** |
 | Release | **VERSION** file → dashboard header |
-| rusty-bacnet | `24e3439694b7d286e57e0a80cf7f1df4bd39d8ad` (M1 pin; forwarding still disabled) |
+| rusty-bacnet | `7e0d13a7c527da726b5aa27ff263e7eb8375131b` (M1 pin; forwarding still disabled) |

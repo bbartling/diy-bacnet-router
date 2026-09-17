@@ -110,7 +110,7 @@ paths. Every session that touches this appliance (or resumes after a hold) must:
    `--locked` suite, and record evidence. Prefer a focused PR here after any
    required rusty-bacnet PR merges.
 5. If the pin stays: say so explicitly in the handoff (“upstream checked
-   YYYY-MM-DD; pin still `24e3439…`; no MS/TP delta”).
+   YYYY-MM-DD; pin still `7e0d13a…`; no MS/TP delta”).
 
 Lab baud for the current two-Pi bench is **38400** unless evidence says otherwise.
 

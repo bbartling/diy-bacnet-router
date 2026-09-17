@@ -92,8 +92,8 @@ dependencies = [
 
 [[package]]
 name = "bacnet-encoding"
-version = "0.10.1"
-source = "git+https://github.com/jscott3201/rusty-bacnet?rev=24e3439694b7d286e57e0a80cf7f1df4bd39d8ad#24e3439694b7d286e57e0a80cf7f1df4bd39d8ad"
+version = "0.11.0"
+source = "git+https://github.com/jscott3201/rusty-bacnet?rev=7e0d13a7c527da726b5aa27ff263e7eb8375131b#7e0d13a7c527da726b5aa27ff263e7eb8375131b"
 dependencies = [
  "bacnet-types",
  "bytes",
@@ -102,8 +102,8 @@ dependencies = [
 
 [[package]]
 name = "bacnet-network"
-version = "0.10.1"
-source = "git+https://github.com/jscott3201/rusty-bacnet?rev=24e3439694b7d286e57e0a80cf7f1df4bd39d8ad#24e3439694b7d286e57e0a80cf7f1df4bd39d8ad"
+version = "0.11.0"
+source = "git+https://github.com/jscott3201/rusty-bacnet?rev=7e0d13a7c527da726b5aa27ff263e7eb8375131b#7e0d13a7c527da726b5aa27ff263e7eb8375131b"
 dependencies = [
  "bacnet-encoding",
  "bacnet-transport",
@@ -115,8 +115,8 @@ dependencies = [
 
 [[package]]
 name = "bacnet-transport"
-version = "0.10.1"
-source = "git+https://github.com/jscott3201/rusty-bacnet?rev=24e3439694b7d286e57e0a80cf7f1df4bd39d8ad#24e3439694b7d286e57e0a80cf7f1df4bd39d8ad"
+version = "0.11.0"
+source = "git+https://github.com/jscott3201/rusty-bacnet?rev=7e0d13a7c527da726b5aa27ff263e7eb8375131b#7e0d13a7c527da726b5aa27ff263e7eb8375131b"
 dependencies = [
  "bacnet-encoding",
  "bacnet-types",
@@ -132,8 +132,8 @@ dependencies = [
 
 [[package]]
 name = "bacnet-types"
-version = "0.10.1"
-source = "git+https://github.com/jscott3201/rusty-bacnet?rev=24e3439694b7d286e57e0a80cf7f1df4bd39d8ad#24e3439694b7d286e57e0a80cf7f1df4bd39d8ad"
+version = "0.11.0"
+source = "git+https://github.com/jscott3201/rusty-bacnet?rev=7e0d13a7c527da726b5aa27ff263e7eb8375131b#7e0d13a7c527da726b5aa27ff263e7eb8375131b"
 dependencies = [
  "bitflags 2.13.1",
  "smallvec",

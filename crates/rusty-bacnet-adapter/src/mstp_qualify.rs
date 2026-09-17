@@ -143,7 +143,7 @@ impl<S: SerialPort + 'static> MstpQualifySession<S> {
     pub fn write_report(&self, path: &Path, detail: &str) -> Result<(), AdapterError> {
         let (events, poll, next, token_pfm, samples) = self.counters.snapshot_tuple();
         let body = format!(
-            "{{\n  \"ready_to_route\": false,\n  \"forwarding\": 0,\n  \"bip_opened\": false,\n  \"bacnet_router\": false,\n  \"observed\": {{\n    \"event_count\": {events},\n    \"poll_station\": {poll},\n    \"next_station\": {next},\n    \"token_count_since_pfm\": {token_pfm},\n    \"samples\": {samples}\n  }},\n  \"upstream_gaps\": [\n    \"No public aggregate tx_tokens/rx_tokens/CRC error counters on MstpTransport at pin 24e3439; only MasterNode fields are mirrored.\"\n  ],\n  \"detail\": {detail:?}\n}}\n"
+            "{{\n  \"ready_to_route\": false,\n  \"forwarding\": 0,\n  \"bip_opened\": false,\n  \"bacnet_router\": false,\n  \"observed\": {{\n    \"event_count\": {events},\n    \"poll_station\": {poll},\n    \"next_station\": {next},\n    \"token_count_since_pfm\": {token_pfm},\n    \"samples\": {samples}\n  }},\n  \"upstream_gaps\": [\n    \"No public aggregate tx_tokens/rx_tokens/CRC error counters on MstpTransport at current rusty-bacnet pin; only MasterNode fields are mirrored.\"\n  ],\n  \"detail\": {detail:?}\n}}\n"
         );
         let tmp = path.with_extension("json.tmp");
         std::fs::write(&tmp, body)
