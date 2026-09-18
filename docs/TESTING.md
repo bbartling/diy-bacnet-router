@@ -31,7 +31,7 @@ permalink: /testing/
 | G8 | Routed Who-Is/I-Am and router network messages | **Source PASS** — I-Am-Router(2001) + unbounded remote Who-Is → I-Am SNET 2001 SADR 02 (same evidence pack). **Exact-image still OPEN** |
 | G9 | Fault/restart: USB unplug, NIC loss, duplicate MAC/network | Open — CI software faults (malformed UDP, missing iface, dual-B/IP link-down management survival, routing-mark clear); **USB/NIC hardware faults pending** |
 | G10 | One-hour then 24-hour forwarding soak | Open |
-| G11 | Claimed baud/board matrix under load | Open |
+| G11 | Claimed baud/board matrix under load | **Partial (source)** — FEC-off dual-mini: **38400 + 76800** routed RP PASS; **9600 / 19200** OPEN (see [CLAUSE9_BAUD_MATRIX_FEC_OFF](evidence/CLAUSE9_BAUD_MATRIX_FEC_OFF_20260918T174441Z/result.md)). Exact-image / under-load still OPEN |
 
 Vibe13 artifacts are prior evidence and test-vector inputs, not automatic passes
 for G4–G11 in a different process and OS image.

@@ -158,11 +158,22 @@ frames.
 | “Clause 9 self-tested” | Written checklist (PICS-like): which bauds, frame types, and behaviors we **proved on the wire**, and which we **do not claim** |
 | “BTL listed” | Paid third-party lab stamp — **out of scope** for this project unless separately funded |
 
+### Baud matrix snapshot (FEC off, dual mini)
+
+Evidence: `docs/evidence/CLAUSE9_BAUD_MATRIX_FEC_OFF_*`.
+
+| Baud | Passive | Routed RP (mini2+mini3) | Claim |
+| --- | --- | --- | --- |
+| **38400** | PASS | PASS (also with FEC on earlier pack) | **Supported** |
+| **76800** | PASS | PASS | **Supported** (minis only) |
+| **19200** | PASS | FAIL (AbortPDU / no-response) | **Not claimed** |
+| **9600** | FAIL gate | FAIL | **Not claimed** |
+
 ### What still has to be proven for a serious Clause 9 *self-test* claim
 
 These are separate from “we heard MACs 2, 3, and 7 once”:
 
-1. **Same baud everywhere** — and for bauds other than 38400, **unplug the FEC first** (it cannot change speed).
+1. **Same baud everywhere** — and for bauds other than 38400, **unplug the FEC first** (it cannot change speed). Matrix above is the current honest claim.
 2. **Token / timing under load** — many reads in a row, USB latency set correctly.
 3. **Reply Postponed / busy master** behavior when the station cannot answer immediately.
 4. **Optional extended frames** — only claim them after dedicated wire proof.
