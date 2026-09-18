@@ -162,7 +162,26 @@ What those gates cover:
 
 Do **not** reintroduce hard-coded tip SHAs in contract scripts when the pin advances.
 
-Lab baud for the current two-Pi bench is **38400** unless evidence says otherwise.
+### Lab trunk baud + Open-FDD test bench (hold)
+
+**Default / live trunk baud is `38400`.** Leave it there after FEC-off matrix work.
+Re-attach the JCI FEC at **38400 only** (read-only). This dual-mini + optional FEC
+ring on bensbench is the shared **Open-FDD OT / MQTT stress bench** — do not retune
+baud for curiosity during Open-FDD soaks.
+
+| Baud | Status on this Waveshare C + FTDI/CH343 lab |
+| --- | --- |
+| **38400** | **PASS** — supported (with or without FEC) |
+| **76800** | **PASS** minis-only (FEC off) — claimed for that topology only |
+| **19200** | OPEN — passive OK; routed RP → AbortPDU no-response (USB / fixed-ms reply window) |
+| **9600** | OPEN — passive invalid / no tokens on this mixed trunk |
+
+Evidence + hold: [`docs/evidence/CHECKPOINT_2026-09-18_CLAUSE9_BAUD_HOLD.md`](docs/evidence/CHECKPOINT_2026-09-18_CLAUSE9_BAUD_HOLD.md),
+[`CLAUSE9_BAUD_MATRIX_FEC_OFF_*`](docs/evidence/CLAUSE9_BAUD_MATRIX_FEC_OFF_20260918T174441Z/result.md).
+Upstream context: [rusty-bacnet#707](https://github.com/jscott3201/rusty-bacnet/issues/707) (related `#502`).
+
+Do **not** claim 9600/19200 in PICS/docs until re-proven. Prefer discussing timing with
+upstream rather than papering over USB-UART limits in this appliance.
 
 ## Spec and evidence (read before coding)
 
@@ -174,6 +193,7 @@ Source of truth for gates and claims:
 | [docs/TESTING.md](docs/TESTING.md) | Gate ledger G0–G11; **source vs exact-image** |
 | [docs/agent/SOFTWARE_SPEC.md](docs/agent/SOFTWARE_SPEC.md) | Software contracts |
 | [docs/evidence/CHECKPOINT_2026-09-13_SOURCE_G7_G8_HOLD.md](docs/evidence/CHECKPOINT_2026-09-13_SOURCE_G7_G8_HOLD.md) | Hold/resume after source G7/G8 |
+| [docs/evidence/CHECKPOINT_2026-09-18_CLAUSE9_BAUD_HOLD.md](docs/evidence/CHECKPOINT_2026-09-18_CLAUSE9_BAUD_HOLD.md) | Baud matrix hold @38400; Open-FDD stress bench |
 | [ansible/README.md](ansible/README.md) | Persistent two-Pi lab deploy |
 
 Keep [README.md](README.md) milestone checkboxes honest: check **source** wins when
