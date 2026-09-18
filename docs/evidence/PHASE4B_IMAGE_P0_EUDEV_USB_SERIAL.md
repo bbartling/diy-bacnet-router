@@ -28,10 +28,24 @@ Do **not** relabel Mint source G7/G8 or FEC RP as appliance-image PASS.
 - Product G7/G8 on **image** binary (Mint source PASS is not image PASS)
 - VMware guest SSH (`127.0.0.1:2222`) was refused during this Windows session — guest sync deferred
 
-## Operator check (after flash)
+## VMware guest (this Windows session)
 
-```bash
-ls -l /dev/serial/by-id/
-udevadm info --query=property --name="$(readlink -f /dev/serial/by-id/usb-*-if00)" | grep -E 'ID_VENDOR_ID|ID_MODEL_ID|ID_USB_DRIVER'
-cat /sys/bus/usb-serial/devices/*/latency_timer
+SSH to `ben@127.0.0.1:2222` was **refused** while executing Phase 4b. Guest
+checkout/sync and `vm-debug-build` were **not** run. Re-try when the Ubuntu
+builder VM is up:
+
+```powershell
+.\scripts\vm-ensure.ps1 -Hypervisor vmware -DebugBuild
 ```
+
+Do not treat missing VMware sync as image PASS — CI `build-os` is the gate for
+this slice.
+
+## Mint publish notes
+
+After [#70](https://github.com/bbartling/diy-bacnet-router/pull/70) merges:
+
+1. On Mint: `git checkout master && git pull --ff-only origin master`
+2. Confirm `revision_short = acbf7bae` in `config/upstream-lock.toml`
+3. Read `docs/learn/` (Pages) + this evidence pack — **source** G7/G8/FEC evidence unchanged; image P0 is tree-only until flash prove (M4)
+4. Prefer Actions `build-os` artifacts / future Releases over local Windows Buildroot

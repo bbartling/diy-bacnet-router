@@ -1,13 +1,15 @@
-# Tutorial PDF export (optional)
-
-# Builds a single PDF from the public Learn tutorials using Pandoc.
-# Manual only — does not replace GitHub Pages.
-# (Unlike some repos' legacy stub workflows, this actually produces an artifact.)
+# Tutorial PDF export — Pandoc Learn bundle (optional artifact).
+# Runs on docs changes in PRs so the workflow is exercised before merge;
+# also available via workflow_dispatch on any branch after it lands on default.
 
 name: Docs PDF
 
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - "docs/learn/**"
+      - ".github/workflows/docs-pdf.yml"
 
 permissions:
   contents: read
@@ -30,7 +32,6 @@ jobs:
             docs/learn/testing.md
           do
             base="$(basename "$f")"
-            # Drop YAML front matter between leading --- fences.
             awk 'BEGIN{fm=0} /^---$/ {fm++; next} fm>=2 {print} fm<2 && fm>0 {next} fm==0 {print}' "$f" \
               | sed -E 's/\{\{ site\.baseurl \}\}//g' \
               > "/tmp/learn-md/$base"
@@ -47,6 +48,8 @@ jobs:
             --toc \
             -f markdown \
             --metadata title="DIY BACnet Router — Learn"
+          test -s artifacts/diy-bacnet-router-learn.pdf
+          ls -la artifacts/diy-bacnet-router-learn.pdf
       - name: Upload PDF
         uses: actions/upload-artifact@v4
         with:
