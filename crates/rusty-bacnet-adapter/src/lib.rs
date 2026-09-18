@@ -160,7 +160,10 @@ mod tests {
     fn pin_is_full_sha() {
         assert_eq!(UPSTREAM_REVISION.len(), 40);
         assert!(UPSTREAM_REVISION.chars().all(|c| c.is_ascii_hexdigit()));
-        assert_eq!(&UPSTREAM_REVISION[..UPSTREAM_REVISION_SHORT.len()], UPSTREAM_REVISION_SHORT);
+        assert_eq!(
+            &UPSTREAM_REVISION[..UPSTREAM_REVISION_SHORT.len()],
+            UPSTREAM_REVISION_SHORT
+        );
     }
 
     #[test]
