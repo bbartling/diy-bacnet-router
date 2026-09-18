@@ -1,7 +1,7 @@
 ---
 title: How we test
 parent: Learn
-nav_order: 4
+nav_order: 5
 permalink: /learn/testing/
 ---
 
@@ -42,9 +42,16 @@ The living checklist is [TESTING.md on GitHub](https://github.com/bbartling/diy-
 | Local-delivery drain / BIP↔loopback MS/TP | `docs/evidence/PR_A_ROUTE_SESSION_DRAIN.md` |
 | Image eudev + USB-serial P0 | `docs/evidence/PHASE4B_IMAGE_P0_EUDEV_USB_SERIAL.md` |
 
+## Lab trunk check (story form)
+
+For a plain-language walkthrough of “SSH both Pis, then hear MAC 2/3/7 on the
+cable,” including what **Clause 9** does and does not mean, see
+[How we prove the live MS/TP trunk]({{ site.baseurl }}/learn/lab-trunk-check/).
+
 ## What beginners should remember
 
 1. Fail-closed by default — forwarding off until you opt in on a controlled bench.
 2. BIP test clients must not share the router’s UDP bind host/IP.
 3. Use `/dev/serial/by-id/...` and check USB latency on FTDI adapters.
 4. Read the evidence folder before claiming a product gate PASS.
+5. Hearing stations on the trunk ≠ full Clause 9 ≠ BTL.

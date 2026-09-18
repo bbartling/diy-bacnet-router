@@ -22,6 +22,21 @@ Persist only:
 Record vendor/product IDs and the by-id link in lab notes. See
 [Waveshare USB TO RS485 C]({{ site.baseurl }}/hardware/waveshare-rs485-c/).
 
+## Permission to open the port (`dialout`)
+
+Linux often requires your user to be in the **`dialout`** group before a program
+can open `/dev/ttyUSB*`. After a fresh install or reboot, “Permission denied”
+usually means you are not in that group yet:
+
+```bash
+groups                    # look for dialout
+sudo usermod -aG dialout $USER
+# log out and back in, then retry
+```
+
+A full beginner story of a lab listen (including this gotcha) is
+[How we prove the live MS/TP trunk]({{ site.baseurl }}/learn/lab-trunk-check/).
+
 ## Why USB latency matters
 
 Many FTDI adapters default to a **16 ms** `latency_timer`. For BACnet confirmed

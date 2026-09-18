@@ -1,7 +1,7 @@
 ---
 title: Buildroot recipe
 parent: Learn
-nav_order: 3
+nav_order: 4
 permalink: /learn/buildroot-recipe/
 ---
 

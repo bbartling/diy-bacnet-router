@@ -19,8 +19,9 @@ evidenced; proving the same gates on a flashed **Buildroot image**, then shippin
 
 1. [What is BACnet / IP / MS/TP?]({{ site.baseurl }}/learn/bacnet-mstp/) — beginner overview
 2. [Linux, USB serial, and MS/TP timing]({{ site.baseurl }}/learn/linux-mstp-timing/) — why latency and by-id paths matter
-3. [Buildroot recipe]({{ site.baseurl }}/learn/buildroot-recipe/) — what services make the appliance OS
-4. [How we test]({{ site.baseurl }}/learn/testing/) — CI vs lab vs exact-image honesty
+3. [How we prove the live MS/TP trunk]({{ site.baseurl }}/learn/lab-trunk-check/) — SSH + cable listen explained simply; what Clause 9 means (not BTL)
+4. [Buildroot recipe]({{ site.baseurl }}/learn/buildroot-recipe/) — what services make the appliance OS
+5. [How we test]({{ site.baseurl }}/learn/testing/) — CI vs lab vs exact-image honesty
 
 ## Build & run
 
