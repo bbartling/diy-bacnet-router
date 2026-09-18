@@ -13,6 +13,22 @@
 
 **Agents:** rusty-bacnet (especially MS/TP) changes frequently. Follow the **Daily rusty-bacnet / MS/TP watch** in [AGENTS.md](../AGENTS.md) every session — compare tip to this pin before assuming lab timing is unchanged. Never float the pin without a lock PR.
 
+### Repin gate (run every Cargo.toml `rev` bump)
+
+When advancing `bacnet-*` git `rev` values:
+
+1. Update **all** of: workspace [`Cargo.toml`](../Cargo.toml), [`config/upstream-lock.toml`](../config/upstream-lock.toml), [`crates/rusty-bacnet-adapter/src/lib.rs`](../crates/rusty-bacnet-adapter/src/lib.rs) (`UPSTREAM_REVISION` / `_SHORT`), this doc, then `cargo update -p bacnet-network -p bacnet-transport -p bacnet-encoding -p bacnet-types`.
+2. Run:
+
+```bash
+bash scripts/test-upstream-pin.sh
+cargo test -p rusty-bacnet-adapter --locked
+cargo test --workspace --locked
+bash scripts/validate-repository.sh
+```
+
+CI already runs `cargo test --workspace` and `bash scripts/validate-repository.sh` (which calls `test-upstream-pin.sh`). Hard-coded SHAs in image verify scripts must not be reintroduced — they read the lock file dynamically.
+
 ### Audit evidence at this SHA
 
 - Public APIs reused (not forked): `BACnetRouter`, `RouterPort<T>`, `AnyTransport<S>`,

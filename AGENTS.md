@@ -101,16 +101,47 @@ paths. Every session that touches this appliance (or resumes after a hold) must:
    and [`docs/UPSTREAM_LOCK.md`](docs/UPSTREAM_LOCK.md).
 2. Fetch upstream tip (`git ls-remote` / compare `dev` or default branch HEAD) and
    note whether MS/TP, `mstp_frame`, serial, or `bacnet-network` router commits
-   landed since the pin.
+   landed since the pin. **Prefer staying on tip of `jscott3201/rusty-bacnet@dev`
+   when auditing a bump** — do not leave the pin months behind without a written reason.
 3. Skim new upstream PRs/issues/changelog for MS/TP timing, token, CRC, stop/TTY
    ownership, and forwarding fixes — those directly affect lab timeouts
    ([issue #66](https://github.com/bbartling/diy-bacnet-router/issues/66)).
-4. **Do not silently float the pin.** If a bump is warranted: audit, run upstream
-   tests, update lock + `Cargo.toml` rev + `Cargo.lock`, run this repo’s full
-   `--locked` suite, and record evidence. Prefer a focused PR here after any
-   required rusty-bacnet PR merges.
+4. **Do not silently float the pin.** If a bump is warranted, follow **Repin gate**
+   below. Prefer a focused PR here after any required rusty-bacnet PR merges.
 5. If the pin stays: say so explicitly in the handoff (“upstream checked
    YYYY-MM-DD; pin still `acbf7bae…`; no MS/TP delta”).
+
+### Repin gate (mandatory when changing any `bacnet-*` git `rev`)
+
+Keep these **identical** after every bump (CI fails if they drift):
+
+| Location | Field |
+| --- | --- |
+| [`config/upstream-lock.toml`](config/upstream-lock.toml) | `revision` (40 hex) + `revision_short` |
+| Workspace [`Cargo.toml`](Cargo.toml) | all four `bacnet-{types,encoding,transport,network}` `rev =` |
+| [`Cargo.lock`](Cargo.lock) | `cargo update -p …` so lock `rev=` matches |
+| [`crates/rusty-bacnet-adapter/src/lib.rs`](crates/rusty-bacnet-adapter/src/lib.rs) | `UPSTREAM_REVISION` + `UPSTREAM_REVISION_SHORT` |
+| [`docs/UPSTREAM_LOCK.md`](docs/UPSTREAM_LOCK.md) | documented full SHA |
+
+**Commands agents must run locally before pushing a repin PR:**
+
+```bash
+# after editing revs + consts + lock docs:
+cargo update -p bacnet-network -p bacnet-transport -p bacnet-encoding -p bacnet-types
+bash scripts/test-upstream-pin.sh
+cargo test -p rusty-bacnet-adapter --locked
+cargo test --workspace --locked
+bash scripts/validate-repository.sh
+```
+
+What those gates cover:
+
+- `scripts/test-upstream-pin.sh` — lock ↔ Cargo.toml ↔ Cargo.lock ↔ adapter consts ↔ `UPSTREAM_LOCK.md`
+- unit tests `pin_is_full_sha` + `pin_matches_workspace_cargo_toml_and_upstream_lock` in `rusty-bacnet-adapter` (run under `cargo test --workspace` in CI)
+- `scripts/validate-repository.sh` → calls `test-upstream-pin.sh` + appliance contract (no hard-coded SHA; reads the lock)
+- image verify (`build-os.yml` / `vm-debug-build.sh`) asserts `build-manifest.json` `rusty_bacnet` equals the lock file dynamically
+
+Do **not** reintroduce hard-coded tip SHAs in contract scripts when the pin advances.
 
 Lab baud for the current two-Pi bench is **38400** unless evidence says otherwise.
 
