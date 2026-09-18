@@ -7,6 +7,9 @@ permalink: /architecture/
 
 # Architecture
 
+**Beginner map first:** [Stack map (who does what)]({{ site.baseurl }}/learn/stack-map/) —
+rusty-bacnet vs bacpypes3 vs this repo’s Rust/React/Buildroot.
+
 ## Trust boundaries
 
 The appliance has three deliberately separated areas:

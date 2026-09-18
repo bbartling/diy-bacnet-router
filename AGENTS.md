@@ -44,6 +44,25 @@ Primary MS/TP adapter: [Waveshare USB TO RS485 (C)](https://www.waveshare.com/us
 Read [docs/hardware/WAVESHARE_USB_RS485_C.md](docs/hardware/WAVESHARE_USB_RS485_C.md)
 before bench or trunk work.
 
+## Stack map (agents — do not conflate these)
+
+| Layer | What it is | In product image? |
+| --- | --- | --- |
+| **rusty-bacnet** (upstream) | BACnet transport + network/router crates; **pinned SHA** | Yes (linked into `routerd`) |
+| **`rusty-bacnet-adapter` / `router-core` / `routerd`** | This repo’s Rust appliance + fail-closed policy | Yes |
+| **`frontend/web` (React)** | LAN management UI served by Axum — **not** the data plane | Yes (static assets) |
+| **Buildroot external** | Custom Linux OS, eudev, USB-serial, service unit | Yes (when imaged) |
+| **bacpypes3** | Python BIP **lab oracle** / shell (`whois`, routed `read`) | **No** — external client only |
+| **Vibe13 `mstp-mini-device`** | Lab MS/TP fixture device | **No** — separate playground binary |
+| **Workbench / tcpdump / BBMD tools** | Optional human evidence / debug | **No** |
+
+Beginner Pages tutorial: [docs/learn/stack-map.md](docs/learn/stack-map.md)
+(`https://bbartling.github.io/diy-bacnet-router/learn/stack-map/` after merge).
+
+**bacpypes3 never replaces rusty-bacnet inside the appliance.** It proves the
+Ethernet side can talk *through* our router to MS/TP stations. Bind bacpypes on
+a **different host/IP** than the router’s UDP 47808 socket.
+
 ## Non-negotiable boundaries
 
 - The router forwards NPDUs between distinct BACnet networks. It must not reuse

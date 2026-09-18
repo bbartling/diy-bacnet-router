@@ -1,7 +1,7 @@
 ---
 title: How we test
 parent: Learn
-nav_order: 5
+nav_order: 6
 permalink: /learn/testing/
 ---
 

@@ -1,7 +1,7 @@
 ---
 title: Linux and MS/TP timing
 parent: Learn
-nav_order: 2
+nav_order: 3
 permalink: /learn/linux-mstp-timing/
 ---
 

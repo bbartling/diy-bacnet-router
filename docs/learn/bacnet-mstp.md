@@ -48,6 +48,9 @@ It uses the pinned [rusty-bacnet](https://github.com/jscott3201/rusty-bacnet)
 stack for transport and routing logic, wrapped by this repo’s adapter and
 `routerd` management plane.
 
+**Who does what?** See [Stack map — rusty-bacnet, bacpypes3, web UI]({{ site.baseurl }}/learn/stack-map/)
+(bacpypes3 is a lab client only; React/`routerd` are this appliance, not the upstream stack).
+
 {: .warning }
 Default config keeps **forwarding disabled**. Lab unlock flags (such as
 `--route-enable`) are for controlled benches — not for a random production trunk
