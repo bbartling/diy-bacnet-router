@@ -41,6 +41,7 @@ The living checklist is [TESTING.md on GitHub](https://github.com/bbartling/diy-
 | Dual-B/IP CI | `docs/evidence/M3_DUAL_BIP_NETNS.md` |
 | Local-delivery drain / BIP↔loopback MS/TP | `docs/evidence/PR_A_ROUTE_SESSION_DRAIN.md` |
 | Image eudev + USB-serial P0 | `docs/evidence/PHASE4B_IMAGE_P0_EUDEV_USB_SERIAL.md` |
+| Dual-mini + FEC @38400 routed RP | `docs/evidence/CLAUSE9_38400_DUAL_MINI_FEC_*` |
 
 ## Lab trunk check (story form)
 
