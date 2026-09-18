@@ -1,0 +1,29 @@
+[Unit]
+Description=Vibe13 MS/TP mini-device fixture (MAC {{ mstp_mac }} / device {{ mstp_device_instance }})
+Documentation=https://github.com/bbartling/py-bacnet-stacks-playground
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ben
+Group=ben
+SupplementaryGroups=dialout
+WorkingDirectory={{ mstp_workdir }}
+Environment=RUST_LOG=info
+ExecStart={{ mstp_bin }} \
+  --serial {{ mstp_serial }} \
+  --baud {{ dbr_baud }} \
+  --mac {{ mstp_mac }} \
+  --max-master {{ mstp_max_master }} \
+  --max-info-frames {{ mstp_max_info_frames }} \
+  --device-instance {{ mstp_device_instance }} \
+  --name "{{ mstp_device_name }}" \
+  --vendor-id 999
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=20
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target

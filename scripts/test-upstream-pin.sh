@@ -12,8 +12,12 @@ test "${#expected}" -eq 40
 test "${#short}" -ge 7
 test "${expected:0:${#short}}" = "$short"
 
-const_rev="$(grep -E 'pub const UPSTREAM_REVISION:' crates/rusty-bacnet-adapter/src/lib.rs | grep -oE '[0-9a-f]{40}')"
-const_short="$(grep -E 'pub const UPSTREAM_REVISION_SHORT:' crates/rusty-bacnet-adapter/src/lib.rs | grep -oE '[0-9a-f]+' | head -1)"
+const_rev="$(sed -n 's/^pub const UPSTREAM_REVISION: &str = "\([0-9a-f]\{40\}\)";$/\1/p' \
+  crates/rusty-bacnet-adapter/src/lib.rs)"
+const_short="$(sed -n 's/^pub const UPSTREAM_REVISION_SHORT: &str = "\([0-9a-f]\+\)";$/\1/p' \
+  crates/rusty-bacnet-adapter/src/lib.rs)"
+test -n "$const_rev"
+test -n "$const_short"
 test "$const_rev" = "$expected"
 test "$const_short" = "$short"
 

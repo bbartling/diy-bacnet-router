@@ -1,0 +1,53 @@
+---
+# Change baud on both mini fixtures. FEC is fixed at 38400 — refuse other bauds
+# unless the operator confirms the FEC is physically disconnected.
+#
+#   # Safe (FEC may stay on trunk):
+#   ansible-playbook -i ansible/inventory/lab.yml ansible/playbooks/set_baud.yml -e dbr_baud=38400
+#
+#   # After human disconnects FEC:
+#   ansible-playbook -i ansible/inventory/lab.yml ansible/playbooks/set_baud.yml \
+#     -e dbr_baud=9600 -e fec_disconnected=true
+#
+# Then restart the bensbench DIY router with matching baud in its TOML.
+
+- name: Guard FEC baud policy
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    dbr_baud: "{{ dbr_baud | default(38400) }}"
+    fec_present: "{{ fec_present | default(true) }}"
+    fec_disconnected: "{{ fec_disconnected | default(false) }}"
+  tasks:
+    - name: Refuse non-38400 while FEC may still be on the trunk
+      ansible.builtin.fail:
+        msg: >-
+          dbr_baud={{ dbr_baud }} but FEC is fixed at 38400. Physically disconnect
+          the FEC from the RS-485 trunk, then re-run with -e fec_disconnected=true.
+          (Or use -e dbr_baud=38400 with FEC on.)
+      when:
+        - (dbr_baud | int) != 38400
+        - fec_disconnected | bool == false
+
+    - name: Remind operator to restart bensbench router
+      ansible.builtin.debug:
+        msg: >-
+          After minis restart at baud {{ dbr_baud }}, update bensbench router.toml
+          [mstp] baud and restart diy-bacnet-router --route-enable.
+
+- name: Apply baud to both minis
+  hosts: mstp_fixture
+  become: true
+  tasks:
+    - name: Render mstp-mini-device unit at requested baud
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/mstp-mini-device.service.j2"
+        dest: /etc/systemd/system/mstp-mini-device.service
+        mode: "0644"
+
+    - name: Restart mstp-mini-device
+      ansible.builtin.systemd:
+        name: mstp-mini-device
+        state: restarted
+        daemon_reload: true
