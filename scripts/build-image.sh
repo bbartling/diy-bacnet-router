@@ -92,6 +92,21 @@ if [[ "$target" == "x86_64" && -f "$external/fragments/x86_64_iso.config" ]]; th
     echo "BR2_TARGET_ROOTFS_ISO9660_BOOT_MENU=\"$external/board/common/grub-iso.cfg\"" >> "$output_dir/.config"
   fi
 fi
+# Device creation is a Kconfig choice: strip other methods so eudev wins.
+sed -i \
+  -e '/^BR2_ROOTFS_DEVICE_CREATION_STATIC=/d' \
+  -e '/^BR2_ROOTFS_DEVICE_CREATION_DYNAMIC_DEVTMPFS=/d' \
+  -e '/^BR2_ROOTFS_DEVICE_CREATION_DYNAMIC_MDEV=/d' \
+  -e '/^# BR2_ROOTFS_DEVICE_CREATION_/d' \
+  "$output_dir/.config"
+grep -q '^BR2_ROOTFS_DEVICE_CREATION_DYNAMIC_EUDEV=y' "$output_dir/.config" || \
+  echo 'BR2_ROOTFS_DEVICE_CREATION_DYNAMIC_EUDEV=y' >> "$output_dir/.config"
+grep -q '^BR2_PACKAGE_EUDEV=y' "$output_dir/.config" || \
+  echo 'BR2_PACKAGE_EUDEV=y' >> "$output_dir/.config"
+# Absolute path for kernel USB-serial fragment (FTDI + CH341/CH343).
+if [[ -f "$external/fragments/linux-usb-serial.fragment" ]]; then
+  echo "BR2_LINUX_KERNEL_CONFIG_FRAGMENT_FILES=\"$external/fragments/linux-usb-serial.fragment\"" >> "$output_dir/.config"
+fi
 cat >> "$output_dir/.config" <<EOF
 BR2_ROOTFS_OVERLAY="$external/board/common/rootfs-overlay"
 EOF

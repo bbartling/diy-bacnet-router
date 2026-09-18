@@ -57,6 +57,13 @@ grep -q 'LocalDeliveryDrain\|local_delivery' crates/rusty-bacnet-adapter/src/rou
 grep -q 'writes_blocked\|WRITES_BLOCKED' crates/routerd/src/web.rs
 test -f scripts/route-bip-bip-netns.sh
 test -f docs/evidence/PR_A_ROUTE_SESSION_DRAIN.md
+grep -q 'BR2_PACKAGE_EUDEV=y' buildroot-external/fragments/common.config
+grep -q 'BR2_ROOTFS_DEVICE_CREATION_DYNAMIC_EUDEV=y' buildroot-external/fragments/common.config
+test -f buildroot-external/fragments/linux-usb-serial.fragment
+grep -q 'CONFIG_USB_SERIAL_FTDI_SIO=y' buildroot-external/fragments/linux-usb-serial.fragment
+grep -q 'CONFIG_USB_SERIAL_CH343=y' buildroot-external/fragments/linux-usb-serial.fragment
+grep -q 'linux-usb-serial.fragment' scripts/build-image.sh
+grep -q '1a86' ansible/files/99-ftdi-latency.rules
 
 echo "==> Buildroot lock is pinned with commit"
 grep -q '^version = ' config/buildroot-lock.toml

@@ -17,5 +17,7 @@ for path in /sys/bus/usb-serial/devices/*/latency_timer; do
 done
 if [[ "$found" -eq 0 ]]; then
   echo "no usb-serial latency_timer sysfs nodes present" >&2
-  exit 1
+  # Exit 0 so udev RUN+= does not fail device enumeration when the
+  # adapter exposes no latency_timer (some CH343 binds).
+  exit 0
 fi

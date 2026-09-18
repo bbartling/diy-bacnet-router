@@ -1,4 +1,10 @@
-# FTDI USB-UART: default latency_timer=16 ms causes ~3 s bacpypes/Workbench
-# APDU retries on BIP↔MS/TP confirmed reads (diy-bacnet-router #66).
-# Force 1 ms for lab RS-485 adapters (Waveshare USB-TO-RS485-C / FT232R).
+# Lab USB-UART adapters for diy-bacnet-router MS/TP.
+# FTDI FT232R (Waveshare USB-TO-RS485-C): default latency_timer=16 ms causes
+# multi-second bacpypes/Workbench APDU retries on BIP↔MS/TP confirmed reads (#66).
 ACTION=="add|change", SUBSYSTEM=="tty", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="6001", ATTR{device/latency_timer}="1"
+
+# WCH CH343 (common on Waveshare USB-TO-RS485-B). Prefer sysfs write when the
+# usb-serial stack exposes latency_timer; otherwise RUN helper is a no-op/exit 1
+# only when *no* usb-serial nodes exist — ignore failures on bind.
+ACTION=="add|change", SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="55d3", RUN+="/usr/sbin/set-ftdi-latency.sh 1"
+ACTION=="add|change", SUBSYSTEM=="tty", ATTRS{idVendor}=="1a86", ATTRS{idProduct}=="7523", RUN+="/usr/sbin/set-ftdi-latency.sh 1"
