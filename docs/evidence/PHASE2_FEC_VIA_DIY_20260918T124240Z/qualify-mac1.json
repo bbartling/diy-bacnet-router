@@ -1,0 +1,17 @@
+{
+  "ready_to_route": false,
+  "forwarding": 0,
+  "bip_opened": false,
+  "bacnet_router": false,
+  "observed": {
+    "event_count": 2,
+    "poll_station": 1,
+    "next_station": 2,
+    "token_count_since_pfm": 26,
+    "samples": 75
+  },
+  "upstream_gaps": [
+    "No public aggregate tx_tokens/rx_tokens/CRC error counters on MstpTransport at current rusty-bacnet pin; only MasterNode fields are mirrored."
+  ],
+  "detail": "mstp-qualify"
+}

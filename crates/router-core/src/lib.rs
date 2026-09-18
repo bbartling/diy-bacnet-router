@@ -15,8 +15,8 @@ pub use auth::{
     WRITES_BLOCKED_DETAIL,
 };
 pub use config::{
-    BacnetIpConfig, ConfigError, IdentityConfig, ManagementConfig, MstpConfig, RouterConfig,
-    RouterControlConfig,
+    BacnetIpConfig, ConfigError, DeviceAppConfig, IdentityConfig, ManagementConfig, MstpConfig,
+    RouterConfig, RouterControlConfig,
 };
 pub use metrics::{Counters, RouterMetrics};
 pub use runtime::{Capability, CapabilityState, DataPlaneState, RuntimeSnapshot, RuntimeState};

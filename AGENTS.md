@@ -44,6 +44,25 @@ Primary MS/TP adapter: [Waveshare USB TO RS485 (C)](https://www.waveshare.com/us
 Read [docs/hardware/WAVESHARE_USB_RS485_C.md](docs/hardware/WAVESHARE_USB_RS485_C.md)
 before bench or trunk work.
 
+## Stack map (agents — do not conflate these)
+
+| Layer | What it is | In product image? |
+| --- | --- | --- |
+| **rusty-bacnet** (upstream) | BACnet transport + network/router crates; **pinned SHA** | Yes (linked into `routerd`) |
+| **`rusty-bacnet-adapter` / `router-core` / `routerd`** | This repo’s Rust appliance + fail-closed policy | Yes |
+| **`frontend/web` (React)** | LAN management UI served by Axum — **not** the data plane | Yes (static assets) |
+| **Buildroot external** | Custom Linux OS, eudev, USB-serial, service unit | Yes (when imaged) |
+| **bacpypes3** | Python BIP **lab oracle** / shell (`whois`, routed `read`) | **No** — external client only |
+| **Vibe13 `mstp-mini-device`** | Lab MS/TP fixture device | **No** — separate playground binary |
+| **Workbench / tcpdump / BBMD tools** | Optional human evidence / debug | **No** |
+
+Beginner Pages tutorial: [docs/learn/stack-map.md](docs/learn/stack-map.md)
+(`https://bbartling.github.io/diy-bacnet-router/learn/stack-map/` after merge).
+
+**bacpypes3 never replaces rusty-bacnet inside the appliance.** It proves the
+Ethernet side can talk *through* our router to MS/TP stations. Bind bacpypes on
+a **different host/IP** than the router’s UDP 47808 socket.
+
 ## Non-negotiable boundaries
 
 - The router forwards NPDUs between distinct BACnet networks. It must not reuse
@@ -101,16 +120,47 @@ paths. Every session that touches this appliance (or resumes after a hold) must:
    and [`docs/UPSTREAM_LOCK.md`](docs/UPSTREAM_LOCK.md).
 2. Fetch upstream tip (`git ls-remote` / compare `dev` or default branch HEAD) and
    note whether MS/TP, `mstp_frame`, serial, or `bacnet-network` router commits
-   landed since the pin.
+   landed since the pin. **Prefer staying on tip of `jscott3201/rusty-bacnet@dev`
+   when auditing a bump** — do not leave the pin months behind without a written reason.
 3. Skim new upstream PRs/issues/changelog for MS/TP timing, token, CRC, stop/TTY
    ownership, and forwarding fixes — those directly affect lab timeouts
    ([issue #66](https://github.com/bbartling/diy-bacnet-router/issues/66)).
-4. **Do not silently float the pin.** If a bump is warranted: audit, run upstream
-   tests, update lock + `Cargo.toml` rev + `Cargo.lock`, run this repo’s full
-   `--locked` suite, and record evidence. Prefer a focused PR here after any
-   required rusty-bacnet PR merges.
+4. **Do not silently float the pin.** If a bump is warranted, follow **Repin gate**
+   below. Prefer a focused PR here after any required rusty-bacnet PR merges.
 5. If the pin stays: say so explicitly in the handoff (“upstream checked
-   YYYY-MM-DD; pin still `24e3439…`; no MS/TP delta”).
+   YYYY-MM-DD; pin still `acbf7bae…`; no MS/TP delta”).
+
+### Repin gate (mandatory when changing any `bacnet-*` git `rev`)
+
+Keep these **identical** after every bump (CI fails if they drift):
+
+| Location | Field |
+| --- | --- |
+| [`config/upstream-lock.toml`](config/upstream-lock.toml) | `revision` (40 hex) + `revision_short` |
+| Workspace [`Cargo.toml`](Cargo.toml) | all four `bacnet-{types,encoding,transport,network}` `rev =` |
+| [`Cargo.lock`](Cargo.lock) | `cargo update -p …` so lock `rev=` matches |
+| [`crates/rusty-bacnet-adapter/src/lib.rs`](crates/rusty-bacnet-adapter/src/lib.rs) | `UPSTREAM_REVISION` + `UPSTREAM_REVISION_SHORT` |
+| [`docs/UPSTREAM_LOCK.md`](docs/UPSTREAM_LOCK.md) | documented full SHA |
+
+**Commands agents must run locally before pushing a repin PR:**
+
+```bash
+# after editing revs + consts + lock docs:
+cargo update -p bacnet-network -p bacnet-transport -p bacnet-encoding -p bacnet-types
+bash scripts/test-upstream-pin.sh
+cargo test -p rusty-bacnet-adapter --locked
+cargo test --workspace --locked
+bash scripts/validate-repository.sh
+```
+
+What those gates cover:
+
+- `scripts/test-upstream-pin.sh` — lock ↔ Cargo.toml ↔ Cargo.lock ↔ adapter consts ↔ `UPSTREAM_LOCK.md`
+- unit tests `pin_is_full_sha` + `pin_matches_workspace_cargo_toml_and_upstream_lock` in `rusty-bacnet-adapter` (run under `cargo test --workspace` in CI)
+- `scripts/validate-repository.sh` → calls `test-upstream-pin.sh` + appliance contract (no hard-coded SHA; reads the lock)
+- image verify (`build-os.yml` / `vm-debug-build.sh`) asserts `build-manifest.json` `rusty_bacnet` equals the lock file dynamically
+
+Do **not** reintroduce hard-coded tip SHAs in contract scripts when the pin advances.
 
 Lab baud for the current two-Pi bench is **38400** unless evidence says otherwise.
 

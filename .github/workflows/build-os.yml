@@ -155,12 +155,19 @@ jobs:
           test -s "$root/images/SHA256SUMS"
           python3 - "$root/images/build-manifest.json" "${{ matrix.target }}" <<'PY'
           import json
+          import pathlib
+          import re
           import sys
+
           with open(sys.argv[1], encoding="utf-8") as handle:
               manifest = json.load(handle)
+          lock = pathlib.Path("config/upstream-lock.toml").read_text(encoding="utf-8")
+          expected = re.search(r'^revision = "([0-9a-f]{40})"', lock, re.M).group(1)
           assert manifest["target"] == sys.argv[2]
           assert manifest["project_rust_toolchain"] == "1.93.0"
-          assert manifest["rusty_bacnet"] == "24e3439694b7d286e57e0a80cf7f1df4bd39d8ad"
+          assert manifest["rusty_bacnet"] == expected, (
+              f"manifest rusty_bacnet={manifest['rusty_bacnet']!r} != lock {expected!r}"
+          )
           assert manifest["buildroot_host_rustc_version"]
           assert manifest["buildroot_host_cargo_version"]
           PY

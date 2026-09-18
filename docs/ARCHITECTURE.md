@@ -1,11 +1,14 @@
 ---
 title: Architecture
 layout: default
-nav_order: 6
+nav_order: 5
 permalink: /architecture/
 ---
 
 # Architecture
+
+**Beginner map first:** [Stack map (who does what)]({{ site.baseurl }}/learn/stack-map/) —
+rusty-bacnet vs bacpypes3 vs this repo’s Rust/React/Buildroot.
 
 ## Trust boundaries
 

@@ -1,54 +1,50 @@
-# Lab Ansible — two-Pi BIP↔MS/TP
+# Lab Ansible — dual mini + bensbench router
 
-Deploys **persistent** systemd units so Workbench on another PC can discover
-remote BACnet network **2001** / device **123102** through workerpi1.
+Bensbench (`192.168.204.11`) runs the DIY **router** (source `routerd`).
+Both Raspberry Pis run **mstp-mini-device** fixtures on the shared RS-485 trunk.
 
 ## Topology (locked)
 
 | Host | Role |
 |---|---|
-| workerpi1 `192.168.204.59` | `diy-bacnet-router --route-enable --qualify-secs 0` |
-| workerpi2 `192.168.204.60` | Vibe13 `mstp-mini-device` MAC 2 / instance 123102 |
+| bensbench `192.168.204.11` | `diy-bacnet-router --route-enable` MAC1 DNET **2001** (Waveshare C) |
+| bacpypes oracle | Different BIP IP than `.11` — prefer `.12` alias on bensbench, or run bacpypes on a Pi Ethernet address |
+| workerpi2 `192.168.204.60` | mini MAC **2** / instance **123102** |
+| workerpi1 `192.168.204.59` | mini MAC **3** / instance **123103** |
+| FEC | MAC **7** / **5007** — **on trunk only at 38400**; disconnect before other bauds |
 
-## Prerequisites
+**Never plant DNET 2000.** No FEC writes.
 
-- SSH key access as `ben` with passwordless `sudo`
-- Release binaries already built (or pass `-e rebuild_router=true -e rebuild_mini=true`)
-- Isolated RS-485 trunk wired (no BASRT on this bus)
-
-## Deploy
+## Deploy dual minis
 
 ```bash
 cd /path/to/diy-bacnet-router
-ansible-playbook -i ansible/inventory/lab.yml ansible/playbooks/two_pi_lab.yml
+ansible-playbook -i ansible/inventory/lab.yml ansible/playbooks/dual_mini_lab.yml
 ```
 
-Rebuild on deploy:
+## Change baud (FEC gate)
 
 ```bash
-ansible-playbook -i ansible/inventory/lab.yml ansible/playbooks/two_pi_lab.yml \
-  -e rebuild_router=true -e rebuild_mini=true
+# FEC may stay connected:
+ansible-playbook -i ansible/inventory/lab.yml ansible/playbooks/set_baud.yml -e dbr_baud=38400
+
+# After human disconnects FEC from the trunk:
+ansible-playbook -i ansible/inventory/lab.yml ansible/playbooks/set_baud.yml \
+  -e dbr_baud=9600 -e fec_disconnected=true
 ```
 
-## Workbench
+Then set matching `[mstp] baud` on bensbench and restart the router.
 
-1. Discover → **Remote network 2001** (or Global 65535 fallback)
-2. Instance bounds **123102** (unbounded Who-Is also works)
-3. Map device; poll `Object_Name` and `analogInput:1 Present_Value`
-
-## Management UI
-
-Bound to `127.0.0.1:8080` on workerpi1. From Windows:
-
-```powershell
-ssh -N -L 18080:127.0.0.1:8080 ben@192.168.204.59
-```
-
-Open `http://127.0.0.1:18080`.
-
-## Stop lab
+## Routed oracle
 
 ```bash
-ssh ben@192.168.204.59 'sudo systemctl stop diy-bacnet-router'
+python scripts/lab_routed_rp_oracle.py \
+  --address 192.168.204.59/24 --router 192.168.204.11 --include-fec
+```
+
+## Stop minis
+
+```bash
+ssh ben@192.168.204.59 'sudo systemctl stop mstp-mini-device'
 ssh ben@192.168.204.60 'sudo systemctl stop mstp-mini-device'
 ```

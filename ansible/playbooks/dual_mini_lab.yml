@@ -1,0 +1,58 @@
+---
+# Deploy dual mstp-mini fixtures on workerpi1 (MAC3) + workerpi2 (MAC2).
+# Router stays on bensbench — this playbook stops diy-bacnet-router on the Pis.
+#
+#   ansible-playbook -i ansible/inventory/lab.yml ansible/playbooks/dual_mini_lab.yml
+
+- name: Stop legacy DIY router unit on Pis (router role is bensbench)
+  hosts: mstp_fixture
+  become: true
+  tasks:
+    - name: Stop and disable diy-bacnet-router if present
+      ansible.builtin.systemd:
+        name: diy-bacnet-router
+        state: stopped
+        enabled: false
+      failed_when: false
+
+- name: Install and start mstp-mini-device on both Pis
+  hosts: mstp_fixture
+  become: true
+  tasks:
+    - name: Verify mini binary exists
+      ansible.builtin.stat:
+        path: "{{ mstp_bin }}"
+      register: mini_bin
+      failed_when: not mini_bin.stat.exists
+
+    - name: Install FTDI latency udev rule when FTDI serial is used
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../files/99-ftdi-latency.rules"
+        dest: /etc/udev/rules.d/99-ftdi-latency.rules
+        mode: "0644"
+      when: "'FTDI' in mstp_serial"
+      notify:
+        - Reload udev
+
+    - name: Install templated mstp-mini-device unit
+      ansible.builtin.template:
+        src: "{{ playbook_dir }}/../templates/mstp-mini-device.service.j2"
+        dest: /etc/systemd/system/mstp-mini-device.service
+        mode: "0644"
+      notify: Reload systemd
+
+    - name: Enable and start mstp-mini-device
+      ansible.builtin.systemd:
+        name: mstp-mini-device
+        enabled: true
+        state: restarted
+        daemon_reload: true
+
+  handlers:
+    - name: Reload udev
+      ansible.builtin.command: udevadm control --reload-rules
+      changed_when: true
+
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true

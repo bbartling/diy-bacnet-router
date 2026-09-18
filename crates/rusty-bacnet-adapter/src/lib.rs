@@ -43,10 +43,10 @@ use bacnet_transport::port::TransportPort;
 use tokio::sync::mpsc;
 
 /// Full 40-character rusty-bacnet commit pinned by `config/upstream-lock.toml`.
-pub const UPSTREAM_REVISION: &str = "24e3439694b7d286e57e0a80cf7f1df4bd39d8ad";
+pub const UPSTREAM_REVISION: &str = "acbf7baefe69d05f2368763dcc659d68e4bc114c";
 
 /// Short display form used by management status.
-pub const UPSTREAM_REVISION_SHORT: &str = "24e3439";
+pub const UPSTREAM_REVISION_SHORT: &str = "acbf7bae";
 
 /// Audited repository URL.
 pub const UPSTREAM_REPOSITORY: &str = "https://github.com/jscott3201/rusty-bacnet";
@@ -160,6 +160,39 @@ mod tests {
     fn pin_is_full_sha() {
         assert_eq!(UPSTREAM_REVISION.len(), 40);
         assert!(UPSTREAM_REVISION.chars().all(|c| c.is_ascii_hexdigit()));
+        assert_eq!(
+            &UPSTREAM_REVISION[..UPSTREAM_REVISION_SHORT.len()],
+            UPSTREAM_REVISION_SHORT
+        );
+    }
+
+    #[test]
+    fn pin_matches_workspace_cargo_toml_and_upstream_lock() {
+        let cargo = include_str!("../../../Cargo.toml");
+        let lock = include_str!("../../../config/upstream-lock.toml");
+        let needle = format!("rev = \"{UPSTREAM_REVISION}\"");
+        let crate_hits = cargo
+            .lines()
+            .filter(|line| {
+                line.contains("bacnet-types")
+                    || line.contains("bacnet-encoding")
+                    || line.contains("bacnet-transport")
+                    || line.contains("bacnet-network")
+            })
+            .filter(|line| line.contains(&needle))
+            .count();
+        assert!(
+            crate_hits >= 4,
+            "expected >=4 bacnet-* crates pinned to {UPSTREAM_REVISION} in workspace Cargo.toml, got {crate_hits}"
+        );
+        assert!(
+            lock.contains(&format!("revision = \"{UPSTREAM_REVISION}\"")),
+            "config/upstream-lock.toml missing revision = \"{UPSTREAM_REVISION}\""
+        );
+        assert!(
+            lock.contains(&format!("revision_short = \"{UPSTREAM_REVISION_SHORT}\"")),
+            "config/upstream-lock.toml missing revision_short = \"{UPSTREAM_REVISION_SHORT}\""
+        );
     }
 
     #[test]

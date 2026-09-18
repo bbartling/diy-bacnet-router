@@ -21,7 +21,7 @@ permalink: /testing/
 |---|---|---|
 | G0 | Config validation, API contract, bounded metrics | Scaffold implemented |
 | G1 | Buildroot x86 image boots in QEMU and `/healthz` responds | **PASS** at `35fe618` — Actions QEMU smoke + local SHA256; see [M2A_X86_ACCEPTANCE.md](evidence/M2A_X86_ACCEPTANCE.md) (VMware guest still blocked) |
-| G2 | Raspberry Pi 3/4/5 images build and publish manifests | **Build evidence** — Actions matrix at `baae236` run `34071585237` (x86+rpi3/4/5); see [M5_G2_BUILD_EVIDENCE.md](evidence/M5_G2_BUILD_EVIDENCE.md). **Physical Pi boot/soak OPEN** |
+| G2 | Raspberry Pi 3/4/5 images build and publish manifests | **Build evidence** — Actions matrix at `baae236` run `34071585237` (x86+rpi3/4/5); see [M5_G2_BUILD_EVIDENCE.md](evidence/M5_G2_BUILD_EVIDENCE.md). **Physical Pi boot/soak OPEN**. Image P0 eudev+USB-serial fragment in tree ([PHASE4B_IMAGE_P0_EUDEV_USB_SERIAL.md](evidence/PHASE4B_IMAGE_P0_EUDEV_USB_SERIAL.md)) — not a G2 PASS by itself |
 | G3 | Current rusty-bacnet pin and adapter compile/tests | **M1 closeout** — concrete B/IP+MS/TP fixtures (no OS open) |
 | G3a | Standalone B/IP netns smoke (historical) | Superseded by G6 matrix |
 | G4 | Passive Waveshare C decode: valid frames/tokens, no TX | **Source PASS** — two-Pi RX-only sniff 2026-09-13 (source 2 / PFM); router-owned `--mstp-passive` fail-closed gate in tree. Exact-image still OPEN |
@@ -31,7 +31,7 @@ permalink: /testing/
 | G8 | Routed Who-Is/I-Am and router network messages | **Source PASS** — I-Am-Router(2001) + unbounded remote Who-Is → I-Am SNET 2001 SADR 02 (same evidence pack). **Exact-image still OPEN** |
 | G9 | Fault/restart: USB unplug, NIC loss, duplicate MAC/network | Open — CI software faults (malformed UDP, missing iface, dual-B/IP link-down management survival, routing-mark clear); **USB/NIC hardware faults pending** |
 | G10 | One-hour then 24-hour forwarding soak | Open |
-| G11 | Claimed baud/board matrix under load | Open |
+| G11 | Claimed baud/board matrix under load | **Partial (source)** — FEC-off dual-mini: **38400 + 76800** routed RP PASS; **9600 / 19200** OPEN (see [CLAUSE9_BAUD_MATRIX_FEC_OFF](evidence/CLAUSE9_BAUD_MATRIX_FEC_OFF_20260918T174441Z/result.md)). Exact-image / under-load still OPEN |
 
 Vibe13 artifacts are prior evidence and test-vector inputs, not automatic passes
 for G4–G11 in a different process and OS image.

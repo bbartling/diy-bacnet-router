@@ -20,9 +20,9 @@ use axum::{
     Json, Router,
 };
 use router_core::{
-    management_writes_enabled, AuditLog, BacnetIpConfig, Counters, DataPlaneState, IdentityConfig,
-    MstpConfig, RouterConfig, RouterControlConfig, RouterMetrics, RuntimeSnapshot, RuntimeState,
-    WRITES_BLOCKED_DETAIL,
+    management_writes_enabled, AuditLog, BacnetIpConfig, Counters, DataPlaneState, DeviceAppConfig,
+    IdentityConfig, MstpConfig, RouterConfig, RouterControlConfig, RouterMetrics, RuntimeSnapshot,
+    RuntimeState, WRITES_BLOCKED_DETAIL,
 };
 use serde::Serialize;
 use serde_json::{json, Value};
@@ -59,6 +59,7 @@ pub struct PublicEffectiveConfig {
     pub router: RouterControlConfig,
     pub bacnet_ip: BacnetIpConfig,
     pub mstp: MstpConfig,
+    pub device: DeviceAppConfig,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -82,6 +83,7 @@ impl From<&RouterConfig> for PublicEffectiveConfig {
             router: config.router.clone(),
             bacnet_ip: config.bacnet_ip.clone(),
             mstp: config.mstp.clone(),
+            device: config.device.clone(),
         }
     }
 }

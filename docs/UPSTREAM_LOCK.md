@@ -1,17 +1,33 @@
 # Upstream dependency lock
 
-## Current M1 pin (audited 2026-09-04)
+## Current pin (repinned 2026-09-18)
 
 | Field | Value |
 | --- | --- |
 | Repository | https://github.com/jscott3201/rusty-bacnet |
 | Branch audited | `dev` |
-| Full SHA | `24e3439694b7d286e57e0a80cf7f1df4bd39d8ad` |
-| Status | `m1-audited-pin` |
+| Full SHA | `acbf7baefe69d05f2368763dcc659d68e4bc114c` |
+| Status | `phase1-tip-repin` (was `7e0d13a` tip; prior M1 `24e3439`) |
 | MSRV | Rust 1.93 |
-| Consumed crates | `bacnet-types`, `bacnet-encoding`, `bacnet-transport`, `bacnet-network` via `crates/rusty-bacnet-adapter` |
+| Consumed crates | `bacnet-types`, `bacnet-encoding`, `bacnet-transport`, `bacnet-network` **v0.11.0** via `crates/rusty-bacnet-adapter` |
 
 **Agents:** rusty-bacnet (especially MS/TP) changes frequently. Follow the **Daily rusty-bacnet / MS/TP watch** in [AGENTS.md](../AGENTS.md) every session — compare tip to this pin before assuming lab timing is unchanged. Never float the pin without a lock PR.
+
+### Repin gate (run every Cargo.toml `rev` bump)
+
+When advancing `bacnet-*` git `rev` values:
+
+1. Update **all** of: workspace [`Cargo.toml`](../Cargo.toml), [`config/upstream-lock.toml`](../config/upstream-lock.toml), [`crates/rusty-bacnet-adapter/src/lib.rs`](../crates/rusty-bacnet-adapter/src/lib.rs) (`UPSTREAM_REVISION` / `_SHORT`), this doc, then `cargo update -p bacnet-network -p bacnet-transport -p bacnet-encoding -p bacnet-types`.
+2. Run:
+
+```bash
+bash scripts/test-upstream-pin.sh
+cargo test -p rusty-bacnet-adapter --locked
+cargo test --workspace --locked
+bash scripts/validate-repository.sh
+```
+
+CI already runs `cargo test --workspace` and `bash scripts/validate-repository.sh` (which calls `test-upstream-pin.sh`). Hard-coded SHAs in image verify scripts must not be reintroduced — they read the lock file dynamically.
 
 ### Audit evidence at this SHA
 
@@ -20,7 +36,7 @@
 - Adapter closeout: concrete B/IP + MS/TP factories compile and validate **without**
   calling `start()` / `TokioSerialPort::open` on ordinary unit/CI paths.
 - `cargo test -p bacnet-network --locked` at the pin: **73 passed** (Windows host, 2026-09-04).
-- MS/TP codec: standard frames capped at **501 data octets**; extended COBS frames are not in this pin.
+- MS/TP codec: standard frames capped at **501 data octets**; extended COBS frames: not claimed PASS at this tip without dedicated evidence (verify codec before phase-3 claims).
 - Segmentation remains an application-layer capability, not something this adapter reinterprets.
 - Upstream issues **#498–#502** are **open issues** (MS/TP Linux timing / qualification), not merged PRs.
   They do not block fail-closed compile fixtures.

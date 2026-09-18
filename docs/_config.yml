@@ -1,5 +1,5 @@
 title: DIY BACnet Router
-description: Open-source BACnet/IP to MS/TP router appliance — Buildroot, Rust, React.
+description: Open-source BACnet/IP to MS/TP router — Buildroot appliance, Rust, React. Beginner tutorials for MS/TP on Linux.
 remote_theme: just-the-docs/just-the-docs@v0.10.0
 
 url: https://bbartling.github.io
@@ -15,7 +15,9 @@ aux_links:
   GitHub:
     - //github.com/bbartling/diy-bacnet-router
   Actions:
-    - //github.com/bbartling/diy-bacnet-router/actions
+    - //github.com/bbartling/diy-bacnet-router/actions/workflows/build-os.yml
+  Releases:
+    - //github.com/bbartling/diy-bacnet-router/releases
 
 callouts:
   warning:
@@ -35,8 +37,13 @@ gh_edit_view_mode: "tree"
 exclude:
   - agent
   - archive
+  - evidence
+  - product
   - BOOTSTRAP_STATUS.md
   - MIGRATION_FROM_PROTOTYPES.md
+  - UPSTREAM_LOCK.md
+  - observer-telemetry.md
+  - TESTING.md
   - Gemfile
   - Gemfile.lock
   - vendor

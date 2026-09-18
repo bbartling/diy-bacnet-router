@@ -14,20 +14,30 @@
   <a href="https://bbartling.github.io/diy-bacnet-router/"><img src="https://img.shields.io/badge/Docs-online-2563EB?style=for-the-badge" alt="Online docs"></a>
   <a href="docs/hardware/WAVESHARE_USB_RS485_C.md"><img src="https://img.shields.io/badge/Reference%20RS--485-Waveshare%20C-059669?style=for-the-badge" alt="Waveshare C"></a>
   <a href="VERSION"><img src="https://img.shields.io/badge/Release-VERSION%20file-6D28D9?style=for-the-badge" alt="VERSION"></a>
-  <a href="config/upstream-lock.toml"><img src="https://img.shields.io/badge/rusty--bacnet-24e3439-0B7285?style=for-the-badge" alt="Upstream pin"></a>
+  <a href="config/upstream-lock.toml"><img src="https://img.shields.io/badge/rusty--bacnet-acbf7bae-0B7285?style=for-the-badge" alt="Upstream pin"></a>
 </p>
 
-**DIY BACnet Router** is an open-source Linux appliance that routes BACnet **IP to MS/TP** — Buildroot OS images, a Rust data plane (`routerd`), and an embedded React management UI for lab and education use (BASRT-class intent, original implementation).
+**DIY BACnet Router** is an open-source **Linux appliance** that forwards BACnet
+**IP ↔ MS/TP**. It is built as a small custom OS (Buildroot), a Rust data plane
+(`routerd`), and an embedded React management UI for lab and education.
 
-Boards today: **x86-64** (lab/QEMU) and **Raspberry Pi 3/4/5**. MS/TP uses USB RS-485 adapters via `/dev/serial/by-id/...` (reference: Waveshare USB TO RS485 C).
+| | |
+| --- | --- |
+| **Boards** | x86-64 (QEMU / lab ISO) and Raspberry Pi 3 / 4 / 5 |
+| **Serial** | USB RS-485 via `/dev/serial/by-id/...` (reference: Waveshare USB TO RS485 C) |
+| **Default** | Forwarding **off**, management on loopback — fail-closed |
+| **Docs** | Beginner tutorials on [GitHub Pages](https://bbartling.github.io/diy-bacnet-router/) |
 
-> **Today:** Milestones **0** and **1** complete. **G6/M2A** qualifies standalone BACnet/IP (independent BVLL oracle + unicast/directed-broadcast matrix on Linux netns). **Source G4/G5/G7/G8** PASS on an isolated two-Pi BIP↔MS/TP bench (net 2001 / device 123102) — see `docs/evidence/SOURCE_G7_G8_*` and the hold checkpoint `docs/evidence/CHECKPOINT_2026-09-13_SOURCE_G7_G8_HOLD.md`. **Exact-image / Buildroot G7–G11 remain OPEN**. Ordinary boot stays fail-closed; lab persistence uses `--route-enable --qualify-secs 0` via [ansible/](ansible/).
+**Status in one breath:** lab **source** routing (G6–G8 / shared-trunk ReadProperty)
+is evidenced; flashing a **Buildroot image** and proving the same gates on that
+image is still open; the install goal is a versioned **GitHub Release** you can
+download from the docs site (not a short-lived Actions artifact).
 
 | Pin | Lock | Value |
 | --- | --- | --- |
 | Rust (CI) | [`rust-toolchain.toml`](rust-toolchain.toml) | **1.93.0** |
 | Buildroot | [`config/buildroot-lock.toml`](config/buildroot-lock.toml) | **2026.05.2** |
-| rusty-bacnet | [`config/upstream-lock.toml`](config/upstream-lock.toml) | **`24e3439694b7d286e57e0a80cf7f1df4bd39d8ad`** |
+| rusty-bacnet | [`config/upstream-lock.toml`](config/upstream-lock.toml) | **`acbf7baefe69d05f2368763dcc659d68e4bc114c`** |
 | Cargo.lock | committed | `--locked` in CI and Buildroot |
 
 Badges track **`master`**. Open PRs run the same workflows on their branch.
@@ -41,19 +51,27 @@ Badges track **`master`**. Open PRs run the same workflows on their branch.
 
 Details: [docs/agent/SPEC.md](docs/agent/SPEC.md). Gate ledger: [docs/TESTING.md](docs/TESTING.md).
 Hold / pickup: [docs/evidence/CHECKPOINT_2026-09-13_SOURCE_G7_G8_HOLD.md](docs/evidence/CHECKPOINT_2026-09-13_SOURCE_G7_G8_HOLD.md).
-FEC-parity follow-ups: [issue #66](https://github.com/bbartling/diy-bacnet-router/issues/66).
+Timing / serial follow-ups: [issue #66](https://github.com/bbartling/diy-bacnet-router/issues/66).
+
+### Done (source / scaffold)
 
 - [x] **M0 — Scaffold and OS images** — management API/UI, CI, Buildroot x86+Pi, QEMU smoke
 - [x] **M1 — rusty-bacnet adapter closeout** — pin + concrete B/IP/MS/TP compile/config fixtures (transports not started at ordinary boot)
 - [x] **M2A — B/IP port qualification (G6)** — netns BVLL oracle + unicast/directed-broadcast matrix PASS
 - [x] **M2B — Physical MS/TP port qualification (source)** — isolated two-Pi passive RX + `--mstp-qualify` join @ **38400** (net 2001); `--mstp-passive` fail-closed in tree. Exact-image M2B still OPEN
-- [x] **M3 — Isolated routing (source G7/G8)** — dual-B/IP CI + `--route-enable`; Workbench discovers `device:123102` on **net 2001 / MAC 2**; evidence under `docs/evidence/SOURCE_G7_G8_*`. Lab persist: `--qualify-secs 0` + [ansible/](ansible/)
-- [ ] **M3 — Exact-image G7/G8** — same topology/oracle on released **Buildroot** appliance image (**OPEN**)
-- [ ] **M4 — Faults and timing** — CI software faults + dual-B/IP link-down survival; **G9** USB/serial stop ownership + hardware faults **OPEN** ([#66](https://github.com/bbartling/diy-bacnet-router/issues/66) timeouts vs FEC feel)
-- [ ] **M5 — Production-shaped images / Pi hardware validation** — Pi **build** evidence in Actions documented; **flash/boot OPEN**
-- [ ] **M6 — Management writes** — auth/session skeleton + env unlock only; `POST /api/config` stays 403; capability blocked
+- [x] **M3 — Isolated routing (source G7/G8)** — dual-B/IP CI + `--route-enable`; evidence under `docs/evidence/SOURCE_G7_G8_*`. Lab persist: `--qualify-secs 0` + [ansible/](ansible/)
+- [x] **M3b — Shared trunk routed ReadProperty (source)** — Waveshare lab trunk @38400; bacpypes3 → `2001:2` + `2001:7` **PASS** on tip `acbf7bae` ([PHASE2_FEC_VIA_DIY_20260918T124240Z](docs/evidence/PHASE2_FEC_VIA_DIY_20260918T124240Z/)). Product `ready_to_route` flip still gated
 
-**Source vs exact-image:** checked boxes above for M2B/M3 are **source (Pi OS / from-source binaries)** unless marked exact-image. Do not claim product G7–G11 PASS without the Buildroot image gate.
+### Open (lab → appliance → install)
+
+- [ ] **M4 — Exact-image G7/G8** — same topology/oracle on a **Buildroot** appliance image (not host-built source binaries)
+- [ ] **M5 — Faults and timing** — CI software faults + dual-B/IP link-down survival; **G9** USB/serial stop ownership + hardware faults **OPEN** ([#66](https://github.com/bbartling/diy-bacnet-router/issues/66))
+- [ ] **M6 — Production-shaped Pi flash/boot** — Pi **build** evidence in Actions; **flash/boot + on-device prove OPEN**
+- [ ] **M7 — Management writes** — auth/session skeleton + env unlock only; `POST /api/config` stays 403 until capability unlocked
+- [ ] **M8 — GitHub Releases for images** — `build-os` attaches versioned `rootfs.iso` / `sdcard.img.xz` + checksums; docs site links `…/releases/download/vX/…` so install is “download → flash → boot”
+- [ ] **M9 — Optional local Buildroot only** — Releases + QEMU/Pi flash cover normal use; Windows/VMware guest kept for optional Workbench UI evidence / debug builds
+
+**Source vs exact-image:** checked boxes for M2B/M3 are **source** unless marked exact-image. Do not claim product G7–G11 PASS without the Buildroot image gate (**M4**). Do not claim “easy install” until **M8**.
 
 </details>
 
@@ -137,9 +155,9 @@ Workflow **[build-os](https://github.com/bbartling/diy-bacnet-router/actions/wor
 - `x86_64` — QEMU boot smoke + SHA256 verify
 - `rpi3_64` · `rpi4_64` · `rpi5_64` — `sdcard.img` + manifest
 
-Artifacts: images, checksums, legal-info, `build-manifest.json`.
+**Today:** images land as **Actions artifacts** (short retention). **Goal (M8):** the same files on **GitHub Releases**, linked from the docs site for a simple download → flash → boot path.
 
-Local lab (VMware Ubuntu guest, not WSL): [docs/operations/LOCAL_BUILDROOT_VM.md](docs/operations/LOCAL_BUILDROOT_VM.md).
+What the image contains: [Buildroot recipe](https://bbartling.github.io/diy-bacnet-router/learn/buildroot-recipe/). Optional local debug: [docs/operations/LOCAL_BUILDROOT_VM.md](docs/operations/LOCAL_BUILDROOT_VM.md).
 
 ```powershell
 .\scripts\vm-ensure.ps1 -Hypervisor vmware -AcceptRunId <RUN_ID>
@@ -158,13 +176,12 @@ Local lab (VMware Ubuntu guest, not WSL): [docs/operations/LOCAL_BUILDROOT_VM.md
 | Claim | Status |
 | --- | --- |
 | Open-source IP↔MS/TP router **intent** + appliance architecture | Yes |
-| Reproducible Buildroot images + management UI | **M0** |
-| Pinned rusty-bacnet + fail-closed adapter crate | **Yes** (loopback fixture; transports not started at ordinary boot) |
+| Reproducible Buildroot images + management UI | **M0** (CI artifacts today; **M8** = Release downloads) |
+| Pinned rusty-bacnet + fail-closed adapter crate | **Yes** (ordinary boot does not start forwarding) |
+| Versioned Release image download from docs | **No** until **M8** |
 | Field-ready routing, BTL, Clause 9 | **No** |
 | QEMU/unit tests = live RS-485 trunk | **No** |
-
-Educational UI patterns only: [docs/product/BASRT_EDUCATIONAL_REFERENCE.md](docs/product/BASRT_EDUCATIONAL_REFERENCE.md).
-BFR architecture notes (no C++/ASHRAE copy): [docs/product/BFR_DESIGN_REFERENCE.md](docs/product/BFR_DESIGN_REFERENCE.md).
+| Local Buildroot VM required to use the product | **No** (lab/debug only; **M9**) |
 
 **Agents:** [AGENTS.md](AGENTS.md) · [SOFTWARE_SPEC](docs/agent/SOFTWARE_SPEC.md) · [FULL_STACK_AUDIT](docs/agent/FULL_STACK_AUDIT.md) · [SPEC](docs/agent/SPEC.md)
 
