@@ -1,0 +1,22 @@
+{
+"ok": true,
+"ready_to_route": false,
+"mode": "mstp_passive",
+"tx_bytes": 0,
+"serial": "/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_BH001FQ0-if00-port0",
+"baud": 19200,
+"seconds": 12,
+"expect_source": 2,
+"upstream_sha": "acbf7baefe69d05f2368763dcc659d68e4bc114c",
+"rx_bytes": 10802,
+"complete_frames": 1350,
+"tokens": 1284,
+"poll_for_master": 66,
+"data_frames": 0,
+"invalid": 2,
+"need_more_stalls": 6240,
+"valid_ratio": 0.9985207100591716,
+"sources_seen": [2, 3],
+"failure_reason": "",
+"error": null
+}

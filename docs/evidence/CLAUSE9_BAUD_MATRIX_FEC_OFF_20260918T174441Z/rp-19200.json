@@ -1,0 +1,5 @@
+{
+  "baud": 19200,
+  "all_ok": false,
+  "note": "AbortPDU no-response after healthy passive [2,3]"
+}

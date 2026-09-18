@@ -1,0 +1,17 @@
+{
+  "reads": [
+    {
+      "label": "m2",
+      "ok": true,
+      "ms": 31.8,
+      "val": "Rust MS/TP Mini Device"
+    },
+    {
+      "label": "m3",
+      "ok": true,
+      "ms": 27.3,
+      "val": "Rust MS/TP Mini Pi1"
+    }
+  ],
+  "all_ok": true
+}
