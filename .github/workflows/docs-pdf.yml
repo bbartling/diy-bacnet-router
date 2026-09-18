@@ -1,0 +1,54 @@
+# Tutorial PDF export (optional)
+
+# Builds a single PDF from the public Learn tutorials using Pandoc.
+# Manual only — does not replace GitHub Pages.
+# (Unlike some repos' legacy stub workflows, this actually produces an artifact.)
+
+name: Docs PDF
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tutorial-pdf:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Pandoc and XeLaTeX
+        run: sudo apt-get update && sudo apt-get install -y pandoc texlive-xetex texlive-fonts-recommended lmodern
+      - name: Strip Jekyll front matter and build PDF
+        run: |
+          mkdir -p artifacts /tmp/learn-md
+          for f in \
+            docs/learn/index.md \
+            docs/learn/bacnet-mstp.md \
+            docs/learn/linux-mstp-timing.md \
+            docs/learn/buildroot-recipe.md \
+            docs/learn/testing.md
+          do
+            base="$(basename "$f")"
+            # Drop YAML front matter between leading --- fences.
+            awk 'BEGIN{fm=0} /^---$/ {fm++; next} fm>=2 {print} fm<2 && fm>0 {next} fm==0 {print}' "$f" \
+              | sed -E 's/\{\{ site\.baseurl \}\}//g' \
+              > "/tmp/learn-md/$base"
+          done
+          pandoc \
+            /tmp/learn-md/index.md \
+            /tmp/learn-md/bacnet-mstp.md \
+            /tmp/learn-md/linux-mstp-timing.md \
+            /tmp/learn-md/buildroot-recipe.md \
+            /tmp/learn-md/testing.md \
+            -o artifacts/diy-bacnet-router-learn.pdf \
+            --pdf-engine=xelatex \
+            -V geometry:margin=1in \
+            --toc \
+            -f markdown \
+            --metadata title="DIY BACnet Router — Learn"
+      - name: Upload PDF
+        uses: actions/upload-artifact@v4
+        with:
+          name: diy-bacnet-router-learn-pdf
+          path: artifacts/diy-bacnet-router-learn.pdf
