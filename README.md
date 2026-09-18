@@ -21,13 +21,13 @@
 
 Boards today: **x86-64** (lab/QEMU) and **Raspberry Pi 3/4/5**. MS/TP uses USB RS-485 adapters via `/dev/serial/by-id/...` (reference: Waveshare USB TO RS485 C).
 
-> **Today:** Milestones **0** and **1** complete. **G6/M2A** qualifies standalone BACnet/IP (independent BVLL oracle + unicast/directed-broadcast matrix on Linux netns). **Source G4/G5/G7/G8** PASS on an isolated two-Pi BIP↔MS/TP bench (net 2001 / device 123102) — see `docs/evidence/SOURCE_G7_G8_*` and the hold checkpoint `docs/evidence/CHECKPOINT_2026-09-13_SOURCE_G7_G8_HOLD.md`. **Exact-image / Buildroot G7–G11 remain OPEN**. Ordinary boot stays fail-closed; lab persistence uses `--route-enable --qualify-secs 0` via [ansible/](ansible/).
+> **Today:** Milestones **0–M2B** and **source M3** (G7/G8) complete on an isolated BIP↔MS/TP bench. **FEC+mini physical trunk** on bensbench Waveshare is live (MAC7+MAC2 @38400); **BIP→MS/TP routed ReadProperty** and truthful `ready_to_route` remain **OPEN** (route-enable data-plane bug). **Exact-image / Buildroot G7–G11** and **HAOS-style GitHub Releases** remain **OPEN**. Ordinary boot stays fail-closed; lab unlock uses `--route-enable`. Windows+VMware Buildroot loops are **temporary lab scaffolding** — long-term install path is download-a-release like [Home Assistant OS generic x86-64](https://www.home-assistant.io/installation/generic-x86-64/).
 
 | Pin | Lock | Value |
 | --- | --- | --- |
 | Rust (CI) | [`rust-toolchain.toml`](rust-toolchain.toml) | **1.93.0** |
 | Buildroot | [`config/buildroot-lock.toml`](config/buildroot-lock.toml) | **2026.05.2** |
-| rusty-bacnet | [`config/upstream-lock.toml`](config/upstream-lock.toml) | **`7e0d13a7c527da726b5aa27ff263e7eb8375131b`** |
+| rusty-bacnet | [`config/upstream-lock.toml`](config/upstream-lock.toml) | **`7e0d13a7c527da726b5aa27ff263e7eb8375131b`** (repin to `dev` tip when advancing) |
 | Cargo.lock | committed | `--locked` in CI and Buildroot |
 
 Badges track **`master`**. Open PRs run the same workflows on their branch.
@@ -41,19 +41,28 @@ Badges track **`master`**. Open PRs run the same workflows on their branch.
 
 Details: [docs/agent/SPEC.md](docs/agent/SPEC.md). Gate ledger: [docs/TESTING.md](docs/TESTING.md).
 Hold / pickup: [docs/evidence/CHECKPOINT_2026-09-13_SOURCE_G7_G8_HOLD.md](docs/evidence/CHECKPOINT_2026-09-13_SOURCE_G7_G8_HOLD.md).
-FEC-parity follow-ups: [issue #66](https://github.com/bbartling/diy-bacnet-router/issues/66).
+FEC / lag follow-ups: [issue #66](https://github.com/bbartling/diy-bacnet-router/issues/66).
+ASAP execution board: Cursor plan `diy_ms_tp_asap_fc1c74ac` (Mint lab).
+
+### Done (source / scaffold)
 
 - [x] **M0 — Scaffold and OS images** — management API/UI, CI, Buildroot x86+Pi, QEMU smoke
 - [x] **M1 — rusty-bacnet adapter closeout** — pin + concrete B/IP/MS/TP compile/config fixtures (transports not started at ordinary boot)
 - [x] **M2A — B/IP port qualification (G6)** — netns BVLL oracle + unicast/directed-broadcast matrix PASS
 - [x] **M2B — Physical MS/TP port qualification (source)** — isolated two-Pi passive RX + `--mstp-qualify` join @ **38400** (net 2001); `--mstp-passive` fail-closed in tree. Exact-image M2B still OPEN
 - [x] **M3 — Isolated routing (source G7/G8)** — dual-B/IP CI + `--route-enable`; Workbench discovers `device:123102` on **net 2001 / MAC 2**; evidence under `docs/evidence/SOURCE_G7_G8_*`. Lab persist: `--qualify-secs 0` + [ansible/](ansible/)
-- [ ] **M3 — Exact-image G7/G8** — same topology/oracle on released **Buildroot** appliance image (**OPEN**)
-- [ ] **M4 — Faults and timing** — CI software faults + dual-B/IP link-down survival; **G9** USB/serial stop ownership + hardware faults **OPEN** ([#66](https://github.com/bbartling/diy-bacnet-router/issues/66) timeouts vs FEC feel)
-- [ ] **M5 — Production-shaped images / Pi hardware validation** — Pi **build** evidence in Actions documented; **flash/boot OPEN**
-- [ ] **M6 — Management writes** — auth/session skeleton + env unlock only; `POST /api/config` stays 403; capability blocked
 
-**Source vs exact-image:** checked boxes above for M2B/M3 are **source (Pi OS / from-source binaries)** unless marked exact-image. Do not claim product G7–G11 PASS without the Buildroot image gate.
+### Open (lab → appliance → install)
+
+- [ ] **M3b — FEC shared trunk + honest route plane** — bensbench Waveshare ↔ FEC MAC7 ↔ mini MAC2 @38400; fix `--route-enable` so BIP ReadProperty to `2001:7` / `2001:2` PASSes and metrics/`ready_to_route` are truthful (**OPEN** — hear/join works; app routing does not)
+- [ ] **M4 — Exact-image G7/G8** — same topology/oracle on a **Buildroot** appliance image (not source binaries). Prefer CI-built artifact; Windows/VMware builder optional/temporary
+- [ ] **M5 — Faults and timing** — CI software faults + dual-B/IP link-down survival; **G9** USB/serial stop ownership + hardware faults **OPEN** ([#66](https://github.com/bbartling/diy-bacnet-router/issues/66))
+- [ ] **M6 — Production-shaped Pi flash/boot** — Pi **build** evidence in Actions; **flash/boot + on-device prove OPEN**
+- [ ] **M7 — Management writes** — auth/session skeleton + env unlock only; `POST /api/config` stays 403 until capability unlocked
+- [ ] **M8 — HAOS-style releases (install north star)** — `build-os` publishes versioned **GitHub Releases** (`rootfs.iso` / `sdcard.img.xz` + checksums); docs link stable `…/releases/download/vX/…` like [HA generic x86-64](https://www.home-assistant.io/installation/generic-x86-64/). Retire “download 14-day Actions artifact” as the user path
+- [ ] **M9 — Retire Windows/VMware as required image workflow** — CI Releases + Mint/QEMU/Pi flash cover image P0s; Windows kept only for optional FX **Workbench** UI evidence. Local Buildroot VM docs become optional debug, not the product install story
+
+**Source vs exact-image:** checked boxes for M2B/M3 are **source** unless marked exact-image. Do not claim product G7–G11 PASS without the Buildroot image gate (**M4**). Do not claim “easy install” until **M8**.
 
 </details>
 
@@ -137,9 +146,9 @@ Workflow **[build-os](https://github.com/bbartling/diy-bacnet-router/actions/wor
 - `x86_64` — QEMU boot smoke + SHA256 verify
 - `rpi3_64` · `rpi4_64` · `rpi5_64` — `sdcard.img` + manifest
 
-Artifacts: images, checksums, legal-info, `build-manifest.json`.
+**Today:** images land as **Actions artifacts** (short retention). **Goal (M8):** attach the same files to **GitHub Releases** and link them from docs — Home Assistant OS–style “download the image, flash, boot.”
 
-Local lab (VMware Ubuntu guest, not WSL): [docs/operations/LOCAL_BUILDROOT_VM.md](docs/operations/LOCAL_BUILDROOT_VM.md).
+Optional local debug (VMware Ubuntu guest — **not** the long-term install path): [docs/operations/LOCAL_BUILDROOT_VM.md](docs/operations/LOCAL_BUILDROOT_VM.md).
 
 ```powershell
 .\scripts\vm-ensure.ps1 -Hypervisor vmware -AcceptRunId <RUN_ID>
@@ -158,10 +167,12 @@ Local lab (VMware Ubuntu guest, not WSL): [docs/operations/LOCAL_BUILDROOT_VM.md
 | Claim | Status |
 | --- | --- |
 | Open-source IP↔MS/TP router **intent** + appliance architecture | Yes |
-| Reproducible Buildroot images + management UI | **M0** |
+| Reproducible Buildroot images + management UI | **M0** (CI artifacts today; **M8** Releases = install north star) |
 | Pinned rusty-bacnet + fail-closed adapter crate | **Yes** (loopback fixture; transports not started at ordinary boot) |
+| HAOS-like “download release → flash → boot” | **No** until **M8** |
 | Field-ready routing, BTL, Clause 9 | **No** |
 | QEMU/unit tests = live RS-485 trunk | **No** |
+| Windows/VMware required to use the product | **No** (lab-only; retiring as required path in **M9**) |
 
 Educational UI patterns only: [docs/product/BASRT_EDUCATIONAL_REFERENCE.md](docs/product/BASRT_EDUCATIONAL_REFERENCE.md).
 BFR architecture notes (no C++/ASHRAE copy): [docs/product/BFR_DESIGN_REFERENCE.md](docs/product/BFR_DESIGN_REFERENCE.md).

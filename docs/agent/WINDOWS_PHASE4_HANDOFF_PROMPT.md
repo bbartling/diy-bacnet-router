@@ -1,6 +1,8 @@
 # Windows Cursor handoff — DIY BACnet router (phase 4)
 
-Paste this into the Windows / VMware Cursor session after Mint confirms phase-2 FEC trunk (or in parallel for image P0s that do not need the trunk).
+> **Context (2026-09-18):** This handoff is **temporary lab scaffolding**. Product north star is Home Assistant OS–like install: GH Actions Buildroot → **GitHub Releases** → docs download link (see plan todo `haos-style-releases`). Prefer Mint/CI for image builds as soon as Releases exist; do **not** treat Windows+VMware as the long-term user path. FX Workbench on Windows may remain for optional Niagara UI evidence only.
+
+Paste this into the Windows / VMware Cursor session after Mint confirms phase-2 FEC trunk (or in parallel for image P0s that do not need the trunk) **only while** the Releases channel is not ready.
 
 ## Exact pins (update if Mint advances)
 
