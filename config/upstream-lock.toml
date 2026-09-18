@@ -3,11 +3,11 @@
 [rusty_bacnet]
 repository = "https://github.com/jscott3201/rusty-bacnet"
 branch_audited = "dev"
-revision = "7e0d13a7c527da726b5aa27ff263e7eb8375131b"
-revision_short = "7e0d13a"
-audited_on = "2026-09-17"
+revision = "acbf7baefe69d05f2368763dcc659d68e4bc114c"
+revision_short = "acbf7bae"
+audited_on = "2026-09-18"
 status = "phase1-tip-repin"
-notes = "Repin from 24e3439 to tip of jscott3201/rusty-bacnet@dev (RB-03/04/05 routing merges). Extended COBS still verify at compile/test time; do not claim extended-frame PASS without dedicated evidence."
+notes = "Repin from 7e0d13a to tip of jscott3201/rusty-bacnet@dev (acbf7bae). Extended COBS still verify at compile/test time; do not claim extended-frame PASS without dedicated evidence."
 
 [rusty_bacnet.audit]
 bacnet_network_tests = "pending local cargo test after repin"

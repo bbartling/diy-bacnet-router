@@ -9,8 +9,8 @@ Paste this into the Windows / VMware Cursor session after Mint confirms phase-2 
 | Item | Value |
 |------|-------|
 | App branch / tip | `fix/repin-rusty-bacnet-7e0d13a` — see latest master after merge of PR https://github.com/bbartling/diy-bacnet-router/pull/70 |
-| rusty-bacnet | **`7e0d13a7c527da726b5aa27ff263e7eb8375131b`** (`dev` tip, crates **v0.11.0**) |
-| Prior pin | `24e3439` (do not regress) |
+| rusty-bacnet | **`acbf7baefe69d05f2368763dcc659d68e4bc114c`** (`dev` tip, crates **v0.11.0**) |
+| Prior pin | `7e0d13a` (do not regress past tip without lock PR) |
 | Phase-1 evidence | `docs/evidence/PHASE1_FIVE_POINT_20260917T180541Z/` — five-point SLO PASS |
 | Phase-2 gate | `docs/evidence/PHASE2_FEC_TRUNK_READY_20260917.md` — **Ben wires FEC**; Max_Master already 7 on Pis |
 | Protocol matrix | `docs/evidence/PHASE3_PROTOCOL_MATRIX_20260917.md` |
@@ -24,7 +24,7 @@ Paste this into the Windows / VMware Cursor session after Mint confirms phase-2 
 ## Your job (Windows)
 
 1. Buildroot image P0s: USB-serial (FTDI + real CH343 bind), NIC drivers, eudev, POSIX FTDI latency helper, CD-ROM smoke hard-fail, SSH provisioning, `/data` persistence.
-2. Carry the **same** rusty-bacnet SHA `7e0d13a…` into image manifests.
+2. Carry the **same** rusty-bacnet SHA `acbf7bae…` into image manifests.
 3. After Mint phase-2/3 PASS on source, flash spare SD and **repeat** five-point + FEC trunk + protocol smokes on exact image.
 4. Management UI: show honest not-implemented for BBMD/extended until Mint matrix rows PASS; no fake BASRT branding.
 

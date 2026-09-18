@@ -37,7 +37,7 @@ with open(sys.argv[1], encoding="utf-8") as handle:
     manifest = json.load(handle)
 assert manifest["target"] == sys.argv[2]
 assert manifest["project_rust_toolchain"] == "1.93.0"
-assert manifest["rusty_bacnet"] == "7e0d13a7c527da726b5aa27ff263e7eb8375131b"
+assert manifest["rusty_bacnet"] == "acbf7baefe69d05f2368763dcc659d68e4bc114c"
 assert manifest["buildroot_host_rustc_version"]
 assert manifest["buildroot_host_cargo_version"]
 PY

@@ -65,8 +65,8 @@ grep -q '^commit = ' config/buildroot-lock.toml
 echo "==> upstream lock documents rusty-bacnet pin"
 grep -q 'rusty-bacnet' config/upstream-lock.toml
 grep -q 'rusty-bacnet' docs/UPSTREAM_LOCK.md
-grep -q 'revision = "7e0d13a7c527da726b5aa27ff263e7eb8375131b"' config/upstream-lock.toml
-grep -q '7e0d13a7c527da726b5aa27ff263e7eb8375131b' docs/UPSTREAM_LOCK.md
+grep -q 'revision = "acbf7baefe69d05f2368763dcc659d68e4bc114c"' config/upstream-lock.toml
+grep -q 'acbf7baefe69d05f2368763dcc659d68e4bc114c' docs/UPSTREAM_LOCK.md
 test -f crates/rusty-bacnet-adapter/src/lib.rs
 
 echo "==> OpenAPI lists core management routes"

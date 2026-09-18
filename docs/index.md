@@ -51,4 +51,4 @@ Canonical list: [README milestones](https://github.com/bbartling/diy-bacnet-rout
 | Buildroot | **2026.05.2** (`config/buildroot-lock.toml`) |
 | Rust (CI) | **1.93.0** |
 | Release | **VERSION** file → dashboard header |
-| rusty-bacnet | `7e0d13a7c527da726b5aa27ff263e7eb8375131b` (M1 pin; forwarding still disabled) |
+| rusty-bacnet | `acbf7baefe69d05f2368763dcc659d68e4bc114c` (dev tip pin; forwarding still disabled) |

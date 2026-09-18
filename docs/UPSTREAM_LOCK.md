@@ -1,13 +1,13 @@
 # Upstream dependency lock
 
-## Current pin (repinned 2026-09-17)
+## Current pin (repinned 2026-09-18)
 
 | Field | Value |
 | --- | --- |
 | Repository | https://github.com/jscott3201/rusty-bacnet |
 | Branch audited | `dev` |
-| Full SHA | `7e0d13a7c527da726b5aa27ff263e7eb8375131b` |
-| Status | `phase1-tip-repin` (was `24e3439` M1 pin) |
+| Full SHA | `acbf7baefe69d05f2368763dcc659d68e4bc114c` |
+| Status | `phase1-tip-repin` (was `7e0d13a` tip; prior M1 `24e3439`) |
 | MSRV | Rust 1.93 |
 | Consumed crates | `bacnet-types`, `bacnet-encoding`, `bacnet-transport`, `bacnet-network` **v0.11.0** via `crates/rusty-bacnet-adapter` |
 
