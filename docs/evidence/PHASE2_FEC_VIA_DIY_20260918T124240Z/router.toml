@@ -1,0 +1,30 @@
+[identity]
+name = "bensbench-diy-router"
+location = "Waveshare C + FEC + pi2 mini"
+
+[management]
+bind = "127.0.0.1:18080"
+metrics_interval_ms = 1000
+max_ws_connections = 8
+
+[router]
+enabled = false
+
+[bacnet_ip]
+interface = "eno1"
+bind_address = "192.168.204.11"
+broadcast_address = "192.168.204.255"
+udp_port = 47808
+network = 1
+bbmd_enabled = false
+foreign_device_enabled = false
+
+[mstp]
+serial = "/dev/serial/by-id/usb-FTDI_FT232R_USB_UART_BH001FQ0-if00-port0"
+adapter_profile = "waveshare-usb-to-rs485-c"
+termination = "onboard-present"
+baud = 38400
+mac = 1
+network = 2001
+max_master = 7
+max_info_frames = 1

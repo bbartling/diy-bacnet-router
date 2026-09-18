@@ -1,0 +1,50 @@
+{
+  "whois_router": [
+    "(<bacpypes3.netservice.NetworkAdapter object at 0x7f7ef69400>, <bacpypes3.npdu.IAmRouterToNetwork object at 0x7f7ef69a90>)"
+  ],
+  "reads": [
+    {
+      "target": "2001:2",
+      "obj": "device:123102.object-name",
+      "ok": true,
+      "ms": 53.4,
+      "val": "Rust MS/TP Mini Device"
+    },
+    {
+      "target": "2001:2",
+      "obj": "analog-input:1.present-value",
+      "ok": true,
+      "ms": 69.3,
+      "val": "3.0"
+    },
+    {
+      "target": "2001:7",
+      "obj": "device:5007.object-name",
+      "ok": true,
+      "ms": 84.9,
+      "val": "BENS BENCHTEST BOX"
+    },
+    {
+      "target": "2001:7",
+      "obj": "analog-input:1173.present-value",
+      "ok": true,
+      "ms": 64.9,
+      "val": "69.53669738769531"
+    },
+    {
+      "target": "2001:2@192.168.204.11",
+      "obj": "device:123102.object-name",
+      "ok": true,
+      "ms": 76.2,
+      "val": "Rust MS/TP Mini Device"
+    },
+    {
+      "target": "2001:7@192.168.204.11",
+      "obj": "analog-input:1173.present-value",
+      "ok": true,
+      "ms": 68.5,
+      "val": "69.53669738769531"
+    }
+  ],
+  "whois_router_device": []
+}

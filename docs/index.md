@@ -28,7 +28,7 @@ Canonical list: [README milestones](https://github.com/bbartling/diy-bacnet-rout
 - [x] **M1** — rusty-bacnet pin + concrete B/IP/MS/TP compile/config fixtures (forwarding still off at ordinary boot)
 - [x] **M2A / M2B** — B/IP G6 PASS; physical MS/TP qualify (source) PASS; exact-image M2B OPEN
 - [x] **M3** — Isolated NPDU routing (source G7/G8)
-- [ ] **M3b** — FEC shared trunk + honest `--route-enable` / `ready_to_route`
+- [x] **M3b** — FEC shared trunk + routed RP (source); `ready_to_route` product flip still gated
 - [ ] **M4** — Exact-image G7/G8 on Buildroot appliance
 - [ ] **M5** — Faults and MS/TP timing characterization
 - [ ] **M6** — Production-shaped Pi flash/boot

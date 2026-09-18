@@ -21,7 +21,7 @@
 
 Boards today: **x86-64** (lab/QEMU) and **Raspberry Pi 3/4/5**. MS/TP uses USB RS-485 adapters via `/dev/serial/by-id/...` (reference: Waveshare USB TO RS485 C).
 
-> **Today:** Milestones **0–M2B** and **source M3** (G7/G8) complete on an isolated BIP↔MS/TP bench. **FEC+mini physical trunk** on bensbench Waveshare is live (MAC7+MAC2 @38400); **BIP→MS/TP routed ReadProperty** and truthful `ready_to_route` remain **OPEN** (route-enable data-plane bug). **Exact-image / Buildroot G7–G11** and **HAOS-style GitHub Releases** remain **OPEN**. Ordinary boot stays fail-closed; lab unlock uses `--route-enable`. Windows+VMware Buildroot loops are **temporary lab scaffolding** — long-term install path is download-a-release like [Home Assistant OS generic x86-64](https://www.home-assistant.io/installation/generic-x86-64/).
+> **Today:** Milestones **0–M2B** and **source M3** (G7/G8) complete. **M3b FEC trunk** on bensbench Waveshare (MAC7+MAC2 @38400) has **routed ReadProperty PASS** (mini + FEC) via `--route-enable` — evidence `docs/evidence/PHASE2_FEC_VIA_DIY_*`. Product `ready_to_route` stays **false** until formal closeout; BIP oracle must be a **different host** than the router bind (same-host / macvlan-on-parent are false negatives). **Exact-image / Buildroot G7–G11** and **HAOS-style GitHub Releases** remain **OPEN**. Ordinary boot stays fail-closed. Windows+VMware Buildroot loops are **temporary lab scaffolding** — long-term install path is download-a-release like [Home Assistant OS generic x86-64](https://www.home-assistant.io/installation/generic-x86-64/).
 
 | Pin | Lock | Value |
 | --- | --- | --- |
@@ -51,10 +51,10 @@ ASAP execution board: Cursor plan `diy_ms_tp_asap_fc1c74ac` (Mint lab).
 - [x] **M2A — B/IP port qualification (G6)** — netns BVLL oracle + unicast/directed-broadcast matrix PASS
 - [x] **M2B — Physical MS/TP port qualification (source)** — isolated two-Pi passive RX + `--mstp-qualify` join @ **38400** (net 2001); `--mstp-passive` fail-closed in tree. Exact-image M2B still OPEN
 - [x] **M3 — Isolated routing (source G7/G8)** — dual-B/IP CI + `--route-enable`; Workbench discovers `device:123102` on **net 2001 / MAC 2**; evidence under `docs/evidence/SOURCE_G7_G8_*`. Lab persist: `--qualify-secs 0` + [ansible/](ansible/)
+- [x] **M3b — FEC shared trunk (source routed RP)** — bensbench Waveshare ↔ FEC MAC7 ↔ mini MAC2 @38400; bacpypes3 from pi1 → `2001:2` + `2001:7` **PASS** on tip `acbf7bae` ([PHASE2_FEC_VIA_DIY_20260918T124240Z](docs/evidence/PHASE2_FEC_VIA_DIY_20260918T124240Z/)). Product `ready_to_route` flip + route-session join metrics still honesty follow-ups
 
 ### Open (lab → appliance → install)
 
-- [ ] **M3b — FEC shared trunk + honest route plane** — bensbench Waveshare ↔ FEC MAC7 ↔ mini MAC2 @38400; fix `--route-enable` so BIP ReadProperty to `2001:7` / `2001:2` PASSes and metrics/`ready_to_route` are truthful (**OPEN** — hear/join works; app routing does not)
 - [ ] **M4 — Exact-image G7/G8** — same topology/oracle on a **Buildroot** appliance image (not source binaries). Prefer CI-built artifact; Windows/VMware builder optional/temporary
 - [ ] **M5 — Faults and timing** — CI software faults + dual-B/IP link-down survival; **G9** USB/serial stop ownership + hardware faults **OPEN** ([#66](https://github.com/bbartling/diy-bacnet-router/issues/66))
 - [ ] **M6 — Production-shaped Pi flash/boot** — Pi **build** evidence in Actions; **flash/boot + on-device prove OPEN**

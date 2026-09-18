@@ -1,0 +1,26 @@
+{
+  "pin_check": "acbf7bae tip binary",
+  "reads": [
+    {
+      "target": "2001:2",
+      "obj": "device:123102.object-name",
+      "ok": true,
+      "ms": 85.9,
+      "val": "Rust MS/TP Mini Device"
+    },
+    {
+      "target": "2001:7",
+      "obj": "device:5007.object-name",
+      "ok": true,
+      "ms": 81.6,
+      "val": "BENS BENCHTEST BOX"
+    },
+    {
+      "target": "2001:7",
+      "obj": "analog-input:1173.present-value",
+      "ok": true,
+      "ms": 67.9,
+      "val": "69.59134674072266"
+    }
+  ]
+}
