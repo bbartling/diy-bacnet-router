@@ -1,13 +1,13 @@
 # Upstream dependency lock
 
-## Current pin (repinned 2026-09-18)
+## Current pin (repinned 2026-09-20)
 
 | Field | Value |
 | --- | --- |
 | Repository | https://github.com/jscott3201/rusty-bacnet |
 | Branch audited | `dev` |
-| Full SHA | `acbf7baefe69d05f2368763dcc659d68e4bc114c` |
-| Status | `phase1-tip-repin` (was `7e0d13a` tip; prior M1 `24e3439`) |
+| Full SHA | `9e5168c5ac10bf06f3422f66fc2b0b9983a6ac5c` |
+| Status | `phase1-tip-repin` (was `acbf7bae`; includes #715 diagnostics `7aab278` + tip through `9e5168c5`) |
 | MSRV | Rust 1.93 |
 | Consumed crates | `bacnet-types`, `bacnet-encoding`, `bacnet-transport`, `bacnet-network` **v0.11.0** via `crates/rusty-bacnet-adapter` |
 
@@ -31,11 +31,12 @@ CI already runs `cargo test --workspace` and `bash scripts/validate-repository.s
 
 ### Audit evidence at this SHA
 
+- Tip repin evidence: [`docs/evidence/TIP_REPIN_9e5168c5_20260920T130422Z/`](../evidence/TIP_REPIN_9e5168c5_20260920T130422Z/) — software gates PASS; 38400 FEC lab RP deferred.
 - Public APIs reused (not forked): `BACnetRouter`, `RouterPort<T>`, `AnyTransport<S>`,
-  `BipTransport`, `MstpTransport`, `TokioSerialPort`, `LoopbackTransport`.
+  `BipTransport`, `MstpTransport`, `TokioSerialPort`, `LoopbackTransport`, plus tip `#715` `MstpTransport::diagnostics()` mirrored in MS/TP qualify reports.
 - Adapter closeout: concrete B/IP + MS/TP factories compile and validate **without**
   calling `start()` / `TokioSerialPort::open` on ordinary unit/CI paths.
-- `cargo test -p bacnet-network --locked` at the pin: **73 passed** (Windows host, 2026-09-04).
+- `cargo test -p bacnet-network --locked` at the prior pin: **73 passed** (Windows host, 2026-09-04); re-confirm after any MS/TP-facing tip if lab timing drifts.
 - MS/TP codec: standard frames capped at **501 data octets**; extended COBS frames: not claimed PASS at this tip without dedicated evidence (verify codec before phase-3 claims).
 - Segmentation remains an application-layer capability, not something this adapter reinterprets.
 - Upstream issues **#498–#502** are **open issues** (MS/TP Linux timing / qualification), not merged PRs.

@@ -39,7 +39,7 @@ evidenced; proving the same gates on a flashed **Buildroot image**, then shippin
 | --- | --- |
 | Buildroot | **2026.05.2** |
 | Rust (CI) | **1.93.0** |
-| rusty-bacnet | `acbf7baefe69d05f2368763dcc659d68e4bc114c` |
+| rusty-bacnet | `9e5168c5ac10bf06f3422f66fc2b0b9983a6ac5c` |
 
 ## Milestone snapshot
 

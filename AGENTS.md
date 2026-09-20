@@ -128,7 +128,7 @@ paths. Every session that touches this appliance (or resumes after a hold) must:
 4. **Do not silently float the pin.** If a bump is warranted, follow **Repin gate**
    below. Prefer a focused PR here after any required rusty-bacnet PR merges.
 5. If the pin stays: say so explicitly in the handoff (“upstream checked
-   YYYY-MM-DD; pin still `acbf7bae…`; no MS/TP delta”).
+   YYYY-MM-DD; pin still `9e5168c5…`; no MS/TP delta”).
 
 ### Repin gate (mandatory when changing any `bacnet-*` git `rev`)
 

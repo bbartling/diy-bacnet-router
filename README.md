@@ -14,7 +14,7 @@
   <a href="https://bbartling.github.io/diy-bacnet-router/"><img src="https://img.shields.io/badge/Docs-online-2563EB?style=for-the-badge" alt="Online docs"></a>
   <a href="docs/hardware/WAVESHARE_USB_RS485_C.md"><img src="https://img.shields.io/badge/Reference%20RS--485-Waveshare%20C-059669?style=for-the-badge" alt="Waveshare C"></a>
   <a href="VERSION"><img src="https://img.shields.io/badge/Release-VERSION%20file-6D28D9?style=for-the-badge" alt="VERSION"></a>
-  <a href="config/upstream-lock.toml"><img src="https://img.shields.io/badge/rusty--bacnet-acbf7bae-0B7285?style=for-the-badge" alt="Upstream pin"></a>
+  <a href="config/upstream-lock.toml"><img src="https://img.shields.io/badge/rusty--bacnet-9e5168c5-0B7285?style=for-the-badge" alt="Upstream pin"></a>
 </p>
 
 **DIY BACnet Router** is an open-source **Linux appliance** that forwards BACnet
@@ -37,7 +37,7 @@ download from the docs site (not a short-lived Actions artifact).
 | --- | --- | --- |
 | Rust (CI) | [`rust-toolchain.toml`](rust-toolchain.toml) | **1.93.0** |
 | Buildroot | [`config/buildroot-lock.toml`](config/buildroot-lock.toml) | **2026.05.2** |
-| rusty-bacnet | [`config/upstream-lock.toml`](config/upstream-lock.toml) | **`acbf7baefe69d05f2368763dcc659d68e4bc114c`** |
+| rusty-bacnet | [`config/upstream-lock.toml`](config/upstream-lock.toml) | **`9e5168c5ac10bf06f3422f66fc2b0b9983a6ac5c`** |
 | Cargo.lock | committed | `--locked` in CI and Buildroot |
 
 Badges track **`master`**. Open PRs run the same workflows on their branch.
@@ -60,7 +60,7 @@ Timing / serial follow-ups: [issue #66](https://github.com/bbartling/diy-bacnet-
 - [x] **M2A — B/IP port qualification (G6)** — netns BVLL oracle + unicast/directed-broadcast matrix PASS
 - [x] **M2B — Physical MS/TP port qualification (source)** — isolated two-Pi passive RX + `--mstp-qualify` join @ **38400** (net 2001); `--mstp-passive` fail-closed in tree. Exact-image M2B still OPEN
 - [x] **M3 — Isolated routing (source G7/G8)** — dual-B/IP CI + `--route-enable`; evidence under `docs/evidence/SOURCE_G7_G8_*`. Lab persist: `--qualify-secs 0` + [ansible/](ansible/)
-- [x] **M3b — Shared trunk routed ReadProperty (source)** — Waveshare lab trunk @38400; bacpypes3 → `2001:2` + `2001:7` **PASS** on tip `acbf7bae` ([PHASE2_FEC_VIA_DIY_20260918T124240Z](docs/evidence/PHASE2_FEC_VIA_DIY_20260918T124240Z/)). Product `ready_to_route` flip still gated
+- [x] **M3b — Shared trunk routed ReadProperty (source)** — Waveshare lab trunk @38400; bacpypes3 → `2001:2` + `2001:7` **PASS** on tip `9e5168c5` ([PHASE2_FEC_VIA_DIY_20260918T124240Z](docs/evidence/PHASE2_FEC_VIA_DIY_20260918T124240Z/)). Product `ready_to_route` flip still gated
 
 ### Open (lab → appliance → install)
 

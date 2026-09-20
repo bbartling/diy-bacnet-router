@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 
-use bacnet_transport::mstp::{MstpTransport, SerialPort};
+use bacnet_transport::mstp::{MstpDiagnostics, MstpTransport, SerialPort};
 use bacnet_transport::mstp_serial::{SerialConfig, TokioSerialPort};
 use bacnet_transport::port::TransportPort;
 use tokio::sync::oneshot;
@@ -64,6 +64,8 @@ pub fn open_appliance_serial(
 
 pub struct MstpQualifySession<S: SerialPort> {
     transport: MstpTransport<S>,
+    /// Host counts from rusty-bacnet `#715` — clone before start; survives transport stop.
+    diagnostics: MstpDiagnostics,
     rx: tokio::sync::mpsc::Receiver<bacnet_transport::port::ReceivedNpdu>,
     counters: Arc<MstpQualifyCounters>,
     active: Arc<AtomicBool>,
@@ -72,6 +74,8 @@ pub struct MstpQualifySession<S: SerialPort> {
 impl<S: SerialPort + 'static> MstpQualifySession<S> {
     pub async fn start(serial: S, params: &MstpTransportParams) -> Result<Self, AdapterError> {
         let mut transport = build_mstp_transport(serial, params)?;
+        // Capture before start/move into router; handle stays readable after stop.
+        let diagnostics = transport.diagnostics();
         let rx = transport.start().await?;
         info!(
             path = %params.serial_path,
@@ -81,10 +85,16 @@ impl<S: SerialPort + 'static> MstpQualifySession<S> {
         );
         Ok(Self {
             transport,
+            diagnostics,
             rx,
             counters: Arc::new(MstpQualifyCounters::default()),
             active: Arc::new(AtomicBool::new(true)),
         })
+    }
+
+    #[must_use]
+    pub fn diagnostics(&self) -> &MstpDiagnostics {
+        &self.diagnostics
     }
 
     #[must_use]
@@ -142,8 +152,25 @@ impl<S: SerialPort + 'static> MstpQualifySession<S> {
     /// Write a bounded atomic JSON report (temp then rename).
     pub fn write_report(&self, path: &Path, detail: &str) -> Result<(), AdapterError> {
         let (events, poll, next, token_pfm, samples) = self.counters.snapshot_tuple();
+        let d = self.diagnostics.snapshot();
         let body = format!(
-            "{{\n  \"ready_to_route\": false,\n  \"forwarding\": 0,\n  \"bip_opened\": false,\n  \"bacnet_router\": false,\n  \"observed\": {{\n    \"event_count\": {events},\n    \"poll_station\": {poll},\n    \"next_station\": {next},\n    \"token_count_since_pfm\": {token_pfm},\n    \"samples\": {samples}\n  }},\n  \"upstream_gaps\": [\n    \"No public aggregate tx_tokens/rx_tokens/CRC error counters on MstpTransport at current rusty-bacnet pin; only MasterNode fields are mirrored.\"\n  ],\n  \"detail\": {detail:?}\n}}\n"
+            "{{\n  \"ready_to_route\": false,\n  \"forwarding\": 0,\n  \"bip_opened\": false,\n  \"bacnet_router\": false,\n  \"observed\": {{\n    \"event_count\": {events},\n    \"poll_station\": {poll},\n    \"next_station\": {next},\n    \"token_count_since_pfm\": {token_pfm},\n    \"samples\": {samples}\n  }},\n  \"host_diagnostics\": {{\n    \"der_tx\": {der_tx},\n    \"der_rx\": {der_rx},\n    \"dner_tx_direct\": {dner_tx_direct},\n    \"dner_tx_queued\": {dner_tx_queued},\n    \"dner_rx\": {dner_rx},\n    \"reply_postponed_tx\": {reply_postponed_tx},\n    \"reply_postponed_rx\": {reply_postponed_rx},\n    \"wait_for_reply_timeouts\": {wait_for_reply_timeouts},\n    \"invalid_frame_discards\": {invalid_frame_discards},\n    \"stale_partial_resets\": {stale_partial_resets},\n    \"outbound_queue_full\": {outbound_queue_full},\n    \"outbound_oversize\": {outbound_oversize},\n    \"ingress_full\": {ingress_full},\n    \"ingress_closed\": {ingress_closed},\n    \"serial_read_errors\": {serial_read_errors},\n    \"serial_write_errors\": {serial_write_errors}\n  }},\n  \"upstream_gaps\": [\n    \"Host MstpDiagnostics (#715) are mirrored; they are not wire-capture CRC aggregates or token timing. MasterNode fields remain the only public MAC state mirrored.\"\n  ],\n  \"detail\": {detail:?}\n}}\n",
+            der_tx = d.der_tx,
+            der_rx = d.der_rx,
+            dner_tx_direct = d.dner_tx_direct,
+            dner_tx_queued = d.dner_tx_queued,
+            dner_rx = d.dner_rx,
+            reply_postponed_tx = d.reply_postponed_tx,
+            reply_postponed_rx = d.reply_postponed_rx,
+            wait_for_reply_timeouts = d.wait_for_reply_timeouts,
+            invalid_frame_discards = d.invalid_frame_discards,
+            stale_partial_resets = d.stale_partial_resets,
+            outbound_queue_full = d.outbound_queue_full,
+            outbound_oversize = d.outbound_oversize,
+            ingress_full = d.ingress_full,
+            ingress_closed = d.ingress_closed,
+            serial_read_errors = d.serial_read_errors,
+            serial_write_errors = d.serial_write_errors,
         );
         let tmp = path.with_extension("json.tmp");
         std::fs::write(&tmp, body)
@@ -233,12 +260,34 @@ mod tests {
         assert!(validate_mstp_params(&input).is_err());
     }
 
-    /// Compile/docs fixture: public MasterNode has no crc aggregate counter field.
+    /// Compile/docs fixture: qualify report must keep an honest host-vs-wire gap note.
     #[test]
-    fn upstream_gap_no_public_crc_aggregate_on_master_node() {
+    fn upstream_gap_notes_host_diagnostics_are_not_wire_crc() {
         // If this fails after an upstream pin bump, update metrics mapping + this note.
         let src = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/src/mstp_qualify.rs"));
         assert!(src.contains("upstream_gaps"));
-        assert!(src.contains("No public aggregate"));
+        assert!(src.contains("Host MstpDiagnostics"));
+        assert!(src.contains("host_diagnostics"));
+    }
+
+    #[tokio::test]
+    async fn fake_serial_report_includes_host_diagnostics() {
+        let serial = FakeSerial {
+            buf: Mutex::new(Vec::new()),
+        };
+        let mut session = MstpQualifySession::start(serial, &sample_params())
+            .await
+            .unwrap();
+        let path = std::env::temp_dir().join(format!(
+            "diy-mstp-qualify-diag-{}.json",
+            std::process::id()
+        ));
+        session.write_report(&path, "unit").unwrap();
+        session.stop().await.unwrap();
+        let body = std::fs::read_to_string(&path).unwrap();
+        let _ = std::fs::remove_file(&path);
+        assert!(body.contains("\"host_diagnostics\""));
+        assert!(body.contains("\"der_rx\": 0"));
+        assert!(body.contains("Host MstpDiagnostics"));
     }
 }
