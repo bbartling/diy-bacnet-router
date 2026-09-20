@@ -128,7 +128,7 @@ paths. Every session that touches this appliance (or resumes after a hold) must:
 4. **Do not silently float the pin.** If a bump is warranted, follow **Repin gate**
    below. Prefer a focused PR here after any required rusty-bacnet PR merges.
 5. If the pin stays: say so explicitly in the handoff (“upstream checked
-   YYYY-MM-DD; pin still `acbf7bae…`; no MS/TP delta”).
+   YYYY-MM-DD; pin still `9e5168c5…`; no MS/TP delta”).
 
 ### Repin gate (mandatory when changing any `bacnet-*` git `rev`)
 
@@ -171,17 +171,22 @@ baud for curiosity during Open-FDD soaks.
 
 | Baud | Status on this Waveshare C + FTDI/CH343 lab |
 | --- | --- |
-| **38400** | **PASS** — supported (with or without FEC) |
-| **76800** | **PASS** minis-only (FEC off) — claimed for that topology only |
-| **19200** | OPEN — passive OK; routed RP → AbortPDU no-response (USB / fixed-ms reply window) |
-| **9600** | OPEN — passive invalid / no tokens on this mixed trunk |
+| **38400** | **PASS** — **default / supported** (with or without FEC) |
+| **57600** | **PASS** minis-only (FEC off) — lab-supported |
+| **76800** | **PASS** minis-only (FEC off) — lab-supported |
+| **115200** | **PASS** minis-only (FEC off) — lab-supported |
+| **19200** | OPEN — passive OK; routed RP timeout / no-response (USB / fixed-ms reply window) |
+| **9600** | OPEN — passive invalid_ratio / no tokens on this mixed trunk |
 
 Evidence + hold: [`docs/evidence/CHECKPOINT_2026-09-18_CLAUSE9_BAUD_HOLD.md`](docs/evidence/CHECKPOINT_2026-09-18_CLAUSE9_BAUD_HOLD.md),
-[`CLAUSE9_BAUD_MATRIX_FEC_OFF_*`](docs/evidence/CLAUSE9_BAUD_MATRIX_FEC_OFF_20260918T174441Z/result.md).
-Upstream context: [rusty-bacnet#707](https://github.com/jscott3201/rusty-bacnet/issues/707) (related `#502`).
+[`CLAUSE9_BAUD_MATRIX_FULL_FEC_OFF_20260920T132700Z`](docs/evidence/CLAUSE9_BAUD_MATRIX_FULL_FEC_OFF_20260920T132700Z/result.md)
+(full allowed-set smoke at tip `9e5168c5`). Upstream: [rusty-bacnet#707](https://github.com/jscott3201/rusty-bacnet/issues/707)
+(maintainer: fixed-ms timers intentional; #715 diagnostics for next discriminating 19200 run —
+[our reply](https://github.com/jscott3201/rusty-bacnet/issues/707#issuecomment-5750151731)). Related `#502`.
 
-Do **not** claim 9600/19200 in PICS/docs until re-proven. Prefer discussing timing with
-upstream rather than papering over USB-UART limits in this appliance.
+**Deferred (not product gate):** one 19200 run with `MstpTransport::diagnostics()` before/after
+snapshots + independent passive; 9600 same-chipset controls. Do **not** claim 9600/19200 until that
+closes. Prefer discussing timing with upstream rather than papering over USB-UART limits here.
 
 ## Spec and evidence (read before coding)
 

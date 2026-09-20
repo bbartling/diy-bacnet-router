@@ -1,0 +1,44 @@
+{
+  "router": "192.168.204.11",
+  "address": "192.168.204.12/24",
+  "reads": [
+    {
+      "label": "mini2",
+      "target": "2001:2@192.168.204.11",
+      "obj": "device:123102.object-name",
+      "ok": true,
+      "ms": 21.1,
+      "val": "Mini2"
+    },
+    {
+      "label": "mini2",
+      "target": "2001:2@192.168.204.11",
+      "obj": "analog-input:1.present-value",
+      "ok": true,
+      "ms": 22.6,
+      "val": "2.0"
+    },
+    {
+      "label": "mini3",
+      "target": "2001:3@192.168.204.11",
+      "obj": "device:123103.object-name",
+      "ok": true,
+      "ms": 22.8,
+      "val": "Mini3"
+    },
+    {
+      "label": "mini3",
+      "target": "2001:3@192.168.204.11",
+      "obj": "analog-input:1.present-value",
+      "ok": true,
+      "ms": 21.0,
+      "val": "2.0"
+    }
+  ],
+  "whois_router": [
+    "(<bacpypes3.netservice.NetworkAdapter object at 0x7fb7521a90>, <bacpypes3.npdu.IAmRouterToNetwork object at 0x7fb7522120>)"
+  ],
+  "ok_count": 4,
+  "fail_count": 0,
+  "all_ok": true
+}

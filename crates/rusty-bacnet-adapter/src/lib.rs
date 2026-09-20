@@ -43,10 +43,10 @@ use bacnet_transport::port::TransportPort;
 use tokio::sync::mpsc;
 
 /// Full 40-character rusty-bacnet commit pinned by `config/upstream-lock.toml`.
-pub const UPSTREAM_REVISION: &str = "acbf7baefe69d05f2368763dcc659d68e4bc114c";
+pub const UPSTREAM_REVISION: &str = "9e5168c5ac10bf06f3422f66fc2b0b9983a6ac5c";
 
 /// Short display form used by management status.
-pub const UPSTREAM_REVISION_SHORT: &str = "acbf7bae";
+pub const UPSTREAM_REVISION_SHORT: &str = "9e5168c5";
 
 /// Audited repository URL.
 pub const UPSTREAM_REPOSITORY: &str = "https://github.com/jscott3201/rusty-bacnet";

@@ -6,7 +6,7 @@ Niagara discovers the DIY router itself (Who-Is → I-Am, ReadProperty on Device
 distinct from mini **123102**. Single UDP 47808 + single tty owner — demux
 local Device vs forwarded NPDUs; no second BIP listener.
 
-## Tip APIs (`acbf7bae`)
+## Tip APIs (`9e5168c5`)
 
 - `bacnet_objects::device::{DeviceConfig, DeviceObject}`
 - `bacnet-server` / `rusty-bacnet` server lifecycle examples under

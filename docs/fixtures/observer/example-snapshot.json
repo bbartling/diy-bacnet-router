@@ -2,7 +2,7 @@
   "schema_version": 1,
   "source": { "kind": "fixture", "identity": "observer-example" },
   "project_git_sha": "0000000000000000000000000000000000000000",
-  "upstream_sha": "acbf7baefe69d05f2368763dcc659d68e4bc114c",
+  "upstream_sha": "9e5168c5ac10bf06f3422f66fc2b0b9983a6ac5c",
   "host": "lab-fixture",
   "session": "fixture-session-1",
   "sequence": 1,

@@ -13,10 +13,10 @@ publish = false
 [workspace.dependencies]
 anyhow = "1.0"
 axum = { version = "0.8", features = ["macros", "ws"] }
-bacnet-encoding = { git = "https://github.com/jscott3201/rusty-bacnet", rev = "acbf7baefe69d05f2368763dcc659d68e4bc114c" }
-bacnet-network = { git = "https://github.com/jscott3201/rusty-bacnet", rev = "acbf7baefe69d05f2368763dcc659d68e4bc114c" }
-bacnet-transport = { git = "https://github.com/jscott3201/rusty-bacnet", rev = "acbf7baefe69d05f2368763dcc659d68e4bc114c", features = ["serial"] }
-bacnet-types = { git = "https://github.com/jscott3201/rusty-bacnet", rev = "acbf7baefe69d05f2368763dcc659d68e4bc114c" }
+bacnet-encoding = { git = "https://github.com/jscott3201/rusty-bacnet", rev = "9e5168c5ac10bf06f3422f66fc2b0b9983a6ac5c" }
+bacnet-network = { git = "https://github.com/jscott3201/rusty-bacnet", rev = "9e5168c5ac10bf06f3422f66fc2b0b9983a6ac5c" }
+bacnet-transport = { git = "https://github.com/jscott3201/rusty-bacnet", rev = "9e5168c5ac10bf06f3422f66fc2b0b9983a6ac5c", features = ["serial"] }
+bacnet-types = { git = "https://github.com/jscott3201/rusty-bacnet", rev = "9e5168c5ac10bf06f3422f66fc2b0b9983a6ac5c" }
 http-body-util = "0.1"
 router-core = { path = "crates/router-core" }
 rusty-bacnet-adapter = { path = "crates/rusty-bacnet-adapter" }

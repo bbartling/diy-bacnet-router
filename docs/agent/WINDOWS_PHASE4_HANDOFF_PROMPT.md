@@ -34,7 +34,7 @@ Confirm pins:
 
   git log -1 --oneline
   grep revision config/upstream-lock.toml
-  # expect revision_short = acbf7bae (full acbf7baefe69d05f2368763dcc659d68e4bc114c)
+  # expect revision_short = 9e5168c5 (full 9e5168c5ac10bf06f3422f66fc2b0b9983a6ac5c)
 
 Re-read this handoff after pull:
   docs/agent/WINDOWS_PHASE4_HANDOFF_PROMPT.md
@@ -45,7 +45,7 @@ PR (merge when CI green): https://github.com/bbartling/diy-bacnet-router/pull/70
 
 | Item | Value |
 |------|-------|
-| rusty-bacnet | acbf7baefe69d05f2368763dcc659d68e4bc114c (dev tip) |
+| rusty-bacnet | 9e5168c5ac10bf06f3422f66fc2b0b9983a6ac5c (dev tip) |
 | FEC RP evidence | docs/evidence/PHASE2_FEC_VIA_DIY_20260918T124240Z/ |
 | Protocol matrix | docs/evidence/PHASE3_PROTOCOL_MATRIX_20260917.md |
 
@@ -62,7 +62,7 @@ Source routed RP to 2001:2 and 2001:7 already PASS on Mint. Your job is exact-im
 ### 3) Your job (Windows)
 
 1. Buildroot image P0s: USB-serial (FTDI + real CH343 bind), NIC drivers, eudev, POSIX FTDI latency helper, CD-ROM smoke hard-fail, SSH provisioning, /data persistence.
-2. Carry the SAME rusty-bacnet SHA acbf7bae… into image manifests / Buildroot package pins.
+2. Carry the SAME rusty-bacnet SHA 9e5168c5… into image manifests / Buildroot package pins.
 3. After images build: flash spare SD / disposable VMware ISO boot and repeat G7/G8-style oracle on the appliance binary (exact-image M4) — do not relabel Mint source evidence as image PASS.
 4. Management UI: honest not-implemented for BBMD/extended until Mint matrix rows PASS; no fake BASRT branding.
 5. When Mint lands HAOS-style GitHub Releases (M8), prefer downloading CI Release artifacts over local Buildroot; shrink this Windows path.
