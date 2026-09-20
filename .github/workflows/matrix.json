@@ -1,0 +1,38 @@
+[
+  {
+    "id": "x86_64",
+    "arch": "x86_64",
+    "boot": "uefi_or_qemu",
+    "smoke": "qemu-x86",
+    "base_defconfig": "qemu_x86_64_defconfig"
+  },
+  {
+    "id": "generic_aarch64",
+    "arch": "aarch64",
+    "boot": "uefi_qemu_virt",
+    "smoke": "qemu-aarch64",
+    "base_defconfig": "qemu_aarch64_virt_defconfig",
+    "note": "Portable AArch64 VM / rare UEFI hardware — not Rockchip/Allwinner flash"
+  },
+  {
+    "id": "rpi3_64",
+    "arch": "aarch64",
+    "boot": "uboot_rpi",
+    "smoke": "none",
+    "base_defconfig": "raspberrypi3_64_defconfig"
+  },
+  {
+    "id": "rpi4_64",
+    "arch": "aarch64",
+    "boot": "uboot_rpi",
+    "smoke": "none",
+    "base_defconfig": "raspberrypi4_64_defconfig"
+  },
+  {
+    "id": "rpi5_64",
+    "arch": "aarch64",
+    "boot": "uboot_rpi",
+    "smoke": "none",
+    "base_defconfig": "raspberrypi5_defconfig"
+  }
+]

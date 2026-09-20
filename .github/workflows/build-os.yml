@@ -8,17 +8,20 @@ on:
       - "frontend/**"
       - "scripts/build-image.sh"
       - "scripts/qemu-smoke.sh"
+      - "scripts/qemu-aarch64-smoke.sh"
       - "scripts/qemu-cdrom-smoke.sh"
+      - "scripts/accept-gh-image-artifact.sh"
       - "config/buildroot-lock.toml"
       - "Cargo.*"
       - ".github/workflows/build-os.yml"
+      - ".github/workflows/matrix.json"
   workflow_dispatch:
     inputs:
       targets:
         description: "Build one target or the complete image matrix"
         required: true
         type: choice
-        options: [x86_64, rpi3_64, rpi4_64, rpi5_64, all]
+        options: [x86_64, generic_aarch64, rpi3_64, rpi4_64, rpi5_64, all]
         default: "x86_64"
   push:
     branches: [master]
@@ -28,10 +31,13 @@ on:
       - "frontend/**"
       - "scripts/build-image.sh"
       - "scripts/qemu-smoke.sh"
+      - "scripts/qemu-aarch64-smoke.sh"
       - "scripts/qemu-cdrom-smoke.sh"
+      - "scripts/accept-gh-image-artifact.sh"
       - "config/buildroot-lock.toml"
       - "Cargo.*"
       - ".github/workflows/build-os.yml"
+      - ".github/workflows/matrix.json"
     tags: ["v*"]
 
 permissions:
@@ -48,22 +54,27 @@ jobs:
     outputs:
       targets: ${{ steps.targets.outputs.targets }}
     steps:
-      - name: Resolve requested target set
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - name: Resolve requested target set from matrix.json
         id: targets
         env:
           EVENT_NAME: ${{ github.event_name }}
           REQUESTED_TARGETS: ${{ inputs.targets || 'all' }}
         run: |
           set -euo pipefail
+          matrix_file=".github/workflows/matrix.json"
+          test -f "$matrix_file"
+          all_ids="$(python3 -c 'import json; print(" ".join(e["id"] for e in json.load(open("'"$matrix_file"'"))))')"
+          echo "matrix ids: $all_ids"
           if [[ "$EVENT_NAME" == pull_request ]]; then
             targets='["x86_64"]'
           else
             case "$REQUESTED_TARGETS" in
-              x86_64|rpi3_64|rpi4_64|rpi5_64)
+              x86_64|generic_aarch64|rpi3_64|rpi4_64|rpi5_64)
                 targets="[\"$REQUESTED_TARGETS\"]"
                 ;;
               all)
-                targets='["x86_64","rpi3_64","rpi4_64","rpi5_64"]'
+                targets="$(python3 -c 'import json; print(json.dumps([e["id"] for e in json.load(open("'"$matrix_file"'"))]))')"
                 ;;
               *)
                 echo "Unsupported target selection: $REQUESTED_TARGETS" >&2
@@ -137,13 +148,23 @@ jobs:
             bash scripts/qemu-smoke.sh "${RUNNER_TEMP}/dbr-buildroot/output/x86_64/images"
       - name: QEMU live ISO smoke (-cdrom)
         # Soft until INITRD live ISO reaches healthz under -nographic (Issue #66 Phase C).
-        # Artifact still built + mapped rootfs.iso; ext2 path remains the hard gate.
         if: matrix.target == 'x86_64'
         continue-on-error: true
         run: |
           QEMU_CDROM_LOG="${RUNNER_TEMP}/dbr-qemu-cdrom-x86_64.log" \
             bash scripts/qemu-cdrom-smoke.sh "${RUNNER_TEMP}/dbr-buildroot/output/x86_64/images"
           echo "QEMU -cdrom management health PASS"
+      - name: QEMU aarch64 virt smoke
+        # Soft on first tip — harden once CI proves stable boot.
+        if: matrix.target == 'generic_aarch64'
+        continue-on-error: true
+        run: |
+          sudo apt-get install --yes --no-install-recommends qemu-system-arm qemu-system-aarch64 curl e2fsprogs
+          root="${RUNNER_TEMP}/dbr-buildroot/output/generic_aarch64"
+          test -s "$root/images/rootfs.ext2"
+          test -s "$root/images/Image" -o -s "$root/images/Image.gz"
+          QEMU_LOG="${RUNNER_TEMP}/dbr-qemu-generic_aarch64.log" \
+            bash scripts/qemu-aarch64-smoke.sh "$root/images"
       - name: Verify image evidence
         run: |
           root="${RUNNER_TEMP}/dbr-buildroot/output/${{ matrix.target }}"
@@ -153,6 +174,7 @@ jobs:
           test -s "$root/images/buildroot-host-rustc-version.txt"
           test -s "$root/images/buildroot-host-cargo-version.txt"
           test -s "$root/images/SHA256SUMS"
+          test -s "$root/images/ARTIFACT_README.txt"
           python3 - "$root/images/build-manifest.json" "${{ matrix.target }}" <<'PY'
           import json
           import pathlib
@@ -177,11 +199,32 @@ jobs:
               ! -name build-manifest.json \
               ! -name buildroot-host-rustc-version.txt \
               ! -name buildroot-host-cargo-version.txt \
-              ! -name legal-info.tar.xz -print
+              ! -name legal-info.tar.xz \
+              ! -name ARTIFACT_README.txt -print
           )
           test "${#image_files[@]}" -gt 0
           for image in "${image_files[@]}"; do test -s "$image"; done
           (cd "$root/images" && sha256sum --check --strict SHA256SUMS)
+      - name: Stage minimal qemu artifact
+        if: matrix.target == 'x86_64' || matrix.target == 'generic_aarch64'
+        run: |
+          set -euo pipefail
+          src="${RUNNER_TEMP}/dbr-buildroot/output/${{ matrix.target }}/images"
+          dst="${RUNNER_TEMP}/dbr-qemu-minimal-${{ matrix.target }}"
+          mkdir -p "$dst"
+          cp -a "$src/SHA256SUMS" "$src/build-manifest.json" "$src/ARTIFACT_README.txt" "$dst/"
+          case "${{ matrix.target }}" in
+            x86_64)
+              cp -a "$src/bzImage" "$src/rootfs.ext2" "$dst/"
+              ;;
+            generic_aarch64)
+              cp -a "$src/rootfs.ext2" "$dst/"
+              if [[ -s "$src/Image" ]]; then cp -a "$src/Image" "$dst/"; fi
+              if [[ -s "$src/Image.gz" ]]; then cp -a "$src/Image.gz" "$dst/"; fi
+              ;;
+          esac
+          # Recompute checksums for the minimal set only
+          (cd "$dst" && find . -maxdepth 1 -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum > SHA256SUMS)
       - name: Collect failure diagnostics
         if: always()
         run: |
@@ -192,7 +235,8 @@ jobs:
           for log in \
             "${RUNNER_TEMP}/dbr-buildroot-${{ matrix.target }}.log" \
             "${RUNNER_TEMP}/dbr-qemu-${{ matrix.target }}.log" \
-            /tmp/diy-bacnet-router-qemu.log; do
+            /tmp/diy-bacnet-router-qemu.log \
+            /tmp/diy-bacnet-router-qemu-aarch64.log; do
             if [[ -s "$log" ]]; then
               cp "$log" "$diagnostics/"
             fi
@@ -219,8 +263,15 @@ jobs:
           if-no-files-found: error
           retention-days: 14
       - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: matrix.target == 'x86_64' || matrix.target == 'generic_aarch64'
         with:
-          name: diy-bacnet-router-${{ matrix.target }}-${{ github.sha }}
+          name: dbr-${{ matrix.target }}-${{ github.sha }}-qemu
+          path: ${{ runner.temp }}/dbr-qemu-minimal-${{ matrix.target }}/
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: dbr-${{ matrix.target }}-${{ github.sha }}-images
           path: ${{ runner.temp }}/dbr-buildroot/output/${{ matrix.target }}/images/
           if-no-files-found: error
           retention-days: 14
