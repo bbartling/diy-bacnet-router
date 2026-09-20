@@ -74,3 +74,17 @@ bensbench 192.168.204.11  diy-bacnet-router
 - Multi-hour soak lite
 - Full PICS self-test beyond baud honesty already recorded
 - Exact-image / Buildroot G7–G11
+
+## Superseding full matrix (2026-09-20)
+
+Full allowed-set FEC-off smoke at rusty-bacnet tip `9e5168c5`:
+[`CLAUSE9_BAUD_MATRIX_FULL_FEC_OFF_20260920T132700Z/`](CLAUSE9_BAUD_MATRIX_FULL_FEC_OFF_20260920T132700Z/result.md).
+
+| Baud | Claim |
+|---|---|
+| **38400** | **Default / supported** (± FEC) |
+| **57600 / 76800 / 115200** | Lab-supported (FEC off, dual mini) |
+| **9600 / 19200** | Still **not claimed** |
+
+Live trunk remains **38400**.
+

@@ -171,13 +171,15 @@ baud for curiosity during Open-FDD soaks.
 
 | Baud | Status on this Waveshare C + FTDI/CH343 lab |
 | --- | --- |
-| **38400** | **PASS** — supported (with or without FEC) |
-| **76800** | **PASS** minis-only (FEC off) — claimed for that topology only |
-| **19200** | OPEN — passive OK; routed RP → AbortPDU no-response (USB / fixed-ms reply window) |
-| **9600** | OPEN — passive invalid / no tokens on this mixed trunk |
+| **38400** | **PASS** — **default / supported** (with or without FEC) |
+| **57600** | **PASS** minis-only (FEC off) — lab-supported |
+| **76800** | **PASS** minis-only (FEC off) — lab-supported |
+| **115200** | **PASS** minis-only (FEC off) — lab-supported |
+| **19200** | OPEN — passive OK; routed RP timeout / no-response (USB / fixed-ms reply window) |
+| **9600** | OPEN — passive invalid_ratio / no tokens on this mixed trunk |
 
 Evidence + hold: [`docs/evidence/CHECKPOINT_2026-09-18_CLAUSE9_BAUD_HOLD.md`](docs/evidence/CHECKPOINT_2026-09-18_CLAUSE9_BAUD_HOLD.md),
-[`CLAUSE9_BAUD_MATRIX_FEC_OFF_*`](docs/evidence/CLAUSE9_BAUD_MATRIX_FEC_OFF_20260918T174441Z/result.md).
+[`CLAUSE9_BAUD_MATRIX_FEC_OFF_*`](docs/evidence/CLAUSE9_BAUD_MATRIX_FULL_FEC_OFF_20260920T132700Z/result.md).
 Upstream context: [rusty-bacnet#707](https://github.com/jscott3201/rusty-bacnet/issues/707) (related `#502`).
 
 Do **not** claim 9600/19200 in PICS/docs until re-proven. Prefer discussing timing with

@@ -160,13 +160,15 @@ frames.
 
 ### Baud matrix snapshot (FEC off, dual mini)
 
-Evidence: `docs/evidence/CLAUSE9_BAUD_MATRIX_FEC_OFF_*`.
+Evidence: `docs/evidence/CLAUSE9_BAUD_MATRIX_FULL_FEC_OFF_20260920T132700Z/` (tip `9e5168c5`).
 
 | Baud | Passive | Routed RP (mini2+mini3) | Claim |
 | --- | --- | --- | --- |
-| **38400** | PASS | PASS (also with FEC on earlier pack) | **Supported** |
-| **76800** | PASS | PASS | **Supported** (minis only) |
-| **19200** | PASS | FAIL (AbortPDU / no-response) | **Not claimed** |
+| **38400** | PASS | PASS (also with FEC on earlier pack) | **Default / supported** |
+| **57600** | PASS | PASS | Lab-supported (minis, FEC off) |
+| **76800** | PASS | PASS | Lab-supported (minis, FEC off) |
+| **115200** | PASS | PASS | Lab-supported (minis, FEC off) |
+| **19200** | PASS | FAIL (timeout / no-response) | **Not claimed** |
 | **9600** | FAIL gate | FAIL | **Not claimed** |
 
 ### What still has to be proven for a serious Clause 9 *self-test* claim
