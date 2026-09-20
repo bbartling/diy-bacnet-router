@@ -21,7 +21,8 @@ permalink: /testing/
 |---|---|---|
 | G0 | Config validation, API contract, bounded metrics | Scaffold implemented |
 | G1 | Buildroot x86 image boots in QEMU and `/healthz` responds | **PASS** at `35fe618` — Actions QEMU smoke + local SHA256; see [M2A_X86_ACCEPTANCE.md](evidence/M2A_X86_ACCEPTANCE.md) (VMware guest still blocked) |
-| G2 | Raspberry Pi 3/4/5 images build and publish manifests | **Build evidence** — Actions matrix at `baae236` run `34071585237` (x86+rpi3/4/5); see [M5_G2_BUILD_EVIDENCE.md](evidence/M5_G2_BUILD_EVIDENCE.md). **Physical Pi boot/soak OPEN**. Image P0 eudev+USB-serial fragment in tree ([PHASE4B_IMAGE_P0_EUDEV_USB_SERIAL.md](evidence/PHASE4B_IMAGE_P0_EUDEV_USB_SERIAL.md)) — not a G2 PASS by itself |
+| G2 | Raspberry Pi 3/4/5 images build and publish manifests | **Build evidence** — Actions matrix; see [M5_G2_BUILD_EVIDENCE.md](evidence/M5_G2_BUILD_EVIDENCE.md). **Physical Pi boot/soak OPEN**. Image P0 eudev+USB-serial fragment in tree ([PHASE4B_IMAGE_P0_EUDEV_USB_SERIAL.md](evidence/PHASE4B_IMAGE_P0_EUDEV_USB_SERIAL.md)) — not a G2 PASS by itself |
+| G2b | `generic_aarch64` (QEMU virt) builds + optional QEMU smoke | **Soft tip** — HA-inspired portable AArch64; **not** a cheap SBC flash image. Soft-OPEN: [named Rockchip/Allwinner/ODROID board train](evidence/SOFT_OPEN_SBC_BOARD_TRAIN.md) |
 | G3 | Current rusty-bacnet pin and adapter compile/tests | **M1 closeout** — concrete B/IP+MS/TP fixtures (no OS open) |
 | G3a | Standalone B/IP netns smoke (historical) | Superseded by G6 matrix |
 | G4 | Passive Waveshare C decode: valid frames/tokens, no TX | **Source PASS** — two-Pi RX-only sniff 2026-09-13 (source 2 / PFM); router-owned `--mstp-passive` fail-closed gate in tree. Exact-image still OPEN |

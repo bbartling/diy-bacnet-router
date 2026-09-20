@@ -15,7 +15,8 @@ BASRT-B, but implemented as open Rust + Buildroot with honest evidence gates.
 
 Deliverables:
 
-- reproducible OS images (x86_64, Raspberry Pi 3/4/5);
+- reproducible OS images (`x86_64`, `generic_aarch64` QEMU/UEFI-class, Raspberry Pi 3/4/5);
+  see [docs/installation.md](docs/installation.md) — **generic_aarch64 ≠ Rockchip flash**;
 - Rust data plane (`routerd`) for NPDU forwarding between distinct BACnet networks;
 - management plane: Axum REST, OpenAPI, bounded WebSocket metrics, React dashboard;
 - SSH-managed Linux networking and TOML application config.

@@ -6,15 +6,22 @@ repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo_root"
 
 echo "==> build-image.sh defines all appliance targets"
-for target in x86_64 rpi3_64 rpi4_64 rpi5_64; do
+for target in x86_64 generic_aarch64 rpi3_64 rpi4_64 rpi5_64; do
   grep -q "${target})" scripts/build-image.sh
 done
 
 echo "==> x86_64 expects kernel + rootfs artifacts"
 grep -q 'expected_images=(bzImage rootfs.ext2 rootfs.iso)' scripts/build-image.sh
 
+echo "==> generic_aarch64 expects Image + rootfs.ext2"
+grep -q 'expected_images=(Image rootfs.ext2)' scripts/build-image.sh
+grep -q 'qemu_aarch64_virt_defconfig' scripts/build-image.sh
+
 echo "==> Pi targets expect sdcard.img"
 grep -q 'expected_images=(sdcard.img)' scripts/build-image.sh
+
+echo "==> ARTIFACT_README is written into images/"
+grep -q 'ARTIFACT_README.txt' scripts/build-image.sh
 
 echo "==> Buildroot external package and init script present"
 test -f buildroot-external/external.desc

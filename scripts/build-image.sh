@@ -4,10 +4,11 @@ set -euo pipefail
 target="${1:-}"
 case "$target" in
   x86_64) base_defconfig=qemu_x86_64_defconfig ;;
+  generic_aarch64) base_defconfig=qemu_aarch64_virt_defconfig ;;
   rpi3_64) base_defconfig=raspberrypi3_64_defconfig ;;
   rpi4_64) base_defconfig=raspberrypi4_64_defconfig ;;
   rpi5_64) base_defconfig=raspberrypi5_defconfig ;;
-  *) echo "usage: $0 {x86_64|rpi3_64|rpi4_64|rpi5_64}" >&2; exit 2 ;;
+  *) echo "usage: $0 {x86_64|generic_aarch64|rpi3_64|rpi4_64|rpi5_64}" >&2; exit 2 ;;
 esac
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -92,6 +93,9 @@ if [[ "$target" == "x86_64" && -f "$external/fragments/x86_64_iso.config" ]]; th
     echo "BR2_TARGET_ROOTFS_ISO9660_BOOT_MENU=\"$external/board/common/grub-iso.cfg\"" >> "$output_dir/.config"
   fi
 fi
+if [[ "$target" == "generic_aarch64" && -f "$external/fragments/generic_aarch64.config" ]]; then
+  cat "$external/fragments/generic_aarch64.config" >> "$output_dir/.config"
+fi
 # Device creation is a Kconfig choice: strip other methods so eudev wins.
 sed -i \
   -e '/^BR2_ROOTFS_DEVICE_CREATION_STATIC=/d' \
@@ -123,14 +127,89 @@ fi
 
 case "$target" in
   x86_64) expected_images=(bzImage rootfs.ext2 rootfs.iso) ;;
+  generic_aarch64) expected_images=(Image rootfs.ext2) ;;
   rpi3_64|rpi4_64|rpi5_64) expected_images=(sdcard.img) ;;
 esac
 for image in "${expected_images[@]}"; do
   if [[ ! -s "$output_dir/images/$image" ]]; then
+    # aarch64 virt sometimes emits Image.gz only — accept and note.
+    if [[ "$target" == "generic_aarch64" && "$image" == "Image" && -s "$output_dir/images/Image.gz" ]]; then
+      continue
+    fi
     echo "Buildroot did not produce required image: $output_dir/images/$image" >&2
     exit 1
   fi
 done
+if [[ "$target" == "generic_aarch64" ]]; then
+  if [[ ! -s "$output_dir/images/Image" && ! -s "$output_dir/images/Image.gz" ]]; then
+    echo "generic_aarch64 requires Image or Image.gz" >&2
+    exit 1
+  fi
+fi
+
+# Operator-facing README inside every images/ zip (HA-inspired clarity).
+readme="$output_dir/images/ARTIFACT_README.txt"
+cat > "$readme" <<EOF
+diy-bacnet-router appliance images
+==================================
+target:           $target
+project_git_sha:  $git_sha
+buildroot:        $buildroot_version ($buildroot_sha)
+
+This directory is what GitHub Actions uploads. Prefer the smaller *-qemu artifact
+for QEMU smoke when available.
+
+REQUIRED for this target
+------------------------
+EOF
+case "$target" in
+  x86_64)
+    cat >> "$readme" <<'EOF'
+  bzImage
+  rootfs.ext2
+  SHA256SUMS
+  build-manifest.json
+
+OPTIONAL
+--------
+  rootfs.iso                 (live ISO; soft QEMU -cdrom gate)
+  legal-info.tar.xz
+  buildroot-host-rustc-version.txt
+  buildroot-host-cargo-version.txt
+
+Accept + smoke
+--------------
+  bash scripts/accept-gh-image-artifact.sh /path/to/this/dir --smoke
+EOF
+    ;;
+  generic_aarch64)
+    cat >> "$readme" <<'EOF'
+  Image (or Image.gz)
+  rootfs.ext2
+  SHA256SUMS
+  build-manifest.json
+
+NOTES
+-----
+  generic_aarch64 is QEMU virt / rare UEFI aarch64 hardware.
+  It is NOT a flash image for Orange Pi, Rockchip, or Allwinner SBCs.
+
+Accept + smoke
+--------------
+  bash scripts/accept-gh-image-artifact.sh /path/to/this/dir --smoke
+EOF
+    ;;
+  rpi3_64|rpi4_64|rpi5_64)
+    cat >> "$readme" <<'EOF'
+  sdcard.img
+  SHA256SUMS
+  build-manifest.json
+
+Flash with Etcher or: dd if=sdcard.img of=/dev/sdX bs=4M status=progress
+Physical Pi soak is still OPEN — build evidence only unless documented PASS.
+EOF
+    ;;
+esac
 
 host_rustc="$output_dir/host/bin/rustc"
 host_cargo="$output_dir/host/bin/cargo"

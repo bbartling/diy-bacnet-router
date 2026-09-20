@@ -93,6 +93,25 @@ open it skips hypervisor start; otherwise it uses VirtualBox only when
 `build-image.sh x86_64`, SHA256SUMS verify, `qemu-smoke.sh -snapshot`, post-QEMU
 checksum verify.
 
+### Download GH Actions artifact → verify → QEMU (one-pager)
+
+On bensbench or the Ubuntu Buildroot guest (after a green `build-os` run):
+
+```bash
+# Prefer the small qemu zip (x86 or generic_aarch64)
+RUN_ID=<actions_run_id>
+SHA=<full_or_short_sha>
+gh run download "$RUN_ID" -n "dbr-x86_64-${SHA}-qemu" -D /tmp/dbr-x86
+# If GH nested a folder, accept script finds SHA256SUMS:
+bash scripts/accept-gh-image-artifact.sh /tmp/dbr-x86 --smoke
+```
+
+`ARTIFACT_README.txt` inside the zip lists REQUIRED vs optional files.
+Full tree artifact name: `dbr-<target>-<sha>-images`.
+
+Matrix of boards: [Installation]({{ site.baseurl }}/installation/) ·
+[`.github/workflows/matrix.json`](../../.github/workflows/matrix.json).
+
 ### Persistent QEMU UI preview (lab)
 
 After artifact acceptance (or a local image build), on the guest:

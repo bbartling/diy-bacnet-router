@@ -29,9 +29,10 @@ evidenced; proving the same gates on a flashed **Buildroot image**, then shippin
 | Page | What you get |
 | --- | --- |
 | [Quick start]({{ site.baseurl }}/quick-start/) | Run `routerd` on a workstation |
+| [Installation]({{ site.baseurl }}/installation/) | HA-shaped board matrix (x86 / Pi / generic-aarch64; no Windows) |
 | [Build images]({{ site.baseurl }}/build-images/) | GitHub Actions `build-os` → artifacts (Releases = milestone M8) |
 | [Architecture]({{ site.baseurl }}/architecture/) | Data plane vs management plane |
-| [Hardware]({{ site.baseurl }}/hardware/) | Waveshare USB RS-485 reference |
+| [Hardware]({{ site.baseurl }}/hardware/) | Waveshare USB RS-485 reference (**model C**) |
 
 ## Pins
 
